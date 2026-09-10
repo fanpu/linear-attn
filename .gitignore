@@ -74,6 +74,8 @@ processed/
 # Keep small fixtures / samples explicitly
 !tests/**/*.csv
 !**/sample_data/**
+# Keep each day's experiment results (day1/results.csv, ...)
+!day*/results.csv
 
 # ---- Models & checkpoints ----
 checkpoints/
