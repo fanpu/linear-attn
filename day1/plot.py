@@ -1,7 +1,8 @@
 """Plot kernel-correctness logs across precision modes.
 
 Usage:
-  python plot_kernel_check.py --log tf32=log_tf32.txt --log ieee=log_ieee.txt --out kernel_check
+  python plot.py --log tf32=log_tf32.txt --log ieee=log_ieee.txt --out kernel_check
+  python plot.py --csv results.csv --out kernel_check     # replot without the raw logs
 Each --log is TAG=PATH. float32 rows get mode "fp32-TAG"; bfloat16 rows get mode "bf16".
 Header lines: `T= 256 Dk= 64 Dv= 64 dtype=float32 [alpha=0.999 beta=0.05 ...]`
 Any extra key=value in a header becomes a column (for later alpha/beta sweeps).
@@ -132,13 +133,21 @@ def tables(df, out):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--log", action="append", required=True, help="TAG=PATH")
+    ap.add_argument("--log", action="append", help="TAG=PATH, repeatable")
+    ap.add_argument("--csv", help="replot from a CSV written by an earlier run")
     ap.add_argument("--out", default="kernel_check")
     a = ap.parse_args()
-    rows = []
-    for spec in a.log:
-        tag, path = spec.split("=", 1); rows += parse(path, tag)
-    df = pd.DataFrame(rows); df["dims"] = df.Dk.astype(str) + "×" + df.Dv.astype(str)
-    df.to_csv(f"{a.out}.csv", index=False)
+    if not (a.log or a.csv):
+        ap.error("need --log TAG=PATH (raw kernel_check output) or --csv PATH (earlier run)")
+    if a.csv:
+        df = pd.read_csv(a.csv)
+    else:
+        rows = []
+        for spec in a.log:
+            tag, path = spec.split("=", 1); rows += parse(path, tag)
+        df = pd.DataFrame(rows)
+    df["dims"] = df.Dk.astype(str) + "×" + df.Dv.astype(str)
+    if f"{a.out}.csv" != a.csv:
+        df.to_csv(f"{a.out}.csv", index=False)
     summary_fig(df, a.out); detail_fig(df, a.out); tables(df, a.out)
     print(df.groupby("mode").max_rel.agg(["count", "median", "min", "max"]))
