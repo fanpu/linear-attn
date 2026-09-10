@@ -1,0 +1,45 @@
+[project]
+name = "linear-attention-sprint"
+version = "0.1.0"
+description = "30-day research sprint on linear attention: kernel correctness, numerics, and training behaviour of gated linear-attention variants on GB10 (sm_121a)."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = { text = "MIT" }
+authors = [{ name = "Fan Pu Zeng", email = "zengfanpu@gmail.com" }]
+
+# Direct dependencies only, pinned to the versions in .venv.
+# Everything else (transformers, einops, triton, nvidia-*, ...) is pulled in
+# transitively; see requirements.lock.txt for the full resolved set.
+dependencies = [
+    "flash-linear-attention==0.5.2", # fla kernels (pulls fla-core, einops, transformers)
+    "torch==2.14.0",                 # +cu130 build, see [tool.uv.sources] below
+    "numpy==2.5.2",
+    "pandas==3.0.5",                 # day*/plot.py
+    "matplotlib==3.11.1",            # day*/plot.py
+]
+
+[project.optional-dependencies]
+# Not currently installed in .venv; add with `uv sync --extra dev`.
+dev = [
+    "pytest>=8",
+    "ruff>=0.6",
+]
+
+# ---------------------------------------------------------------------------
+# uv configuration
+# ---------------------------------------------------------------------------
+# This repo is a collection of day-N experiment scripts, not an installable
+# library, so uv should install the dependencies without building the project.
+[tool.uv]
+package = false
+
+# torch 2.14.0+cu130 for aarch64 linux is not on PyPI; it lives on the PyTorch
+# CUDA 13.0 index. `explicit = true` means *only* packages listed in
+# [tool.uv.sources] are resolved from it — everything else stays on PyPI.
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu130" }
