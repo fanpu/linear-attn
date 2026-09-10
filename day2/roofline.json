@@ -1,0 +1,7 @@
+{
+  "device": "NVIDIA GB10",
+  "bf16_matmul_tflops": 93.92535929138187,
+  "copy_GBps": 246.7987102598299,
+  "ridge_flop_per_byte_measured": 380.5747574308519,
+  "ridge_flop_per_byte_nominal": 380.95238095238096
+}
