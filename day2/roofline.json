@@ -1,7 +1,14 @@
 {
   "device": "NVIDIA GB10",
-  "bf16_matmul_tflops": 93.92535929138187,
-  "copy_GBps": 246.7987102598299,
-  "ridge_flop_per_byte_measured": 380.5747574308519,
-  "ridge_flop_per_byte_nominal": 380.95238095238096
+  "bf16_matmul_tflops_burst": 95.61604704823428,
+  "bf16_matmul_tflops_measured": 95.45292958620139,
+  "bf16_tflops_peak": 118.8,
+  "matmul_frac_of_peak": 0.8034758382676885,
+  "sm_clock_MHz_under_load": null,
+  "copy_GBps_measured": 222.37341496923813,
+  "bw_GBps_peak": 273.0,
+  "copy_frac_of_peak": 0.8145546335869528,
+  "ridge_flop_per_byte_measured": 429.24613807547905,
+  "ridge_flop_per_byte_peak": 435.16483516483515,
+  "duration_s": 30.0
 }
