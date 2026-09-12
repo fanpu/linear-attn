@@ -121,6 +121,12 @@ def main():
         max_num_seqs=args.max_num_seqs,
         enforce_eager=False,
         disable_log_stats=True,
+        # Prefix caching MUST be off. The warmup pass primes the cache with the
+        # very prompts the measured passes reuse, so prefill is served from cache
+        # and TTFT/prefill throughput come out roughly 10x above the machine's
+        # physical ceiling -- 624k tok/s measured on a 0.6B whose compute-bound
+        # limit is 64k tok/s. Decode is unaffected, but prefill must recompute.
+        enable_prefix_caching=False,
         trust_remote_code=False,
     )
     load_s = _now() - t0

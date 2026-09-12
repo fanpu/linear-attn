@@ -9,10 +9,9 @@ Everything here is reproducible from this directory. The memory safety machinery
 not incidental: GB10 has *unified* memory, so an over-allocation starves the host
 instead of raising a clean CUDA OOM.
 
-> **Status:** hardware characterisation, the analytic model, and the full harness
-> are complete and tested. The measured throughput sweep is pending — the machine
-> is currently running another experiment. Sections marked *pending* will be filled
-> from `results/results.jsonl` when it runs.
+> **Status:** decode results are complete for the five dense models and partial for
+> the MoE. Prefill and TTFT numbers from this run are **invalid** (see *What went
+> wrong*) and are excluded pending a re-measurement.
 
 ## The machine
 
@@ -148,13 +147,123 @@ that risks an OOM.
 
 ## Results
 
-*Pending — the sweep has not yet run.*
+83 cells, BF16, vLLM 0.23. Every planned cell fit under the memory ceiling; none
+was silently split into waves.
 
-- Decode throughput vs. batch, per model — `results/fig_decode_vs_batch.png`
-- Measured vs. predicted — `results/fig_measured_vs_predicted.png`
-- The context effect — `results/fig_context_effect.png`
-- Per-token latency vs. batch — `results/fig_latency.png`
-- Serving latency (TTFT / TPOT / p99) under concurrent load — `results/serving.jsonl`
+### Decode throughput
+
+128-token prompts, 128 output tokens:
+
+| model | batch-1 tok/s | best tok/s | at batch | speedup |
+|---|---:|---:|---:|---:|
+| Qwen3-0.6B | 123 | 6956 | 256 | 56× |
+| Qwen3-1.7B | 47 | 5107 | 256 | 108× |
+| Qwen3-4B | 22 | 3041 | 256 | 141× |
+| Qwen3-8B | 13 | 2044 | 256 | 154× |
+| Qwen3-14B | 8.0 | 1226 | 256 | 154× |
+| Qwen3-30B-A3B | 31 | *(partial)* | — | — |
+
+Single-stream decode is poor and that is structural, not a tuning failure: a 14B
+produces **8 tok/s**, slower than most people read. The same model with 256
+concurrent sequences produces 1226 tok/s. **GB10 is a throughput machine; using it
+one request at a time wastes roughly 99 % of it.**
+
+### The roofline predicts the machine
+
+Measured ÷ predicted, where the prediction has no free parameters — just measured
+bandwidth, measured FLOP/s, and the model's own weight and KV bytes:
+
+| model | B=1 | B=8 | B=64 | B=256 |
+|---|---:|---:|---:|---:|
+| Qwen3-0.6B | 0.80 | 1.01 | 1.05 | 1.04 |
+| Qwen3-1.7B | 0.82 | 1.06 | 1.03 | 0.98 |
+| Qwen3-4B | 0.74 | 0.93 | 0.87 | 0.89 |
+| Qwen3-8B | 0.92 | 1.00 | 0.95 | 0.88 |
+| Qwen3-14B | 1.00 | 1.00 | 0.93 | 0.82 |
+| Qwen3-30B-A3B | 0.89 | — | — | — |
+
+Across three orders of magnitude of throughput, a one-line bandwidth argument lands
+within a few percent of what a heavily-optimised serving stack actually does. The
+14B is exact from batch 1 to 16.
+
+The two places it misses are informative. At **batch 1** the measurement falls
+*below* prediction (0.74–0.92) because a step takes only milliseconds and fixed
+launch overhead dominates — except on the 14B, where the step is long enough that
+overhead vanishes and the ratio is 1.00. At **batch 256** the larger models fall to
+0.82–0.89, where scheduling and attention work the model omits start to matter.
+
+![decode throughput vs batch](results/fig_measured_vs_predicted.png)
+
+### The sparse model decodes like a small dense one
+
+Qwen3-30B-A3B holds 128 experts per layer and routes each token to 8. Deriving the
+active fraction from its config gives **6.2 GiB read per token out of 56.9 GiB
+resident** — 3.3 B active parameters of 30.5 B, matching Qwen's published figure.
+
+The consequence on a bandwidth-bound machine is direct: the MoE decodes at
+**31 tok/s at batch 1, roughly 4× faster than the 14B dense model** (8.0 tok/s)
+despite being more than twice its size. Predicted from active parameters alone:
+35.2 tok/s, a ratio of 0.89 — the same accuracy as the dense ladder.
+
+This is the single best argument for a 128 GB unified-memory box. Sparse models
+trade capacity, which this machine has in abundance, for bandwidth, which it does
+not.
+
+### Context erodes the batching win
+
+Qwen3-8B decode tok/s:
+
+| prompt | B=1 | B=4 | B=8 | B=16 | B=64 | B=256 |
+|---|---:|---:|---:|---:|---:|---:|
+| 128 tok | 13 | 57 | 113 | 224 | 762 | 2044 |
+| 1024 tok | 13 | 55 | — | 195 | 531 | — |
+| 8192 tok | 13 | 45 | 72 | — | — | — |
+
+At batch 8 an 8 k prompt already costs 36 % of the throughput a 128-token prompt
+gets (72 vs 113 tok/s), because each sequence re-reads its own KV cache every step.
+
+**This table understates the effect and should be read with care.** The long-context
+rows stop early because batch was capped there to bound prefill cost, so the
+measurements show the divergence beginning but do not reach the saturation the model
+predicts (~190 tok/s regardless of batch). Extending 8 k to batch 16 and 32 fits the
+memory ceiling comfortably and is the first thing to run next.
+
+![context effect](results/fig_context_effect.png)
+
+## What went wrong
+
+Three failures worth recording, since a survey that reports only its successes is
+not much use to the next person.
+
+**Prefill and TTFT from this run are invalid.** vLLM enables prefix caching by
+default. The warmup pass primes the cache with exactly the prompts the measured
+passes reuse, so prefill was served from cache: the harness recorded 624,577 tok/s
+for a 0.6B whose compute-bound ceiling is 63,916 tok/s — about 10× faster than
+physically possible. The fix (`enable_prefix_caching=False`) is committed, but the
+affected numbers are excluded rather than published. Decode is unaffected: with
+prefill cached, the measured interval is essentially pure decode, and its
+independent agreement with the roofline is the corroboration.
+
+**The MoE tripped the memory watchdog, for a reason no budget model would catch.**
+The first 30B attempt was killed at 10.9 GiB available. The cause was not weights or
+KV cache. FlashInfer JIT-compiles fused MoE kernels — which no dense model triggers —
+and its ninja build defaults to `nproc+2`, here **22 concurrent `nvcc` processes at
+51 GiB of resident compiler memory**. On unified memory that comes out of the same
+pool as the model. Capping `MAX_JOBS=4` cut peak compiler memory to 17.8 GiB and the
+retry stayed above 24 GiB available. *A memory budget for a unified-memory machine
+has to account for the toolchain, not just the model.*
+
+**The watchdog's process-group kill has a hole.** Those `nvcc` jobs are spawned via
+`sh -c` and were reparented to init, so they outlived the kill and kept allocating
+after the engine was dead. Prevention (capping parallelism) is the fix actually in
+place; cleanup alone was not sufficient.
+
+## Still to do
+
+- Re-measure prefill and TTFT with prefix caching disabled
+- Finish the 30B MoE sweep (1 of 16 cells so far; kernel cache is now warm)
+- Extend 8 k context to batch 16 and 32 to demonstrate saturation
+- The serving phase (`serve_bench.py`): TTFT/TPOT/p99 under arrival-rate load
 
 ## Reproducing
 

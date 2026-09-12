@@ -159,8 +159,10 @@ def fig_measured_vs_predicted(rows, roof, in_len=128,
         ax.plot(xs, ys, marker="o", markersize=5, linewidth=2, color=c,
                 label=short(model), zorder=3, markeredgecolor=SURFACE,
                 markeredgewidth=1.2)
+        act = pm.active_weight_bytes(spec.config, spec.weight_bytes)
         preds = [pm.predict_decode(spec.config, spec.weight_bytes, b,
-                                   in_len + 128, roof).tok_s for b in xs]
+                                   in_len + 128, roof,
+                                   active_weight_bytes=act).tok_s for b in xs]
         ax.plot(xs, preds, linestyle="--", linewidth=1.5, color=c, alpha=0.75,
                 zorder=2)
 

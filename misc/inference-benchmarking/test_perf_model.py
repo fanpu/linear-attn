@@ -90,6 +90,26 @@ def test_predictions_are_positive_and_finite():
             assert r.tok_s > 0 and r.tok_s < 1e9
 
 
+QWEN3_MOE = {
+    "hidden_size": 2048, "num_hidden_layers": 48, "moe_intermediate_size": 768,
+    "intermediate_size": 6144, "num_experts": 128, "num_experts_per_tok": 8,
+    "num_attention_heads": 32, "num_key_value_heads": 4, "head_dim": 128,
+    "vocab_size": 151936, "tie_word_embeddings": False,
+}
+
+
+def test_active_weight_bytes_matches_published_active_params():
+    """Qwen3-30B-A3B is published as 3.3B active of 30.5B total."""
+    total = int(56.9 * (1 << 30))
+    active = pm.active_weight_bytes(QWEN3_MOE, total)
+    assert 3.0e9 < active / 2 < 3.6e9, f"implied {active/2/1e9:.2f}B active"
+
+
+def test_dense_config_is_unchanged_by_active_weight_bytes():
+    total = 15 * GIB
+    assert pm.active_weight_bytes(QWEN3_8B, total) == total
+
+
 if __name__ == "__main__":
     fails = 0
     for name, fn in sorted(globals().items()):

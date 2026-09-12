@@ -80,7 +80,9 @@ def table_vs_predicted(rs):
             if b not in by[m]:
                 cells.append("—")
                 continue
-            p = pm.predict_decode(spec.config, spec.weight_bytes, b, 256, roof)
+            act = pm.active_weight_bytes(spec.config, spec.weight_bytes)
+            p = pm.predict_decode(spec.config, spec.weight_bytes, b, 256, roof,
+                                  active_weight_bytes=act)
             cells.append(f"{by[m][b]/p.tok_s:.2f}")
         lines.append(f"| {short(m)} | " + " | ".join(cells) + " |")
     return "\n".join(lines)
@@ -102,6 +104,9 @@ def table_context(rs, model="Qwen/Qwen3-8B"):
 
 
 def table_prefill(rs):
+    """NOTE: invalid for rows produced before enable_prefix_caching=False.
+    Those runs served prefill from cache, giving throughputs ~10x above the
+    machine's compute-bound ceiling. Flagged rather than silently printed."""
     by = {}
     for r in ok(rs):
         if r.get("prefill_tok_s") and r["in_len"] == 8192:
@@ -118,7 +123,9 @@ def table_prefill(rs):
         b, tps = max(by[m], key=lambda x: x[1])
         params = spec.weight_bytes / 2
         achieved = 2 * params * tps / 1e12
-        lines.append(f"| {short(m)} | {tps:,.0f} | {b} | {achieved/95.9*100:.0f}% |")
+        pct = achieved / 95.9 * 100
+        flag = "  **invalid (prefix cache)**" if pct > 100 else ""
+        lines.append(f"| {short(m)} | {tps:,.0f} | {b} | {pct:.0f}%{flag} |")
     return "\n".join(lines)
 
 

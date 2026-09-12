@@ -161,3 +161,33 @@ if __name__ == "__main__":
         for ctx in (1024, 8192):
             p = predict_decode(cfg, 15 * GIB, batch, ctx, roof)
             print(f"{batch:>6} {ctx:>7} {p.tok_s:>11.1f} {p.bound:>8} {p.intensity:>10.1f}")
+
+
+def active_weight_bytes(config: dict, weight_bytes: int) -> int:
+    """Bytes an MoE actually reads per token, counting only routed experts.
+
+    A sparse model's decode speed is set by its *active* parameters. Qwen3-30B-A3B
+    holds 128 experts per layer but routes each token to 8, so it streams roughly a
+    tenth of its 57 GiB. Returns weight_bytes unchanged for dense models.
+    """
+    n_exp = config.get("num_experts")
+    k = config.get("num_experts_per_tok")
+    if not n_exp or not k:
+        return weight_bytes
+
+    h = int(config["hidden_size"])
+    L = int(config["num_hidden_layers"])
+    m = int(config.get("moe_intermediate_size", config["intermediate_size"]))
+    heads = int(config["num_attention_heads"])
+    kv_heads = int(config.get("num_key_value_heads", heads))
+    hd = budget.head_dim(config)
+    vocab = int(config["vocab_size"])
+
+    # gate, up and down projections per expert
+    expert = 3 * h * m
+    attn = h * heads * hd * 2 + 2 * h * kv_heads * hd   # q, o, then k and v
+    embed = h * vocab * (1 if config.get("tie_word_embeddings") else 2)
+
+    total_params = L * (attn + n_exp * expert) + embed
+    active_params = L * (attn + k * expert) + embed
+    return int(weight_bytes * active_params / total_params)
