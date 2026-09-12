@@ -148,3 +148,60 @@ def run_guarded(
 if __name__ == "__main__":
     print(f"available now {available_memory_bytes()/GIB:.1f} GiB, "
           f"floor {DEFAULT_FLOOR_BYTES/GIB:.0f} GiB")
+
+
+class Watchdog:
+    """Memory watchdog for a long-lived process, e.g. an inference server.
+
+    `run_guarded` blocks until its child exits, which does not suit a server that
+    must stay up while a separate client drives it. This runs the same check on a
+    background thread and kills the process group if the floor is breached.
+
+    Use as a context manager:
+
+        with Watchdog(proc, floor_bytes=12 * GIB) as wd:
+            ...drive the server...
+        if wd.tripped: ...
+    """
+
+    def __init__(self, proc: subprocess.Popen, floor_bytes: int = DEFAULT_FLOOR_BYTES,
+                 poll_s: float = 1.0):
+        self.proc = proc
+        self.floor_bytes = floor_bytes
+        self.poll_s = poll_s
+        self.tripped = False
+        self.min_available_bytes = available_memory_bytes()
+        self._stop = None
+        self._thread = None
+
+    def _loop(self):
+        import threading
+        while not self._stop.wait(self.poll_s):
+            if self.proc.poll() is not None:
+                return
+            avail = available_memory_bytes()
+            self.min_available_bytes = min(self.min_available_bytes, avail)
+            if avail < self.floor_bytes:
+                self.tripped = True
+                _kill_group(self.proc)
+                return
+
+    def start(self) -> "Watchdog":
+        import threading
+
+        self._stop = threading.Event()
+        self._thread = threading.Thread(target=self._loop, daemon=True)
+        self._thread.start()
+        return self
+
+    def stop(self) -> None:
+        if self._stop is not None:
+            self._stop.set()
+        if self._thread is not None:
+            self._thread.join(timeout=5.0)
+
+    def __enter__(self) -> "Watchdog":
+        return self.start()
+
+    def __exit__(self, *exc) -> None:
+        self.stop()

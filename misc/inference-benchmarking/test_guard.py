@@ -87,6 +87,33 @@ def test_grandchildren_are_killed_too():
     assert not alive, f"grandchild {pid} survived the guard"
 
 
+
+
+def test_watchdog_kills_long_lived_process_on_floor_breach():
+    import subprocess
+    proc = subprocess.Popen([PY, "-c", "import time; time.sleep(60)"],
+                            start_new_session=True, stdout=subprocess.DEVNULL)
+    try:
+        with guard.Watchdog(proc, floor_bytes=budget.total_memory_bytes() * 2,
+                            poll_s=0.2) as wd:
+            proc.wait(timeout=20)
+        assert wd.tripped
+        assert proc.returncode != 0
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+
+
+def test_watchdog_leaves_a_healthy_process_alone():
+    import subprocess
+    proc = subprocess.Popen([PY, "-c", "import time; time.sleep(3)"],
+                            start_new_session=True, stdout=subprocess.DEVNULL)
+    with guard.Watchdog(proc, floor_bytes=GIB, poll_s=0.2) as wd:
+        proc.wait(timeout=20)
+    assert not wd.tripped
+    assert proc.returncode == 0
+
+
 if __name__ == "__main__":
     fails = 0
     for name, fn in sorted(globals().items()):
