@@ -138,7 +138,12 @@ def run_model(model: str, done: set, dry_run: bool) -> None:
         "--max-model-len", str(max_model_len),
         "--max-num-seqs", str(max_num_seqs),
     ]
-    env = dict(os.environ, VLLM_LOGGING_LEVEL="WARNING")
+    # MAX_JOBS caps FlashInfer's JIT build parallelism. Left unset, its ninja
+    # invocation defaults to nproc+2 -- 22 concurrent nvcc processes here, several
+    # GiB each. That is compiler memory, invisible to a budget model that counts
+    # only weights and KV, and it is what tripped the watchdog on the 30B MoE:
+    # FlashInfer JIT-compiles fused MoE kernels, which dense models never trigger.
+    env = dict(os.environ, VLLM_LOGGING_LEVEL="WARNING", MAX_JOBS="4")
 
     t0 = time.time()
     res = guard.run_guarded(argv, timeout_s=TIMEOUT_S, env=env)

@@ -61,7 +61,9 @@ def start_server(model: str, util: float, max_model_len: int, max_num_seqs: int)
         "--max-num-seqs", str(max_num_seqs),
         "--disable-log-requests",
     ]
-    env = dict(os.environ, VLLM_LOGGING_LEVEL="WARNING")
+    # See sweep.py: cap JIT build parallelism so kernel compilation cannot
+    # exhaust host memory on a unified-memory machine.
+    env = dict(os.environ, VLLM_LOGGING_LEVEL="WARNING", MAX_JOBS="4")
     return subprocess.Popen(argv, env=env, start_new_session=True,
                             stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
