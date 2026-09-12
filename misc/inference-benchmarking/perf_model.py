@@ -191,3 +191,62 @@ def active_weight_bytes(config: dict, weight_bytes: int) -> int:
     total_params = L * (attn + n_exp * expert) + embed
     active_params = L * (attn + k * expert) + embed
     return int(weight_bytes * active_params / total_params)
+
+
+def effective_bytes_per_step(decode_tok_s: float, batch: int, roof: Roofline) -> float:
+    """Invert the bandwidth bound to recover what a measured cell actually read.
+
+    If decode is memory-bound -- which every cell on this machine is -- then
+    tok/s = batch / (bytes / BW), so bytes = BW * batch / tok_s. This turns a
+    throughput measurement into a statement about traffic, which is what makes the
+    MoE's expert-union growth visible.
+    """
+    return roof.bw() * batch / decode_tok_s
+
+
+def expert_params(config: dict) -> int:
+    """Parameter count held in MoE experts (0 for a dense model)."""
+    n_exp = config.get("num_experts")
+    if not n_exp:
+        return 0
+    h = int(config["hidden_size"])
+    L = int(config["num_hidden_layers"])
+    m = int(config.get("moe_intermediate_size", config["intermediate_size"]))
+    return L * n_exp * 3 * h * m
+
+
+def experts_touched(decode_tok_s: float, batch: int, config: dict,
+                    weight_bytes: int, roof: Roofline, ctx: int = 0,
+                    dtype_bytes: int = 2) -> float:
+    """How many of the layer's experts a measured cell effectively read.
+
+    Derived, not assumed: take the measured traffic, subtract what every step must
+    read regardless -- the non-expert weights *and* the KV cache -- and express the
+    remainder as a fraction of the full expert bank.
+
+    Subtracting KV matters at large batch: at batch 256 with a 256-token context
+    this model's KV traffic is ~6 GB/step, and attributing that to experts pushes
+    the derived count above the 128 that physically exist.
+    """
+    e_bytes = expert_params(config) * dtype_bytes
+    if e_bytes == 0:
+        return 0.0
+    nonexpert = weight_bytes - e_bytes
+    kv = batch * ctx * kv_bytes_per_token_for(config, dtype_bytes)
+    eff = effective_bytes_per_step(decode_tok_s, batch, roof)
+    return (eff - nonexpert - kv) / e_bytes * int(config["num_experts"])
+
+
+def kv_bytes_per_token_for(config: dict, dtype_bytes: int = 2) -> int:
+    return budget.kv_bytes_per_token(config, dtype_bytes)
+
+
+def experts_touched_if_random(batch: int, config: dict) -> float:
+    """Expected distinct experts if every token routed independently at random.
+
+    The reference curve: n * (1 - (1 - k/n)^batch). Real routing is correlated, so
+    measurements running below this line are evidence of that correlation.
+    """
+    n = int(config["num_experts"])
+    k = int(config["num_experts_per_tok"])
+    return n * (1 - (1 - k / n) ** batch)

@@ -42,16 +42,52 @@ MODELS = [
 GRID = [
     (128, [1, 2, 4, 8, 16, 32, 64, 128, 256]),
     (1024, [1, 4, 16, 64]),
-    (8192, [1, 4, 8]),
+    (8192, [1, 4, 8, 16, 32]),
 ]
+
+# Predicted wall-clock ceiling for a single cell. With prefix caching correctly
+# disabled every pass recomputes prefill, so a large batch at long context gets
+# expensive fast: batch 32 x 8k on the 14B is ~9 minutes for one cell. Cells over
+# this are skipped by prediction and recorded, rather than found the slow way.
+MAX_CELL_SECONDS = 420
 
 # Per-model wall-clock ceiling for the guarded child.
 TIMEOUT_S = 5400
 
 
+def estimate_cell_seconds(spec, cell, roof) -> float:
+    """Predict how long a cell will take, from the roofline model.
+
+    Counts the warmup pass plus, per repeat, one prefill-only pass and one full
+    pass -- which is exactly what run_cell does.
+    """
+    import perf_model as pm
+
+    b, in_len, out_len = cell["batch"], cell["in_len"], cell["out_len"]
+    act = pm.active_weight_bytes(spec.config, spec.weight_bytes)
+    pre = pm.predict_prefill(spec.config, spec.weight_bytes, b, in_len, roof,
+                             active_param_bytes=act)
+    dec = pm.predict_decode(spec.config, spec.weight_bytes, b, in_len + out_len,
+                            roof, active_weight_bytes=act)
+    t_prefill = pre.t_step_s
+    t_full = t_prefill + (out_len - 1) * b / dec.tok_s
+    return t_full + cell["repeats"] * (t_prefill + t_full)
+
+
 def repeats_for(batch: int, in_len: int) -> int:
     """Cheap cells get 3 repeats for a stable median; expensive ones get 2."""
     return 3 if batch * in_len <= 8192 else 2
+
+
+_ROOF = None
+
+
+def _roof():
+    global _ROOF
+    if _ROOF is None:
+        import perf_model as pm
+        _ROOF = pm.Roofline.from_json("results/roofline.json")
+    return _ROOF
 
 
 def load_done() -> set:
@@ -84,8 +120,18 @@ def plan_model(spec: budget.ModelSpec, done: set) -> tuple[list, list]:
                 continue
             plan = budget.plan_cell(spec, batch=b, total_len=in_len + OUT_LEN)
             if plan.fits:
-                cells.append({"batch": b, "in_len": in_len, "out_len": OUT_LEN,
-                              "repeats": repeats_for(b, in_len)})
+                cell = {"batch": b, "in_len": in_len, "out_len": OUT_LEN,
+                        "repeats": repeats_for(b, in_len)}
+                est = estimate_cell_seconds(spec, cell, _roof())
+                if est > MAX_CELL_SECONDS:
+                    skips.append({
+                        "model": spec.name, "batch": b, "in_len": in_len,
+                        "out_len": OUT_LEN, "status": "skipped:cost",
+                        "reason": f"predicted {est:.0f}s > {MAX_CELL_SECONDS}s budget",
+                        "predicted_seconds": est,
+                    })
+                    continue
+                cells.append(cell)
             else:
                 skips.append({
                     "model": spec.name, "batch": b, "in_len": in_len,

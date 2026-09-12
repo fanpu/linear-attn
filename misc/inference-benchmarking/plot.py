@@ -235,6 +235,54 @@ def fig_latency(rows, in_len=128, out="fig_latency.png"):
     return FIGDIR / out
 
 
+def fig_moe_experts(rows, out="fig_moe_experts.png"):
+    """How many experts the MoE effectively reads, as batch grows.
+
+    Emphasis form: one measured series in the MoE hue against a reference curve in
+    neutral gray. The reference is not a second entity competing for identity, so
+    it must not take a categorical hue.
+    """
+    import budget
+    import perf_model as pm
+
+    pts = [(r["batch"], r["decode_tok_s"], r["in_len"] + r["out_len"])
+           for r in ok_rows(rows) if r["model"] == MOE and r["in_len"] == 128]
+    if len(pts) < 4:
+        return None
+    try:
+        spec = budget.ModelSpec.from_hf_cache(MOE)
+    except Exception:
+        return None
+    roof = pm.Roofline.from_json(str(ROOFLINE))
+    n_exp = int(spec.config["num_experts"])
+
+    pts.sort()
+    xs = [p[0] for p in pts]
+    measured = [pm.experts_touched(t, b, spec.config, spec.weight_bytes, roof, ctx=c)
+                for b, t, c in pts]
+    theory = [pm.experts_touched_if_random(b, spec.config) for b in xs]
+
+    fig, ax = plt.subplots(figsize=(7.6, 5.0), facecolor=SURFACE)
+    ax.plot(xs, theory, linestyle="--", linewidth=1.8, color="#8d8c86",
+            label="if routing were random", zorder=2)
+    ax.plot(xs, measured, marker="o", markersize=6, linewidth=2.2, color=MOE_HUE,
+            label="measured", zorder=3, markeredgecolor=SURFACE, markeredgewidth=1.2)
+    ax.axhline(n_exp, color=GRID, linewidth=1.2, zorder=1)
+    ax.annotate(f"all {n_exp} experts", (xs[0], n_exp), textcoords="offset points",
+                xytext=(2, 5), color=INK2, fontsize=9)
+
+    ax.set_xscale("log", base=2)
+    ax.set_ylim(0, n_exp * 1.15)
+    style_axes(ax, "batch size", "experts read per layer, per step",
+               "Batching erodes an MoE's sparsity",
+               "Qwen3-30B-A3B · derived from measured throughput, not assumed")
+    ax.legend(frameon=False, fontsize=9, labelcolor=INK2, loc="lower right")
+    fig.tight_layout()
+    fig.savefig(FIGDIR / out, dpi=160, facecolor=SURFACE)
+    plt.close(fig)
+    return FIGDIR / out
+
+
 def summary_table(rows) -> str:
     """Markdown table: best decode throughput and single-stream latency per model."""
     best, single = {}, {}
@@ -286,6 +334,7 @@ def main():
         (fig_measured_vs_predicted, (rows, roof)),
         (fig_context_effect, (rows,)),
         (fig_latency, (rows,)),
+        (fig_moe_experts, (rows,)),
     ]:
         try:
             p = fn(*args)

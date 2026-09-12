@@ -110,6 +110,34 @@ def test_dense_config_is_unchanged_by_active_weight_bytes():
     assert pm.active_weight_bytes(QWEN3_8B, total) == total
 
 
+def test_effective_bytes_inverts_the_bandwidth_bound():
+    """A cell predicted to read X bytes must invert back to X bytes."""
+    total = 15 * GIB
+    p = pm.predict_decode(QWEN3_8B, total, batch=8, ctx=128, roof=ROOF)
+    back = pm.effective_bytes_per_step(p.tok_s, 8, ROOF)
+    assert abs(back - p.bytes_per_step) / p.bytes_per_step < 0.01
+
+
+def test_random_routing_curve_saturates_at_the_expert_count():
+    assert pm.experts_touched_if_random(1, QWEN3_MOE) == 8
+    assert pm.experts_touched_if_random(10_000, QWEN3_MOE) > 127.9
+    assert pm.experts_touched_if_random(4, QWEN3_MOE) < 32  # below k*batch
+
+
+def test_experts_touched_recovers_batch_one_routing():
+    """At batch 1 exactly k experts are read, so the derived count must be ~k."""
+    total = int(56.9 * GIB)
+    act = pm.active_weight_bytes(QWEN3_MOE, total)
+    p = pm.predict_decode(QWEN3_MOE, total, batch=1, ctx=128, roof=ROOF,
+                          active_weight_bytes=act)
+    n = pm.experts_touched(p.tok_s, 1, QWEN3_MOE, total, ROOF)
+    assert 6 < n < 11, f"derived {n:.1f} experts, expected ~8"
+
+
+def test_experts_touched_is_zero_for_dense_models():
+    assert pm.experts_touched(100.0, 8, QWEN3_8B, 15 * GIB, ROOF) == 0.0
+
+
 if __name__ == "__main__":
     fails = 0
     for name, fn in sorted(globals().items()):
