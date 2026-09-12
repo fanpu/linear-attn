@@ -71,11 +71,12 @@ def build_config(mixer, size, vocab=32000):
         fuse_cross_entropy=True,
     )
     if mixer == "attn":
-        return TransformerConfig(num_heads=d // 64, **common)
+        return annotate_shapes(TransformerConfig(num_heads=d // 64, **common), mixer)
     if mixer == "gdn":
         nh = (3 * d) // 256
         assert nh * 64 == int(0.75 * d), f"0.75*d={0.75 * d} not divisible by 64"
-        return GatedDeltaNetConfig(head_dim=64, expand_v=2.0, num_heads=nh, **common)
+        cfg = GatedDeltaNetConfig(head_dim=64, expand_v=2.0, num_heads=nh, **common)
+        return annotate_shapes(cfg, mixer)
     raise ValueError(mixer)
 
 
@@ -94,6 +95,28 @@ def mlp_intermediate_size(cfg):
         m = int(cfg.hidden_size * (cfg.hidden_ratio or 4) * 2 / 3)
         m = 256 * ((m + 255) // 256)  # round UP to a multiple of 256
     return m
+
+
+def annotate_shapes(cfg, mixer):
+    """Resolve the per-head / MLP shapes that fla only computes at layer-construction time.
+
+    The analytic models below want one object to read shapes off, but fla's configs do not
+    carry head_k_dim / head_v_dim / ffn_intermediate -- the layer modules do. These rules
+    mirror what the modules actually build, checked against every one of the 8 configs:
+      attn: head_dim = hidden_size / num_heads, and dk == dv (no expansion).
+      gdn:  dk = head_dim, dv = head_dim * expand_v.
+    """
+    if mixer == "attn":
+        cfg.head_k_dim = cfg.head_v_dim = cfg.hidden_size // cfg.num_heads
+        cfg.conv_size = 0  # attention has no short conv; keeps p_conv well-defined
+    elif mixer == "gdn":
+        cfg.head_k_dim = cfg.head_dim
+        cfg.head_v_dim = int(cfg.head_dim * cfg.expand_v)
+    else:
+        raise ValueError(mixer)
+    cfg.ffn_intermediate = mlp_intermediate_size(cfg)
+    cfg.tie_embeddings = cfg.tie_word_embeddings
+    return cfg
 
 
 def flops_per_token(cfg, mixer, T, chunk_size=64, return_breakdown=True):
@@ -496,8 +519,10 @@ def run(mixer, size, B, T, warmup_s, time_s, min_steps, sdpa_backend):
     tokens = B * T
     tps = tokens / (med / 1e3)
     roof = load_roofline()
-    fpt = flops_per_token(cfg, mixer, T)
-    bpt = bytes_per_token(cfg, mixer, T, tokens)
+    fpt_parts = flops_per_token(cfg, mixer, T)
+    bpt_parts = bytes_per_token(cfg, mixer, T, tokens)
+    fpt = sum(fpt_parts.values())
+    bpt = sum(bpt_parts.values())
     row = dict(
         mixer=mixer,
         size=size,
@@ -523,7 +548,9 @@ def run(mixer, size, B, T, warmup_s, time_s, min_steps, sdpa_backend):
         **pb,
         state_per_layer=state_size_per_layer(cfg, mixer, T),
         flops_per_token=fpt,
+        flops_breakdown=fpt_parts,
         bytes_per_token=bpt,
+        bytes_breakdown=bpt_parts,
         torch=torch.__version__,
     )
     if fpt is not None:
