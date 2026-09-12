@@ -59,7 +59,10 @@ def start_server(model: str, util: float, max_model_len: int, max_num_seqs: int)
         "--gpu-memory-utilization", f"{util:.4f}",
         "--max-model-len", str(max_model_len),
         "--max-num-seqs", str(max_num_seqs),
-        "--disable-log-requests",
+        # Same reason as the offline sweep: prefix caching would serve repeated
+        # prompts from cache and flatter the latency numbers. ("--disable-log-requests"
+        # does not exist in vLLM 0.23 and would abort the server at startup.)
+        "--no-enable-prefix-caching",
     ]
     # See sweep.py: cap JIT build parallelism so kernel compilation cannot
     # exhaust host memory on a unified-memory machine.
