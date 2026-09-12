@@ -112,6 +112,72 @@ def test_overhead_is_counted_against_the_budget():
     assert fat.total_bytes - lean.total_bytes == 8 * GIB
 
 
+def test_incomplete_download_is_rejected():
+    """A partially downloaded checkpoint must raise, not silently under-budget."""
+    import json as _json
+    import tempfile
+    from pathlib import Path
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        (d / "model.safetensors.index.json").write_text(
+            _json.dumps({"metadata": {"total_size": 60 * GIB}}))
+        try:
+            budget.check_weights_complete(d, weight_bytes=34 * GIB, repo_id="partial")
+        except RuntimeError as e:
+            assert "incomplete" in str(e)
+        else:
+            raise AssertionError("expected RuntimeError for a partial download")
+
+
+def test_complete_download_passes():
+    import json as _json
+    import tempfile
+    from pathlib import Path
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        (d / "model.safetensors.index.json").write_text(
+            _json.dumps({"metadata": {"total_size": 60 * GIB}}))
+        budget.check_weights_complete(d, weight_bytes=60 * GIB + 4096, repo_id="ok")
+
+
+def test_missing_index_is_not_treated_as_incomplete():
+    import tempfile
+    from pathlib import Path
+
+    with tempfile.TemporaryDirectory() as tmp:
+        budget.check_weights_complete(Path(tmp), weight_bytes=1 * GIB, repo_id="single")
+
+
+def test_missing_shards_are_detected_without_an_index_file():
+    """The real partial-download state: shards arriving, index not yet fetched."""
+    import tempfile
+    from pathlib import Path
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        for i in range(1, 9):  # 8 of a declared 16
+            (d / f"model-{i:05d}-of-00016.safetensors").write_bytes(b"x")
+        try:
+            budget.check_weights_complete(d, weight_bytes=30 * GIB, repo_id="partial")
+        except RuntimeError as e:
+            assert "8 of 16" in str(e)
+        else:
+            raise AssertionError("expected RuntimeError for missing shards")
+
+
+def test_all_shards_present_passes():
+    import tempfile
+    from pathlib import Path
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        for i in range(1, 17):
+            (d / f"model-{i:05d}-of-00016.safetensors").write_bytes(b"x")
+        budget.check_weights_complete(d, weight_bytes=60 * GIB, repo_id="complete")
+
+
 if __name__ == "__main__":
     fails = 0
     for name, fn in sorted(globals().items()):

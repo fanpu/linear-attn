@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -77,6 +78,49 @@ def kv_bytes(config: dict, batch: int, total_len: int, dtype_bytes: int = 2) -> 
     return kv_bytes_per_token(config, dtype_bytes) * batch * total_len
 
 
+
+def check_weights_complete(path: "Path", weight_bytes: int, repo_id: str = "") -> None:
+    """Refuse a partially downloaded checkpoint.
+
+    A half-downloaded model looks smaller than it is, which would under-estimate
+    the memory budget -- the one direction of error that risks an OOM rather than
+    a skipped cell. The shard index records the true total, so check against it.
+    """
+    # Shard filenames encode the expected count ("model-00003-of-00016.safetensors").
+    # This is checked first because it still works when the index file itself has
+    # not been downloaded yet -- which is exactly the state a partial fetch is in.
+    shards = sorted(path.glob("model-*-of-*.safetensors"))
+    if shards:
+        seen, expected = set(), None
+        for f in shards:
+            m = re.match(r"model-(\d+)-of-(\d+)\.safetensors$", f.name)
+            if m:
+                seen.add(int(m.group(1)))
+                expected = int(m.group(2))
+        if expected is not None and len(seen) != expected:
+            raise RuntimeError(
+                f"{repo_id or path} looks incomplete: {len(seen)} of {expected} "
+                f"weight shards present ({weight_bytes/GIB:.1f} GiB on disk). "
+                "Finish the download before benchmarking it."
+            )
+
+    index = path / "model.safetensors.index.json"
+    if not index.exists():
+        return  # single-shard checkpoints have no index; the file is all there is
+    try:
+        declared = json.loads(index.read_text())["metadata"]["total_size"]
+    except (KeyError, json.JSONDecodeError):
+        return
+    # Safetensors files carry a header beyond the tensor bytes, so on-disk size is
+    # slightly larger than the declared tensor total; only a shortfall is a problem.
+    if weight_bytes < declared * 0.99:
+        raise RuntimeError(
+            f"{repo_id or path} looks incomplete: {weight_bytes/GIB:.1f} GiB on disk "
+            f"vs {declared/GIB:.1f} GiB declared in the shard index. "
+            "Finish the download before benchmarking it."
+        )
+
+
 @dataclass(frozen=True)
 class ModelSpec:
     name: str
@@ -98,6 +142,7 @@ class ModelSpec:
         weight_bytes = sum(f.stat().st_size for f in path.glob("*.safetensors"))
         if weight_bytes == 0:
             raise RuntimeError(f"no safetensors found for {repo_id} in {path}")
+        check_weights_complete(path, weight_bytes, repo_id)
         return cls(repo_id, config, weight_bytes)
 
 
