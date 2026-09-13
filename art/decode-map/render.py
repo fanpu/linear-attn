@@ -241,6 +241,25 @@ def coherence_split(d, thr=None):
     return Hm - thr, thr
 
 
+def style_riso(d, s, ink_a="#3255a4", ink_b="#ff48b0", paper="#f4efe3", shift=2, w=None):
+    """Two-ink riso: ink A = cell boundaries born within the first half of the horizon (full
+    coverage) and later ones (40 %); ink B = contone fill, coverage = 1 - first-divergence/L
+    (texts that leave greedy decoding early are inked heavily). Ink B misregistered by
+    `shift` px (declared)."""
+    tk = d["tokens"]
+    L = tk.shape[2]
+    H, W = tk.shape[:2]
+    bv, bh = edge_fields(tk)
+    w = w or max(1, s // 3)
+    cov_a = np.zeros((H * s, W * s, 3))
+    fn = lambda v: (np.ones(v.shape + (3,)), np.where(v < L, np.where(v < L / 2, 1.0, 0.4), 0.0))
+    cov_a = paint_edges(cov_a, bv.astype(float), bh.astype(float), s, w, fn)[..., 0]
+    fd = A.first_divergence(tk)
+    cov_b = tiles(0.55 * (1 - fd / L), s)
+    cov_b = np.roll(cov_b, (shift, shift), (0, 1))
+    return PAL.overprint([cov_b, cov_a], [ink_b, ink_a], paper=paper)
+
+
 if __name__ == "__main__":
     path = sys.argv[1]
     s = int(sys.argv[2]) if len(sys.argv) > 2 else 8
@@ -254,3 +273,4 @@ if __name__ == "__main__":
     print("coherence threshold (nats)", thr)
     save(style_split(sig, s), f"{base}_spectral.png", "test")
     save(style_continuous(A.mean_entropy(d), s), f"{base}_entropy.png", "test")
+    save(style_riso(d, s), f"{base}_riso.png", "test")
