@@ -27,8 +27,7 @@ p.add_argument("--wd", type=float, default=5e-4)
 p.add_argument("--bs", type=int, default=128)
 p.add_argument("--width", type=int, default=64)
 p.add_argument("--seed", type=int, default=0)
-p.add_argument("--n_sub_train", type=int, default=500, help="stored train feats per class")
-p.add_argument("--n_sub_test", type=int, default=500, help="stored test feats per class")
+p.add_argument("--n_sub_train", type=int, default=1000, help="train feats/class used for per-ckpt stats and stored")
 p.add_argument("--max_epochs_run", type=int, default=None, help="stop early (toy timing)")
 args = p.parse_args()
 
@@ -71,7 +70,7 @@ print(f"C={C} Ntr={Ntr} Nte={Nte}", flush=True)
 
 rng = np.random.RandomState(1234)
 sub_tr = np.concatenate([rng.choice(np.where(ytr.cpu().numpy() == c)[0], args.n_sub_train, replace=False) for c in range(C)])
-sub_te = np.concatenate([rng.choice(np.where(yte.cpu().numpy() == c)[0], args.n_sub_test, replace=False) for c in range(C)])
+sub_te = np.arange(Nte)  # full test set is stored
 
 
 # ---------------- ResNet18, CIFAR variant (3x3 stem, no max-pool) -------------
@@ -114,11 +113,12 @@ sched = torch.optim.lr_scheduler.MultiStepLR(opt, [E // 3, 2 * E // 3], 0.1)
 
 
 def ckpt_epochs(E):
-    s = set(range(0, 11)) | set(range(12, 51, 2)) | set(range(55, E + 1, 5)) | {E}
+    s = set(range(0, 31)) | set(range(32, 101, 2)) | set(range(105, E + 1, 5)) | {E}
     return sorted(e for e in s if e <= E)
 
 
 CK = set(ckpt_epochs(E))
+FRAC_IT = {5, 10, 20, 40, 80, 160, 240}
 
 
 @torch.no_grad()
@@ -131,8 +131,29 @@ def extract(x):
     return torch.cat(hs)
 
 
+sub_tr_t = torch.tensor(sub_tr, device=dev)
+xtr_sub, ytr_sub = xtr[sub_tr_t], ytr[sub_tr_t]
+
+
 @torch.no_grad()
-def measure(epoch):
+def full_train_metrics():
+    """Full 50k/20k train pass: accuracy, loss, NC1, NC4 (used every 10 epochs)."""
+    H = extract(xtr).double(); y = ytr
+    W = model.fc.weight.detach().double(); b = model.fc.bias.detach().double()
+    mu = torch.stack([H[y == c].mean(0) for c in range(C)]); M = mu - H.mean(0)
+    Hc = H - mu[y]; SW = Hc.T @ Hc / len(y); SB = M.T @ M / C
+    logits = H @ W.T + b; pred = logits.argmax(1)
+    return dict(full_nc1=float(torch.trace(SW @ torch.linalg.pinv(SB, hermitian=True, rtol=1e-10)) / C),
+                full_acc_train=float((pred == y).double().mean()),
+                full_loss_train=float(F.cross_entropy(logits, y)),
+                full_nc4_train=float((pred != torch.cdist(H, mu).argmin(1)).double().mean()))
+
+
+@torch.no_grad()
+def measure(epoch, tag=None):
+    # statistics on a fixed balanced train subset (n_sub_train/class) + full test set
+    xtr, ytr = xtr_sub, ytr_sub
+    Ntr = len(ytr)
     Htr = extract(xtr).double(); Hte = extract(xte).double()
     W = model.fc.weight.detach().double(); b = model.fc.bias.detach().double()
     out = {"epoch": epoch}
@@ -186,12 +207,14 @@ def measure(epoch):
         W=W.cpu().numpy(), b=b.cpu().numpy(), gram_M=a["gram"], gram_W=w["gram"],
         gram_Mtest=at["gram"], sv_M=S.cpu().numpy(), cov_sub=np.stack(covs),
         SW_eig=torch.linalg.eigvalsh(SW).cpu().numpy(),
-        h_train=Htr[sub_tr].float().cpu().numpy().astype(np.float16),
-        h_test=Hte[sub_te].float().cpu().numpy().astype(np.float16),
+        h_train=Htr.float().cpu().numpy().astype(np.float16),
+        h_test=Hte.float().cpu().numpy().astype(np.float16),
     )
     # float16 overflow guard: features are O(1-10) after BN/ReLU/avgpool
     assert np.isfinite(arrays["h_train"]).all()
-    np.savez_compressed(os.path.join(OUT, f"ep{epoch:04d}.npz"), **arrays)
+    np.savez_compressed(os.path.join(OUT, tag or f"ep{epoch:04d}.npz"), **arrays)
+    if isinstance(epoch, int) and (epoch % 10 == 0 or epoch == E):
+        out.update(full_train_metrics())
     return out
 
 
@@ -208,7 +231,12 @@ for ep in range(1, last + 1):
     model.train()
     perm = torch.randperm(Ntr, device=dev)
     tl, tc = 0.0, 0
-    for i in range(0, Ntr, args.bs):
+    for it, i in enumerate(range(0, Ntr, args.bs)):
+        if ep == 1 and it in FRAC_IT:
+            fe = it * args.bs / Ntr
+            m = measure(fe, tag=f"it{it:04d}.npz"); m["time"] = time.time() - t0; m["iter"] = it
+            logf.write(json.dumps(m) + "\n"); logf.flush()
+            print(f"  frac ep {fe:.3f} NC1 {m['nc1']:.3g} acc {m['acc_train']:.3f}", flush=True)
         idx = perm[i:i + args.bs]
         with torch.autocast("cuda", dtype=torch.bfloat16):
             logits = model(xtr[idx])
@@ -222,7 +250,9 @@ for ep in range(1, last + 1):
     if ep in CK:
         m = measure(ep); m["time"] = time.time() - t0; m["lr"] = sched.get_last_lr()[0]
         logf.write(json.dumps(m) + "\n"); logf.flush()
-        msg += f" | NC1 {m['nc1']:.3g} cosstd {m['M_cos_std']:.3g} NC3 {m['nc3']:.3g} NC4 {m['nc4_train']:.3g} tracc {m['acc_train']:.4f} teacc {m['acc_test']:.4f}"
+        msg += f" | fullacc {m.get('full_acc_train', -1):.4f} NC1 {m['nc1']:.3g} cosstd {m['M_cos_std']:.3g} NC3 {m['nc3']:.3g} NC4 {m['nc4_train']:.3g} tracc {m['acc_train']:.4f} teacc {m['acc_test']:.4f}"
     print(msg, flush=True)
+    if ep in (E // 3, 2 * E // 3, E):
+        torch.save(model.state_dict(), os.path.join(OUT, f"model_ep{ep:04d}.pt"))
 torch.save(model.state_dict(), os.path.join(OUT, "final_model.pt"))
 print("done", time.time() - t0, flush=True)
