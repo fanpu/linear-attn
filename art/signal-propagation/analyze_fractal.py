@@ -27,6 +27,8 @@ ap.add_argument("--seed", type=int, default=0)
 ap.add_argument("--tau", type=float, default=1e-5)
 ap.add_argument("--res", type=int, default=256)
 ap.add_argument("--null_levels", type=int, default=9)
+ap.add_argument("--label", default="tau", help="tau (L_avg > tau) or sync (pair never reached L < 1e-10 within D)")
+ap.add_argument("--plates", default="", help="tag:level,level;tag:level,level for 1024 re-renders (4x check)")
 args = ap.parse_args()
 HERE = os.path.dirname(os.path.abspath(__file__))
 C = lambda f: os.path.join(HERE, "cache", f)
@@ -49,7 +51,17 @@ def local_slope(B, lo=2, hi_frac=8):
     return float(sl), sizes, n
 
 
-rep = {"tag": args.tag, "N": args.N, "D": args.D, "tau": args.tau, "levels": []}
+def lab(Zf, k):
+    if args.label == "sync":
+        return Zf["t_hit"][k] > args.D
+    return Zf["L_avg"][k] > args.tau
+
+
+def lab_mf(Lmf_D):
+    return (Lmf_D >= 1e-10) if args.label == "sync" else (Lmf_D > args.tau)
+
+
+rep = {"label": args.label, "tag": args.tag, "N": args.N, "D": args.D, "tau": args.tau, "levels": []}
 Z = load(args.tag, "f64", args.res)
 Z32 = load(args.tag, "f32", args.res)
 Zp = load(args.tag + "pert", "f64", args.res)
@@ -57,26 +69,36 @@ wins = Z["windows"]
 nlev = Z["L_avg"].shape[0]
 for k in range(nlev):
     L = Z["L_avg"][k]
-    B = L > args.tau
+    B = lab(Z, k)
     side = wins[k][1] - wins[k][0]
     sl, sizes, n = local_slope(B)
     d = dict(level=k, window=[float(x) for x in wins[k]], side=float(side), zoom=float(4.0 / side),
              chaotic_frac=float(B.mean()), edge_cells=int(edge_cells(B).sum()), slope=sl,
-             sizes=sizes, counts=n.tolist(), mf_chaotic_frac=float((Z["L_mf"][k] > args.tau).mean()))
+             sizes=sizes, counts=n.tolist(), mf_chaotic_frac=float(lab_mf(Z["L_mf"][k]).mean()))
     if Z32 is not None and k < Z32["L_avg"].shape[0]:
-        d["mismatch_f32"] = float(((Z32["L_avg"][k] > args.tau) != B).mean())
-    if Zp is not None and k < Zp["L_avg"].shape[0]:
-        d["mismatch_pert"] = float(((Zp["L_avg"][k] > args.tau) != B).mean())
-        d["slope_pert"] = local_slope(Zp["L_avg"][k] > args.tau)[0]
-    taus = np.logspace(-9, 0, 19)
+        d["mismatch_f32"] = float((lab(Z32, k) != B).mean())
+        d["slope_f32"] = local_slope(lab(Z32, k))[0]
+    if Zp is not None:
+        jj = [j for j in range(Zp["windows"].shape[0]) if np.allclose(Zp["windows"][j], wins[k], rtol=0, atol=1e-15)]
+        if jj:
+            d["mismatch_pert"] = float((lab(Zp, jj[0]) != B).mean())
+    taus = np.logspace(-12, 0, 25)
     d["tau_scan"] = [[float(t), local_slope(L > t)[0]] for t in taus]
     # resolution check
     rc = {}
-    for r in (512, 1024):
-        Zr = load(args.tag + "res", "f64", r)
-        if Zr is None or k >= Zr["L_avg"].shape[0]:
+    cands = []
+    Zr = load(args.tag + "res", "f64", 512)
+    if Zr is not None and k < Zr["L_avg"].shape[0]:
+        cands.append((512, Zr, k))
+    for item in filter(None, args.plates.split(";")):
+        t, lv = item.split(":")
+        lv = [int(x) for x in lv.split(",")]
+        if k in lv:
+            cands.append((1024, load(t, "f64", 1024), lv.index(k)))
+    for r, Zr, kk in cands:
+        if Zr is None:
             continue
-        Br = Zr["L_avg"][k] > args.tau
+        Br = lab(Zr, kk)
         f = r // args.res
         # label agreement after block-subsampling the fine grid at the coarse pixel centres is not
         # exact (centres differ); compare box counts at matched physical box sizes instead
@@ -97,7 +119,7 @@ R = args.res
 st_eps, st_logN = [], []
 mult = 0.0
 for k in range(nlev):
-    B = Z["L_avg"][k] > args.tau
+    B = lab(Z, k)
     E = edge_cells(B)
     side = wins[k][1] - wins[k][0]
     sizes = [2, 4, 8, 16, 32, 64]
@@ -122,8 +144,8 @@ for k in range(args.null_levels):
     x0, x1, y0, y1 = nw[k]
     xs, ys = grid_axes(x0, x1, y0, y1, R)
     SW, SB = np.meshgrid(xs, ys)
-    _, Lmf = meanfield_erf_L(SW, SB, args.D)
-    B = Lmf > args.tau
+    LmfD, Lmf = meanfield_erf_L(SW, SB, args.D)
+    B = lab_mf(LmfD) if args.label == "sync" else (Lmf > args.tau)
     sl, sizes, n = local_slope(B)
     null.append(dict(level=k, window=list(map(float, nw[k])), slope=sl, counts=n.tolist(), sizes=sizes,
                      chaotic_frac=float(B.mean())))
@@ -133,7 +155,7 @@ for k in range(args.null_levels):
     mx, my = x0 + cx * (x1 - x0), y0 + cy * (y1 - y0)
     nw.append((mx - wx / 2, mx + wx / 2, my - wx / 2, my + wx / 2))
 rep["null"] = null
-json.dump(rep, open(C(f"fractal_report_{args.tag}_N{args.N}.json"), "w"), indent=1)
+json.dump(rep, open(C(f"fractal_report_{args.tag}_N{args.N}_{args.label}.json"), "w"), indent=1)
 print(f"{'lev':>3} {'zoom':>9} {'chaos':>6} {'edges':>6} {'slope':>6} {'f32mis':>7} {'pertmis':>8} {'mf':>5} {'null':>5}")
 for d, nl in zip(rep["levels"], null):
     print(f"{d['level']:>3} {d['zoom']:>9.3g} {d['chaotic_frac']:>6.3f} {d['edge_cells']:>6} {d['slope']:>6.2f} "

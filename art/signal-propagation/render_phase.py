@@ -182,9 +182,9 @@ if want("train") and os.path.exists(os.path.join(HERE, args.train)):
     ax.set_ylim(de[0], de[-1]); ax.set_xlim(xe[0], xe[-1])
     ax.set_xlabel(r"$\sigma_w^2$", fontsize=14); ax.set_ylabel("depth L", fontsize=14)
     fig.colorbar(m, ax=ax, fraction=0.03, pad=0.01).set_label("training accuracy", fontsize=11)
-    fig.text(0.1, 0.95, f"Trainability check: 6 xi_c (line, analytic) vs actual training (cells), sigma_b^2 = {sb2}", fontsize=20, color=INK)
+    fig.text(0.1, 0.95, f"Does 6 xi_c predict trainability? (sigma_b^2 = {sb2})", fontsize=22, color=INK)
     fig.text(0.1, 0.08, f"Cells: training accuracy on 10k MNIST training images after {int(T['steps'])} SGD steps (momentum 0.9, lr 1e-3, batch 128), "
-             f"tanh MLP width {int(T['width'])}, one seed per cell.\nLine: 6 x analytic xi_c at sigma_b^2 = {sb2} (Schoenholz et al. 2017 predict "
-             "networks deeper than ~6 xi_c are untrainable). Cell sizes are not to scale in sigma_w^2.", fontsize=11, color=INK, va="top")
+             f"\ntanh MLP width {int(T['width'])}, one seed per cell. Line: 6 x analytic xi_c at sigma_b^2 = {sb2} (Schoenholz et al. 2017 predict "
+             "networks deeper than ~6 xi_c are untrainable).\nCells are centred on the trained sigma_w^2 values; their widths are not to scale.", fontsize=11, color=INK, va="top")
     savefig(fig, "trainability_check.png")
 print("ok")

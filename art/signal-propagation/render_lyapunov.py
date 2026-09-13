@@ -28,9 +28,9 @@ def plate(rgb, name, title, cap, bg, fg):
     savefig(fig, name)
 
 
-cap0 = (f"Finite-time maximal Lyapunov exponent of one random erf MLP (width N = {N}, layers 201-1000, tangent vector renormalised every layer), "
-        "1024 x 1024 pixels, float32.\nlambda < 0: nearby inputs merge (order); lambda > 0: they separate (chaos). "
-        f"Measured fraction with lambda > 0: {np.mean(lam > 0):.3f}; range {lam.min():.2f} to {lam.max():.2f} per layer.\n")
+cap0 = (f"Finite-time maximal Lyapunov exponent of one random erf MLP (width N = {N}, layers 201-1000,\ntangent vector renormalised every layer), "
+        "1024 x 1024 pixels, float32. lambda < 0: nearby inputs merge (order); lambda > 0: they separate (chaos). "
+        f"\nMeasured fraction with lambda > 0: {np.mean(lam > 0):.3f}; range {lam.min():.2f} to {lam.max():.2f} per layer.\n")
 plate(split_rgb(lam > 0, np.abs(lam), "sd_spectral", near_boundary="small"), "lyapunov_spectral.png",
       "The exponent under the frontier", cap0 + "Declared Spectral split at lambda = 0, rank-normalised per side (dark seam = lambda = 0).", "#111014", "#e9e4da")
 plate(split_rgb(lam > 0, np.abs(lam), "cyanotype_vandyke", near_boundary="small"), "lyapunov_cyanotype_vandyke.png",
