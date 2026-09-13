@@ -39,9 +39,10 @@ if 'strata' in args.pieces:
         cm = plt.get_cmap('cmc.batlow') if style == 'paper' else plt.get_cmap('magma')
         W, H = 2600, 3200
         fig = fig_px(W, H, bg=bg)
-        for j, (M, t) in enumerate([(NV, 'A_k → B_k'), (MT, 'A_k → π_k(B_k)')]):
+        for j, (M, t) in enumerate([(NV, 'Aₖ → Bₖ'), (MT, 'Aₖ → πₖ(Bₖ)')]):
             ax = ax_px(fig, 250 + j * 1150, 380, 1000, 2350, W, H)
             xs = np.linspace(0, 1, 300)
+            ytop = -1
             step = 1 / K
             amp = step * 7 / np.log(NV.max() / NV.min())
             lo = np.log(NV.min())
@@ -49,11 +50,12 @@ if 'strata' in args.pieces:
                 base = (K - 1 - k) * step
                 y = base + amp * (np.log(np.interp(xs, le, M[k])) - lo)
                 col = cm(0.1 + 0.8 * k / (K - 1)) if style == 'paper' else cm(0.25 + 0.72 * k / (K - 1))
+                ytop = max(ytop, y.max())
                 ax.fill_between(xs, -1, y, color=bg, lw=0, zorder=2 * k)
                 ax.plot(xs, y, color=col, lw=1.4, zorder=2 * k + 1)
                 if j == 0 and k % 3 == 0:
                     ax.text(-0.04, base + amp * (np.log(M[k][0]) - lo), f'{E[k]:g}', ha='right', va='center', color=sub, fontsize=10)
-            ax.set_xlim(-0.01, 1.01); ax.set_ylim(-0.3 * step, 1 + 9 * step)
+            ax.set_xlim(-0.01, 1.01); ax.set_ylim(-0.3 * step, ytop + step)
             fig.text((250 + j * 1150 + 500) / W, 1 - 330 / H, t, ha='center', color=ink, fontsize=18, style='italic')
         fig.text(250 / W - 0.01, 1 - 330 / H, 'epoch', ha='right', color=sub, fontsize=11, style='italic')
         fig.text(0.5, 1 - 130 / H, 'THE BASIN IS GROWN, NOT FOUND', ha='center', color=ink, fontsize=26)
@@ -116,8 +118,8 @@ if 'film' in args.pieces:
         fig.text(1560 / W, 1 - 215 / H, f'matched {bmt:.3f}', color=ACC, fontsize=13, family='DejaVu Sans Mono')
         fig.text(0.5, 1 - 55 / H, 'THE BASIN IS GROWN, NOT FOUND', ha='center', color=INKc, fontsize=22)
         fig.text(120 / W, 1 - 130 / H, f'epoch {ep:6.3f}', color=INKc, fontsize=20, family='DejaVu Sans Mono')
-        fig.text(0.5, 1 - 1020 / H, f'Two {DSNAME} MLPs (width {int(D["width"])}) interpolated during training.  Dashed: A_k → B_k.  '
-                 f'Orange: A_k → π_k(B_k), weight-matched at that epoch.  28 measured checkpoints; frames between them '
+        fig.text(0.5, 1 - 1020 / H, f'Two {DSNAME} MLPs (width {int(D["width"])}) interpolated during training.  Dashed: Aₖ → Bₖ.  '
+                 f'Orange: Aₖ → πₖ(Bₖ), weight-matched at that epoch.  28 measured checkpoints; frames between them '
                  'interpolate log-loss in log-epoch.', ha='center', color=SUB, fontsize=11)
         Image.fromarray(fig_to_array(fig)).save(os.path.join(fd, f'{f:05d}.png'))
     print(encode_video(fd, f'emergence_{args.ds}{args.tag}', fps=30, gif_width=900, gif_fps=12))

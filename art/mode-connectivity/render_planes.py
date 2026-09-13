@@ -35,7 +35,14 @@ ext = [xs[0], xs[-1], ys[0], ys[-1]]
 names = {'perm': ['A', 'B', 'π(B)'], 'bezier': ['A', 'B', 'C'], 'bezm': ['A', 'π(B)', "C'"]}[args.plane]
 seg_key = {'perm': 'path_matched', 'bezier': 'path_bezier', 'bezm': 'path_bezier_matched'}[args.plane]
 if args.split == 'basin':
-    c = float(H[seg_key][:, 0].max())
+    # highest loss on the segment A -> pi(B) (or on the curve) measured in this plane's own field (same image subset)
+    from scipy.ndimage import map_coordinates
+    if args.plane == 'perm':
+        seg = pts[0][None] + np.linspace(0, 1, 400)[:, None] * (pts[2] - pts[0])[None]
+    else:
+        seg = D[f'{args.plane}_curve']
+    rr = (seg[:, 1] - ys[0]) / (ys[1] - ys[0]); cc_ = (seg[:, 0] - xs[0]) / (xs[1] - xs[0])
+    c = float(np.exp(map_coordinates(np.log(Lg), [rr, cc_], order=3).max()))
     seam_txt = f'seam: L = {c:.3f}, the highest train loss on the {"segment A–π(B)" if args.plane == "perm" else "curve"}'
 else:
     c = np.log(10)

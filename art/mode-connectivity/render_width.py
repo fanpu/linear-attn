@@ -16,6 +16,10 @@ ap.add_argument('ds')
 ap.add_argument('--pieces', default='ridge,barrier,planes')
 args = ap.parse_args()
 D = load(f'width_{args.ds}.npz')
+for extra in sorted(__import__('glob').glob(os.path.join(CACHE, f'width_{args.ds}_*.npz'))):  # e.g. width_mnist_2048.npz from a GPU job
+    E_ = dict(np.load(extra, allow_pickle=True))
+    D.update({k: v for k, v in E_.items() if k.startswith('w') and k != 'widths_done'})
+    D['widths_done'] = np.array(sorted(set(D['widths_done'].tolist()) | set(E_['widths_done'].tolist())))
 DSNAME = {'mnist': 'MNIST', 'fmnist': 'Fashion-MNIST'}[args.ds]
 widths = [int(w) for w in D['widths_done']]
 lams = D['lams']
@@ -40,11 +44,11 @@ if 'ridge' in args.pieces:
         acc = '#f4a259' if style == 'night' else '#b2182b'
         W, H = 2400, 3200
         fig = fig_px(W, H, bg=bg)
-        ax = ax_px(fig, 330, 330, 1800, 2400, W, H)
+        ax = ax_px(fig, 330, 420, 1550, 2300, W, H)
         n = len(widths)
         ymax = max(D[f'w{w}_naive'][:, :, 0].max() for w in widths)
         step = 1.0 / n
-        amp = step * 2.3 / ymax
+        amp = step * 1.9 / ymax
         xs = np.linspace(0, 1, 400)
         for i, w in enumerate(widths):
             base = 1 - (i + 1) * step
@@ -62,9 +66,9 @@ if 'ridge' in args.pieces:
             bm, bn = bars(f'w{w}_matched').mean(), bars(f'w{w}_naive').mean()
             ax.text(1.03, base + 0.004, f'{bn:.2f} → {bm:.3f}', ha='left', va='bottom', color=sub, fontsize=11,
                     family='DejaVu Sans Mono', zorder=z + 5)
-        ax.set_xlim(-0.01, 1.01); ax.set_ylim(-0.01, 1 + 1.5 * step)
-        ax.text(-0.03, 1 + 0.2 * step, 'width', ha='right', color=sub, fontsize=12, style='italic')
-        ax.text(1.03, 1 + 0.2 * step, 'barrier naive → matched', ha='left', color=sub, fontsize=11, style='italic')
+        ax.set_xlim(-0.01, 1.01); ax.set_ylim(-0.01, 1 + 1.0 * step)
+        fig.text(310 / W, 1 - 380 / H, 'width', ha='right', color=sub, fontsize=12, style='italic')
+        fig.text(1900 / W, 1 - 380 / H, 'barrier: naive → matched', ha='left', color=sub, fontsize=11, style='italic')
         ax.text(0, -0.008, 'A', ha='center', va='top', color=ink, fontsize=14)
         ax.text(1, -0.008, 'B  /  π(B)', ha='center', va='top', color=ink, fontsize=14)
         fig.text(0.5, 1 - 130 / H, 'THE MOUNTAIN IS BOOKKEEPING, EVENTUALLY', ha='center', color=ink, fontsize=26)
@@ -73,7 +77,7 @@ if 'ridge' in args.pieces:
         cap(fig, H, 2830, f'Each row: 3 hidden ReLU layers of the given width; 3 independent pairs of networks (Adam, 20 epochs). '
             f'Ghost band and dashed line: train loss along A → B (min–max and mean over pairs). Solid: along A → π(B) after '
             f'weight matching (mean). {"Orange" if style == "night" else "Red"} line: matched + REPAIR. Same vertical scale in every row '
-            f'(row height = {ymax / 2.3:.2f} nats); numbers are mean barriers in nats. 25 measured points per path, linearly interpolated.',
+            f'(row height = {ymax / 1.9:.2f} nats); numbers are mean barriers in nats. 25 measured points per path, linearly interpolated.',
             sub, width=125)
         save(fig, f'width_ridge_{args.ds}_{style}.png')
     print('ridge done')
@@ -93,7 +97,7 @@ if 'barrier' in args.pieces:
         ax.set_xscale('log', base=2); ax.set_yscale('symlog', linthresh=0.01)
         ax.set_xticks(widths); ax.set_xticklabels(widths)
         ax.set_xlabel('hidden width'); ax.set_ylabel(f'{nm} loss barrier (nats)')
-        ax.axhline(0, color='k', lw=0.5)
+        ax.axhline(0, color='k', lw=0.5); ax.set_ylim(bottom=-0.001)
         for s in ['top', 'right']:
             ax.spines[s].set_visible(False)
         if j == 0:
@@ -124,7 +128,10 @@ if 'planes' in args.pieces and os.path.exists(os.path.join(CACHE, f'planes_width
             xs, ys, pts = Pd[f'w{w}_xs'], Pd[f'w{w}_ys'], Pd[f'w{w}_pts']
             ext = [xs[0], xs[-1], ys[0], ys[-1]]
             F_ = zoom(np.log(Lg), 700 / Lg.shape[0], order=3)
-            cth = D[f'w{w}_matched'][0][:, 0].max()
+            from scipy.ndimage import map_coordinates
+            seg = pts[0][None] + np.linspace(0, 1, 400)[:, None] * (pts[2] - pts[0])[None]
+            cth = float(np.exp(map_coordinates(np.log(Lg), [(seg[:, 1] - ys[0]) / (ys[1] - ys[0]),
+                                                            (seg[:, 0] - xs[0]) / (xs[1] - xs[0])], order=3).max()))
             if style == 'spectral':
                 ax.imshow(P.render_split(F_ - np.log(cth), 'sd_spectral', near_boundary='small'), origin='lower',
                           extent=ext, interpolation='lanczos')

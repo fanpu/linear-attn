@@ -3,7 +3,7 @@
 Measured: B's first-layer receptive fields (784 weights per unit), the layer-1 permutation after every
 coordinate-descent sweep of Git Re-Basin weight matching, and the test loss along A -> pi_k(B) after each
 sweep (analyze_units.py, 13 points).  Aesthetic: tile flight paths (smoothstep ease between sweeps),
-Crameri berlin diverging colours scaled per tile by max |w|, slot order of A (sorted by final matched cosine).
+Crameri vik diverging colours scaled per tile by max |w|, slot order of A (sorted by final matched cosine).
 
 usage: python render_sorting.py mnist
 """
@@ -22,7 +22,7 @@ DSNAME = {'mnist': 'MNIST', 'fmnist': 'Fashion-MNIST'}[args.ds]
 SP = U['sweep_perm0']  # [S+1, n], slot i holds B unit SP[k, i]
 S1, n = SP.shape
 order = np.argsort(-U['matchcos0'])  # slot j shows A unit order[j]
-cm = plt.get_cmap('cmc.berlin')
+cm = plt.get_cmap('cmc.vik')
 TS = 22
 side = 28
 
@@ -90,7 +90,7 @@ def background(k):
     txt = [f'{n} first-layer units of two {DSNAME} MLPs,', 'each tile = one unit\'s 28×28 weights.',
            'Weight matching solves one assignment', 'problem per layer per sweep; tiles fly to', 'the slot beside the A unit they are',
            'paired with (all 3 layers are matched;', 'layer 1 is shown). Slots ordered by final', 'matched similarity. Flight paths are',
-           'decorative; positions at each sweep are', 'exact. Colour: berlin, per-tile |w| max.']
+           'decorative; positions at each sweep are', 'exact. Colour: Crameri vik, per-tile |w| max.']
     for i, t in enumerate(txt):
         d.text((1380, 760 + 26 * i), t, font=F_small, fill=SUB)
     return np.asarray(im).copy()

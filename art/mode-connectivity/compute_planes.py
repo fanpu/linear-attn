@@ -22,6 +22,8 @@ ap.add_argument('kind', choices=['hero', 'width'])
 ap.add_argument('ds')
 ap.add_argument('--res', type=int, default=181)
 ap.add_argument('--ntrain', type=int, default=10000)
+ap.add_argument('--ntest', type=int, default=10000)
+ap.add_argument('--test_planes', default='perm')
 ap.add_argument('--pad', type=float, default=0.35)
 ap.add_argument('--tag', default='')
 ap.add_argument('--planes', default='perm,bezier,bezm')
@@ -32,6 +34,7 @@ Xtr, ytr, Xte, yte = load_data(args.ds)
 g = torch.Generator().manual_seed(0)
 sub = torch.randperm(len(Xtr), generator=g)[:args.ntrain].to(DEV)
 Xs, ys_ = Xtr[sub], ytr[sub]
+Xte, yte = Xte[:args.ntest], yte[:args.ntest]
 
 
 def dot(p, q):
@@ -88,12 +91,12 @@ if args.kind == 'hero':
     log = Logger(os.path.join(CACHE, tag + '.log'))
     Wt = torch.load(os.path.join(CACHE, f'hero_{args.ds}{args.tag}_weights.pt'), weights_only=False)
     A, B, Bp, C, Cp = [to_dev(Wt[k]) for k in ['A', 'B', 'Bp', 'C', 'Cp']]
-    out = dict(res=args.res, ntrain=args.ntrain)
+    out = dict(res=args.res, ntrain=args.ntrain, ntest=args.ntest)
     todo = args.planes.split(',')
     for name, (P0, P1, P2, ctrl) in {'perm': (A, B, Bp, None), 'bezier': (A, B, C, C), 'bezm': (A, Bp, Cp, Cp)}.items():
         if name not in todo:
             continue
-        u, v = plane(P0, P1, P2, name, out, log)
+        u, v = plane(P0, P1, P2, name, out, log, test=name in args.test_planes.split(','))
         if ctrl is not None:
             cur = []
             for t in np.linspace(0, 1, 201):

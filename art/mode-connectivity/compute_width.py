@@ -16,9 +16,10 @@ ap.add_argument('ds')
 ap.add_argument('--widths', default='32,64,128,256,512,1024,2048')
 ap.add_argument('--pairs', type=int, default=3)
 ap.add_argument('--epochs', type=int, default=20)
+ap.add_argument('--tag', default='')
 args = ap.parse_args()
 gpu_setup()
-tag = f'width_{args.ds}'
+tag = f'width_{args.ds}{args.tag}'
 log = Logger(os.path.join(CACHE, tag + '.log'))
 path = os.path.join(CACHE, tag + '.npz')
 out = dict(np.load(path, allow_pickle=True)) if os.path.exists(path) else {}
@@ -65,7 +66,7 @@ for w in [int(x) for x in args.widths.split(',')]:
         log(f'width {w} pair {i}: train/test barrier ' + ' | '.join(msg) + f' | {nit} sweeps, {time.time() - tw:.0f}s')
         if i == 0:
             torch.save(dict(A=to_cpu(pA), B=to_cpu(pB), Bp=to_cpu(pBp), perms=[np.asarray(p) for p in perms]),
-                       os.path.join(CACHE, f'{tag}_w{w}_weights.pt'))
+                       os.path.join(CACHE, f'width_{args.ds}_w{w}_weights.pt'))
     for k in R:
         out[f'w{w}_{k}'] = np.array(R[k])
     for k in extra:
