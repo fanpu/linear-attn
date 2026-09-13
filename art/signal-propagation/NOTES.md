@@ -10,6 +10,25 @@ Living handoff (replaces PAUSED.md). `cache/` is gitignored; it survives locally
 - README section 5 written (tokens SYNC_PERT_TBD, RES1024_TBD to fill when Bpert/Bres3/Bplate2a/2b finish).
 - Waiting on GPU: bvideo2 (levels to 7), bplate2b (running), bplate2a + batch2 (queued).
 
+### Post-job steps for the successor (session 3 handoff, 12:5x)
+GPU jobs left running via gpu_run.sh (do NOT relaunch): bvideo2 (1280 f32, windows x32..x4096, 8 levels, ~330 s/level; level 2 done at 12:40), bplate2b (1024 f64 x65536, running), bplate2a (1024 f64 x1024, queued), batch2 (Bpert 256 f64 2 windows, then Bres3 512 f64 x262144; queued). Check: `tail -n 2 logs/{bvideo2,bplate2a,bplate2b,batch2}.log`. Each writes its npz after every level.
+```
+cd /home/fzeng/ml/research/art/signal-propagation; PY=/home/fzeng/ml/research/art/.venv/bin/python; export OMP_NUM_THREADS=4
+# 1. analysis (Bpert, Bres3, Bplate2a/b auto-detected by glob; ~10 s), then sheets
+$PY analyze_fractal.py --tag B --label sync --null_levels 10
+$PY render_verification.py; $PY render_boxcount_plate.py
+# 2. fill README tokens: SYNC_PERT_TBD (Bpert mismatch_pert at x64 & x262144 from report) and RES1024_TBD (1024 slope_fine at x1024, x65536)
+# 3. plates: poster x1,x16,x1024,x65536 (+ raw native PNGs for x256, x4096 from Bvideo2)
+$PY render_zoom_plates.py --report cache/fractal_report_B_N100_sync.json --chain cache/zoom_Bvideo_N100_D1000_s0_f32_r1280.npz:0 cache/zoom_Bvideo_N100_D1000_s0_f32_r1280.npz:4 cache/zoom_Bplate2a_N100_D1000_s0_f64_r1024.npz:0 cache/zoom_Bplate2b_N100_D1000_s0_f64_r1024.npz:0
+$PY render_zoom_plates.py --styles spectral,aurora,riso --prefix frontier_single --chain cache/zoom_Bvideo2_N100_D1000_s0_f32_r1280.npz:3 cache/zoom_Bvideo2_N100_D1000_s0_f32_r1280.npz:7   # raw x256/x4096; delete its sheet if unwanted
+# 4. video (13 keyframes x1..x4096), check a few frames downscaled
+$PY merge_chains.py --out cache/zoom_Bvideoall_N100_D1000_s0_f32_r1280.npz cache/zoom_Bvideo_N100_D1000_s0_f32_r1280.npz:0-4 cache/zoom_Bvideo2_N100_D1000_s0_f32_r1280.npz
+$PY render_zoom_video.py --chain cache/zoom_Bvideoall_N100_D1000_s0_f32_r1280.npz --styles spectral,magma,ink --name deepzoom
+# 5. README: check every gallery/ link exists; fill GPU time line in section 4; commit; final report
+```
+Test renders of all 5 plate styles with stand-in data were viewed and look good (x256 most intricate; magma deep levels low-contrast by design).
+GPU time estimate so far (slot wall-clock, from logs): empirical_tanh 8670 s, trainability 4620 s, meanfield ~800 s (CPU), chains A/B/f32/pert ~7400 s, widths ~4900 s, Bvideo 2700 s, Bres/Bres2 2350 s, lyap 360 s, depth dial 150 s, bvideo2 so far ~1000 s, plus killed partial runs (unknown, ~1-2 h) => ~10-12 GPU-slot-hours before the current jobs.
+
 ## Session 2 (agent 2) progress
 - Flow videos: colour now log10(1 - c) (was linear c, saturated); Spectral = per-side rank split; fixed a bug where the chi_1 phase mask was not flipped with the image. Small multiples use log10(1-c).
 - Width: `compute_mf_thit.py` (CPU, mean-field t_hit) removes cancellation noise in the N = infinity tile; `width_as_time_{spectral,magma,ink}` + `width_seeds_grid_spectral` rendered and viewed. N = 640/1024 skipped (GPU budget).
