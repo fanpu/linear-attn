@@ -93,6 +93,30 @@ def hero():
         print("hero", name, "black point p65 =", round(float(p65), 1), "dB")
 
 
+def diptych():
+    """Artwork diptych, no axes: undithered (top) and TPDF-dithered (bottom) 3-bit chirp, native STFT resolution,
+    one shared black point (65th pct of the undithered plate) so the dithered haze is shown at its true level."""
+    A = rc.resample_power(rc.load_spec("int3"))
+    B = rc.resample_power(rc.load_spec("int3_tpdf"))
+    lo = np.percentile(A, 65)
+    for st in ("glow", "sonograph"):
+        gap, strip = 60, 110
+        W, Hh = A.shape[1], A.shape[0]
+        bg = (0.0, 0.0, 0.0) if st == "glow" else rc.PAPER
+        fg = (0.7, 0.68, 0.64) if st == "glow" else rc.INK
+        cv = rc.canvas(W, 2 * Hh + gap + strip, bg)
+        for i, S in enumerate((A, B)):
+            if st == "glow":
+                rgb = rc.cmap_rgb(rc.unit(S, lo, lo + 50, 0.9), "magma")
+            else:
+                rgb = rc.ink_on_paper(rc.unit(S, lo - 12, lo + 45, 0.8))
+            rc.paste(cv, rgb, 0, i * (Hh + gap))
+        rc.text(cv, (40, 2 * Hh + gap + 30), "above: 3-bit, rounded.   below: the same, with TPDF dither.   log chirp 20 Hz - 24 kHz, "
+                "30 s; linear frequency 0 - 24 kHz; one shared dB scale.   STFT 4096 Blackman-Harris.   " + rc.STACK, 40, fg, rc.FONT_MONO)
+        rc.save_png(cv, f"{rc.GAL}/diptych_int3_undithered_tpdf_{st}.png")
+        print("diptych", st)
+
+
 if __name__ == "__main__":
     import sys
     which = sys.argv[1:] or ["magma", "sonograph", "shared", "riso", "hero"]
@@ -101,5 +125,7 @@ if __name__ == "__main__":
             column(s)
         elif s == "riso":
             riso_grid()
+        elif s == "diptych":
+            diptych()
         elif s == "hero":
             hero()

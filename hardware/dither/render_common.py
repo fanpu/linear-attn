@@ -153,6 +153,10 @@ def save_png(img, path, max_mb=19.0):
     if os.path.getsize(path) > max_mb * 1e6:
         img.quantize(256, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE).save(path, optimize=True)
         print(f"  palette PNG: {os.path.basename(path)} {os.path.getsize(path) / 1e6:.1f} MB")
+        while os.path.getsize(path) > max_mb * 1e6:   # still too big for commit.sh's 20 MB cap: downscale 0.85x (declared)
+            img = img.resize((int(img.width * 0.85), int(img.height * 0.85)), Image.LANCZOS)
+            img.quantize(256, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE).save(path, optimize=True)
+            print(f"  downscaled to {img.width}x{img.height}: {os.path.getsize(path) / 1e6:.1f} MB")
 
 
 def logfreq_power(S_db, out_h, fmin=100.0, fmax=24000.0, fs=48000, nfft=4096, out_w=None):
