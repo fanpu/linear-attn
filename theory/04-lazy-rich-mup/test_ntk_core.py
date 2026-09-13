@@ -47,3 +47,18 @@ got = linearized_gd(Kat, Ktt, f0a, f0t, y, lr, 137)
 print(f"linearized GD closed form vs iteration: {np.abs(got - fa).max():.2e}")
 assert np.abs(got - fa).max() < 1e-9
 print("all ok")
+
+# 4) toy hand-written gradients == autograd
+from toy_core import forward, grads_np, init as toy_init, spiral
+xs, ys = spiral(50)
+pt = toy_init(16, 0)
+for k in pt:
+    pt[k].requires_grad_(True)
+X_, Y_ = torch.tensor(xs), torch.tensor(ys)
+loss = 0.5 * ((forward(pt, X_, 3.0) - Y_) ** 2).mean() / 9.0
+g_auto = torch.autograd.grad(loss, [pt["w"], pt["b"], pt["a"]])
+g_np = grads_np(*(pt[k].detach().numpy() for k in "wba"), xs, ys, 3.0)[:3]
+e = max(np.abs(ga.numpy() - gn).max() for ga, gn in zip(g_auto, g_np))
+print(f"toy grads numpy vs autograd: {e:.2e}")
+assert e < 1e-12
+print("toy ok")

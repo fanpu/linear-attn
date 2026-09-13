@@ -1,6 +1,6 @@
 """Coordinate check (Tensor Programs V, Appendix / mup package): activation sizes vs width during the first steps.
 
-For SP and muP GPTs at widths 128..4096 we take a few Adam steps at one fixed learning rate and record, for a fixed
+For SP and muP GPTs at widths 128..2048 we take a few Adam steps at one fixed learning rate and record, for a fixed
 probe batch, the RMS coordinate size of each tapped activation x_t and of its change x_t - x_0.
 Under muP every curve is flat in width; under SP the changes grow with width.
 
@@ -19,7 +19,7 @@ from train_lm import batch
 HERE = os.path.dirname(os.path.abspath(__file__))
 torch.cuda.set_per_process_memory_fraction(0.08)
 dev = "cuda"
-WIDTHS = [128, 256, 512, 1024, 2048, 4096]
+WIDTHS = [128, 256, 512, 1024, 2048]
 STEPS = 5
 LR = 2 ** -8  # 3.9e-3, near the base-width optimum
 TAPS = ["embed", "attn0", "mlp0", "attn3", "mlp3", "logits"]

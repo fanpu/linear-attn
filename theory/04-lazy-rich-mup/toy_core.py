@@ -76,3 +76,40 @@ def train(x, y, m=400, alpha=1.0, lr=1.0, steps=4000, frames=None, seed=0, grid=
         with torch.no_grad():
             p = {k: p[k] - lr * m * g for k, g in zip("wba", gr)}
     return {k: np.array(v) for k, v in rec.items()}
+
+
+def grads_np(w, b, a, X, Y, alpha):
+    """Hand-written gradients of loss = 1/alpha^2 * 1/(2n) |f - y|^2 (numpy; CPU is faster than a busy GPU here)."""
+    m, n = a.shape[0], X.shape[0]
+    pre = X @ w.T + b                      # (n, m)
+    act = np.maximum(pre, 0)
+    f = alpha / m * act @ a                # (n,)
+    r = (f - Y) / (n * alpha)
+    # dL/df_i = (f_i - y_i) / (n alpha^2);  df_i/da_j = alpha/m act_ij  ->  dL/da_j = sum_i (f_i-y_i) act_ij / (n alpha m)
+    ga = act.T @ r / m
+    gpre = (pre > 0) * (r[:, None] * a[None, :] / m)   # (n, m)
+    gw = gpre.T @ X
+    gb = gpre.sum(0)
+    return gw, gb, ga, f
+
+
+def train_np(x, y, m=1024, alpha=1.0, lr=0.2, steps=20000, frames=(), seed=0, grid=None, dtype=np.float32):
+    p = {k: v.numpy().astype(dtype) for k, v in init(m, seed, torch.float64).items()}
+    X, Y = x.astype(dtype), y.astype(dtype)
+    G = None if grid is None else grid.astype(dtype)
+    frames = set(frames)
+    rec = dict(step=[], w=[], b=[], a=[], loss=[], grid=[], acc=[])
+    w, b, a = p["w"], p["b"], p["a"]
+    for t in range(steps + 1):
+        gw, gb, ga, f = grads_np(w, b, a, X, Y, dtype(alpha))
+        if t in frames or t == steps:
+            rec["step"].append(t); rec["loss"].append(float(0.5 * ((f - Y) ** 2).mean()))
+            rec["acc"].append(float(((f > 0) == (Y > 0)).mean()))
+            rec["w"].append(w.copy()); rec["b"].append(b.copy()); rec["a"].append(a.copy())
+            if G is not None:
+                rec["grid"].append(alpha / m * np.maximum(G @ w.T + b, 0) @ a)
+        if t == steps:
+            break
+        s = dtype(lr * m)
+        w, b, a = w - s * gw, b - s * gb, a - s * ga
+    return {k: np.array(v) for k, v in rec.items()}
