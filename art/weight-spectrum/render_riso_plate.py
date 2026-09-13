@@ -16,9 +16,9 @@ W_IN, H_IN, DPI = 12, 9, 220
 
 
 def pick_ckpts(r, n=5):
-    T = r['step'].size
-    idx = np.unique(np.round(np.geomspace(1, T, n)).astype(int) - 1)
-    return idx
+    st = r['step'].astype(float)
+    targets = np.array([0, 0.02, 0.1, 0.35, 1.0]) * st[-1]
+    return np.unique([int(np.abs(st - t).argmin()) for t in targets])
 
 
 def layout(r, which, cols):
@@ -52,7 +52,7 @@ def layout(r, which, cols):
                     ax.text(0.0, 1.12, f"step {int(r['step'][t]):,}", transform=ax.transAxes, fontsize=10, family=R.SERIF)
                 if a == nL - 1:
                     for xt in np.arange(np.ceil(lo), hi, 1.0):
-                        ax.text(xt, -0.2 * np.sqrt(ymax), f'10^{int(xt)}', ha='center', fontsize=6.5, family='DejaVu Sans Mono')
+                        ax.text(xt, -0.2 * np.sqrt(ymax), f'$10^{{{int(xt)}}}$', ha='center', fontsize=7.5)
             if b == 0 and which == 'text':
                 ax.text(-0.08, 0.5, f'{L}\n{N}×{M}', transform=ax.transAxes, ha='right', va='center', fontsize=10,
                         family=R.SERIF)

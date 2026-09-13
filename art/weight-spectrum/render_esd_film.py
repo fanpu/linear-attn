@@ -49,7 +49,7 @@ def frame(k):
     else:
         cur, cur_sh, var, step = lam[i], sh[i], G['var'][i], G['r']['step'][i]
     lo, hi = G['lo'], G['hi']
-    bins = np.linspace(lo, hi, 170); w = bins[1] - bins[0]
+    bins = np.linspace(lo, hi, 90); w = bins[1] - bins[0]
     h, _ = np.histogram(np.log10(cur), bins); hs, _ = np.histogram(np.log10(cur_sh), bins)
     dens = h / (G['M'] * w); dens_s = hs / (G['M'] * w)
     fig = plt.figure(figsize=(19.2, 10.8), dpi=100, facecolor=s['bg'])
@@ -83,12 +83,12 @@ def frame(k):
     ax2 = fig.add_axes([0.06, 0.09, 0.62, 0.09]); ax2.set_facecolor(s['bg'])
     lp = mp_edges(var, G['Q'])[1]
     lc = np.log10(cur)
-    out = cur > cur_sh.max()
+    out = cur > np.sort(cur_sh)[-2]  # null bulk edge (see common.null_edge)
     ax2.vlines(lc[~out], 0, 1, color=s['dim'], lw=0.35, alpha=0.5)
     ax2.vlines(lc[out], 0, 1, color=s['tick'], lw=1.4)
     ax2.axvline(np.log10(lp), color=s['mp'], lw=1.0, ls=(0, (2, 2)))
     ax2.set_xlim(lo, hi); ax2.set_ylim(0, 1); ax2.axis('off')
-    fig.text(0.06, 0.195, 'every eigenvalue, one line   ·   bright: above the largest eigenvalue of the shuffled-entries null   ·   dashed: MP edge λ₊',
+    fig.text(0.06, 0.195, 'every eigenvalue, one line   ·   bright: above the bulk edge of the shuffled-entries null   ·   dashed: MP edge λ₊',
              color=s['dim'], fontsize=10.5, family='DejaVu Sans')
     # right column: text + alpha trace
     r = G['r']
@@ -97,7 +97,7 @@ def frame(k):
     fig.text(0.72, 0.83, 'a weight matrix departing from randomness', color=s['dim'], fontsize=15, family=R.SERIF,
              style='italic')
     rows = [('step', f'{int(round(step)):,}'), ('epoch', f'{ep:.2f}'), ('test acc', f"{r['test_acc'][ci]:.3f}"),
-            ('α (tail fit)', f'{al:.2f}'), ('λmax / null max', f"{m['lmax_over_null'][ci]:.1f}"),
+            ('α (tail fit)', f'{al:.2f}' if m['n_out'][ci] >= 5 else '— (random-like)'), ('λmax / null edge', f"{m['lmax_over_null'][ci]:.1f}"),
             ('eigs above null', f"{m['n_out'][ci]}")]
     for j, (kk, vv) in enumerate(rows):
         y = 0.75 - j * 0.045
@@ -105,17 +105,21 @@ def frame(k):
         fig.text(0.93, y, vv, color=s['fg'], fontsize=17, family='DejaVu Sans Mono', ha='right')
     ax3 = fig.add_axes([0.72, 0.12, 0.21, 0.26]); ax3.set_facecolor(s['bg'])
     st = np.maximum(r['step'], 1)
-    ax3.plot(st, m['alpha_shuf'], color=s['null'], lw=1.2, alpha=0.7)
-    ax3.plot(st, m['alpha'], color=s['dim'], lw=1.0)
-    ax3.plot(st[:ci + 1], m['alpha'][:ci + 1], color=s['esd'], lw=2.2)
-    ax3.set_xscale('log'); ax3.set_ylim(1.5, max(12, np.nanmax(m['alpha']) + 0.5))
+    ok = m['n_out'] >= 5  # fit only shown once >=5 eigenvalues exceed the null maximum (random phase: fit is noise)
+    aa = np.where(ok, m['alpha'], np.nan)
+    ax3.plot(st, m['alpha_shuf'], color=s['null'], lw=1.0, alpha=0.6)
+    ax3.plot(st, aa, color=s['dim'], lw=1.0)
+    ax3.plot(st[:ci + 1], aa[:ci + 1], color=s['esd'], lw=2.2)
+    if not r['meta'].get('n_lin'):
+        ax3.set_xscale('log')
+    ax3.set_ylim(1.5, 12)
     ax3.axhspan(2, 4, color=s['esd'], alpha=0.08, lw=0)
     for sp in ['top', 'right']:
         ax3.spines[sp].set_visible(False)
     for sp in ['bottom', 'left']:
         ax3.spines[sp].set_color(s['dim'])
     ax3.tick_params(colors=s['dim'], labelsize=10)
-    ax3.set_title('α over training (blue: shuffled null)', color=s['dim'], fontsize=12, loc='left', family='DejaVu Sans')
+    ax3.set_title('α over training, once ≥5 eigs exceed null (blue: null)', color=s['dim'], fontsize=12, loc='left', family='DejaVu Sans')
     ax3.set_xlabel('step', color=s['dim'], fontsize=11)
     fig.text(0.06, 0.93, f"orange: measured ESD   ·   blue fill: same entries shuffled   ·   solid curve: Marchenko–Pastur at current σ²   ·   dotted: MP at init   ·   dashed: power-law fit λ^−α",
              color=s['dim'], fontsize=11, family='DejaVu Sans')

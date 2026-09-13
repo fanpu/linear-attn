@@ -52,7 +52,7 @@ def sheet_main(run):
     axs[0, 0].set_title('power-law exponent α of ESD tail (Clauset MLE, xmin by KS)', fontsize=9)
     axs[0, 0].axhspan(2, 4, color='#b3342b', alpha=0.06); axs[0, 0].legend(fontsize=6.5, ncol=2, frameon=False)
     axs[0, 1].set_title('λmax / MP edge λ₊(σ² of current entries)', fontsize=9); axs[0, 1].axhline(1, color='k', lw=0.6)
-    axs[0, 2].set_title('# eigenvalues above the shuffled-null maximum', fontsize=9)
+    axs[0, 2].set_title('# eigenvalues above the shuffled-null bulk edge', fontsize=9)
     axs[1, 1].set_title('stable rank Σλ/λmax (dotted: shuffled null)', fontsize=9); axs[1, 1].set_yscale('log')
     axs[1, 2].set_title('KS distance ESD vs shuffled null (log λ)', fontsize=9)
     a = axs[1, 0]
@@ -101,7 +101,7 @@ def sheet_batch(rows):
         axs[2].plot(bs, [d[f'{L}_n_out'] for d in rows], 'o-', color=LC[L], lw=1.5, ms=4, label=L)
     axs[3].plot(bs, [d['test_acc'] for d in rows], 'o-', color='#1b1a17', lw=1.5, ms=4, label='test')
     axs[3].plot(bs, [d['train_acc'] for d in rows], 'o-', color='#8a847a', lw=1.2, ms=4, label='train (10k)')
-    t = ['final α (x: shuffled null)', 'λmax / MP edge', '# eigenvalues above null max', 'accuracy after 30 epochs']
+    t = ['final α (x: shuffled null)', 'λmax / MP edge', '# eigenvalues above null bulk edge', 'accuracy after 30 epochs']
     for a, tt in zip(axs, t):
         a.set_xscale('log', base=2); a.set_title(tt, fontsize=10); a.set_xlabel('batch size (lr 0.01, 30 epochs)', fontsize=9)
         style_ax(a); a.legend(fontsize=7, frameon=False)

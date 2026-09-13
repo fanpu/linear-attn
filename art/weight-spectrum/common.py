@@ -96,6 +96,13 @@ def ks_two_sample_log(a, b):
     return float(np.abs(Fa - Fb).max())
 
 
+def null_edge(lam_shuf):
+    """Bulk edge of the shuffled-entries null = its SECOND largest eigenvalue.
+    Shuffling keeps the global mean mu of the entries; mu * 1 1^T is rank one and gives one spike at ~mu^2 M
+    (FC2/FC3 weights drift to a negative mean during training), so the largest null eigenvalue is not the bulk edge."""
+    return np.sort(lam_shuf)[-2]
+
+
 @lru_cache(maxsize=32)
 def metrics(name, layer):
     """Per-checkpoint departure-from-randomness metrics for one run/layer."""
@@ -103,15 +110,17 @@ def metrics(name, layer):
     lam = r[f'{layer}/lam']; sh = r[f'{layer}/lam_shuf']; var = r[f'{layer}/elem_var']
     N, M = shape_NM(r, layer); Q = N / M
     out = {k: [] for k in ['alpha', 'alpha_se', 'xmin', 'n_tail', 'ks', 'alpha_shuf', 'lmax_over_null',
-                           'lmax_over_mp', 'n_out', 'srank', 'srank_shuf', 'ks_vs_null']}
+                           'lmax_over_mp', 'n_out', 'srank', 'srank_shuf', 'ks_vs_null', 'null_spike']}
     for t in range(lam.shape[0]):
         f = fit_powerlaw(lam[t]); fs = fit_powerlaw(sh[t])
         lp = mp_edges(var[t], Q)[1]
         out['alpha'].append(f['alpha']); out['alpha_se'].append(f['alpha_se']); out['xmin'].append(f['xmin'])
         out['n_tail'].append(f['n_tail']); out['ks'].append(f['ks']); out['alpha_shuf'].append(fs['alpha'])
-        out['lmax_over_null'].append(lam[t].max() / sh[t].max())
+        ne = null_edge(sh[t])
+        out['lmax_over_null'].append(lam[t].max() / ne)
         out['lmax_over_mp'].append(lam[t].max() / lp)
-        out['n_out'].append(int((lam[t] > sh[t].max()).sum()))
+        out['n_out'].append(int((lam[t] > ne).sum()))
+        out['null_spike'].append(np.sort(sh[t])[-1] / ne)
         out['srank'].append(stable_rank(lam[t])); out['srank_shuf'].append(stable_rank(sh[t]))
         out['ks_vs_null'].append(ks_two_sample_log(lam[t], sh[t]))
     return {k: np.array(v) for k, v in out.items()}
