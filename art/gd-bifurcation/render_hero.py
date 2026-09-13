@@ -141,6 +141,11 @@ def main():
         riso(c, d, lo, hi, f"{GAL}/hero_riso_lyapunov.png")
     if "phase" in which:
         phase_braid(d, lo, hi, f"{GAL}/hero_phase_braid.png")
+    if "braidcrop" in which:
+        global BAND
+        BAND = (0.664, 0.68)
+        d = np.load(f"{CACHE}/bif_prod4braid_hi.npz")
+        phase_braid(d, 0.645, 0.68, f"{GAL}/braid_crop.png", W=6000, H=3000, ylo=0.43, yhi=1.37)
 
 
 if __name__ == "__main__":

@@ -126,8 +126,8 @@ def zoom_job(args):
     if os.path.exists(fn):
         return fn
     t0 = time.time()
-    rec = int(min(3000 * p, 200000))
-    C, e, ly, lb, al = counts(lo, hi, ylo, yhi, 1920, 860, 40000, rec, spp=2, lyap_steps=4000, seed=i)
+    rec = int(min(2000 * p, 300000))
+    C, e, ly, lb, al = counts(lo, hi, ylo, yhi, 1920, 860, 30000, rec, spp=1, lyap_steps=3000, seed=i)
     np.savez_compressed(fn, C=np.minimum(C, 65535).astype(np.uint16), etas=e, lyap=ly.astype(np.float32),
                         lyap_bal=lb.astype(np.float32), rect=(lo, hi, ylo, yhi), p_eff=p, rec=rec)
     print(f"frame {i} p_eff={p:.1f} rec={rec} {time.time() - t0:.0f}s", flush=True)

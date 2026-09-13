@@ -17,6 +17,7 @@ SETTINGS = {
     "prod2": dict(k=2, lo=0.85, hi=2.0, x0=(1.1, 0.9)),
     "prod4": dict(k=4, lo=0.42, hi=1.21, x0=(1.1, 0.9, 1.05, 0.95)),
     "logistic": dict(k=1, lo=2.8, hi=4.0, x0=(0.3,)),
+    "prod4braid": dict(k=4, lo=0.60, hi=0.68, x0=(1.1, 0.9, 1.05, 0.95)),
 }
 
 
