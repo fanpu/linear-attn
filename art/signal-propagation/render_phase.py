@@ -102,7 +102,7 @@ if want("contour"):
     ax.set_facecolor(PAPER)
     X, Y = np.meshgrid(A["sw2"], A["sb2"])
     lv = np.geomspace(0.75, 400, 34)
-    ax.contour(X, Y, np.log(xi_a), levels=np.log(lv), colors=INK, linewidths=np.where(np.arange(34) % 5 == 0, 0.9, 0.35))
+    ax.contour(X, Y, np.log(xi_a), levels=np.log(lv), colors=INK, linewidths=np.where(np.arange(34) % 5 == 0, 0.9, 0.35), negative_linestyles="solid")
     ax.contour(X, Y, np.where(ch_a, A["cstar"], np.nan), levels=np.linspace(0.05, 0.95, 19), colors="#b8473a",
                linewidths=0.35, linestyles="dashed")
     for s in ax.spines.values():
@@ -111,8 +111,8 @@ if want("contour"):
     ax.set_xlabel(r"$\sigma_w^2$", color=INK, fontsize=15); ax.set_ylabel(r"$\sigma_b^2$", color=INK, fontsize=15)
     fig.text(300 / W, 1 - 95 / H, "Survey sheet: isolines of the depth scale", color=INK, fontsize=26, va="center")
     fig.text(300 / W, 1 - 1640 / H, "Black ink: level lines of the analytic correlation depth scale xi_c (34 geometric levels from 0.75 "
-             "to 400 layers; every fifth line heavier). They crowd toward the critical line where xi_c diverges.\n"
-             "Red dashed ink: level lines of the correlation fixed point c* (0.05 ... 0.95) in the chaotic phase. "
+             "to 400 layers; every fifth line heavier).\nThey crowd toward the critical line where xi_c diverges. "
+             "Red dashed ink: level lines of the correlation fixed point c* (0.05 ... 0.95) in the chaotic phase.\n"
              "Tanh MLP, infinite width, Gauss-Hermite quadrature. Line weights and inks are declared choices.",
              color=INK, fontsize=11.5, va="top", linespacing=1.5)
     savefig(fig, "phase_contours_paper.png")

@@ -97,11 +97,12 @@ for style in styles:
             save_rgb(style_rgb(k, style)[::-1], f"{args.prefix}_N{N}_level{k}_{style}_raw.png")
     # ---- four-panel magnification sequence
     ks = args.panels
-    pw = 1000 if R >= 1000 else R
+    pw = R  # panels are shown 1:1 with the native grid (no resampling)
+    s_ = pw / 1024
     gap, top, bot, side_m = 60, 230, 360, 110
     W = side_m * 2 + len(ks) * pw + (len(ks) - 1) * gap
     H = top + pw + bot
-    fig = fig_px(W, H, bg=BG[style])
+    fig = fig_px(W, H, bg=BG[style], dpi=int(200 * s_))
     fg = FG[style]
     fig.text(side_m / W, 1 - 90 / H, f"Finite Width: the order/chaos frontier of a random erf network, N = {N}, depth {D}",
              color=fg, fontsize=30, va="center")
@@ -127,7 +128,8 @@ for style in styles:
              f"Measured: L = |x1 - x2|^2 after {D} layers (mean of the last 20) for two independent inputs; frontier at L = {args.tau:g}. "
              f"Each panel computed natively at {R} x {R} in float64 (no upsampling); each zoom centred on the sub-window with the most ordered/chaotic mixing.\n"
              + STYLE_NOTE[style] + "\nDimension = local box-counting slope inside that panel (box sizes 2 to " + str(R // 8) +
-             " px). Width matters: at infinite width the frontier is the smooth mean-field curve (dimension 1.00).",
+             " px). Width matters: at infinite width the frontier is the smooth mean-field curve (null model, same pipeline: dimension "
+             + (f"{np.nanmean([d['slope'] for d in rep['null']]):.2f}" if rep else "~1") + ").",
              color=fg, fontsize=12, va="top", linespacing=1.6, alpha=0.9)
-    savefig(fig, f"{args.prefix}_N{N}_magnification_{style}.png")
+    savefig(fig, f"{args.prefix}_N{N}_magnification_{style}.png", dpi=int(200 * s_))
     print("wrote", style)
