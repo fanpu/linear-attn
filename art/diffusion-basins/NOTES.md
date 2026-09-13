@@ -1,5 +1,8 @@
 # NOTES: Which Dog (diffusion basins)
 
+## STATUS: COMPLETE (all follow-ups done, committed)
+- Final wrap-up: MNIST uncert M=16384 -> alpha=0.901, D=1.10+-0.05 (Poisson bootstrap; 33 flips @1e-3, 10 @3e-4; fit eps 0.01..3e-4 gives D=1.05; local slope 0.97-0.99 below 3e-3) -> README section 4 MNIST row + negative-results bullet updated. gallery/verify/toy_dimension.png uses toy data only, so no re-render. zoom_iter_ring6: mp4 9.8 MB kept, gif re-encoded 24 MB -> 7.2 MB (360px/8fps/128 colours bayer); plate viewed (6-petal flowers recur down to width 1.5e-8); added to README 2a. Link check 55 links, 0 missing.
+
 ## Session 3 (final successor) -- state
 - DONE: MNIST renders (gallery/mnist/*: basin confidence/riso/paper/margin-spectral at 2304^2 with bilinear prob interpolation + digit legend; boundary mosaic 24x24 window (72,160) classes 0/3/5/6/8/9; full mosaic; memo_cells (smoothed one-hot); memo mosaic; mnist_steps mp4/gif; zoom plate with caption). All viewed.
 - DONE: gamma film (gallery/animations/gamma_sweep_ring8_night.*, viewed frame: good); steps_scatter12 film + gallery/verify/toy_dimension.png viewed (good).
@@ -8,7 +11,7 @@
 - common.write_video now pads odd frame sizes to even; caption_strip word-wraps.
 - MNIST numbers: uncert M=2048 alpha=0.825 D=1.17 (weak, 4 flips at 1e-3); f64 mismatch 0/2304; zoom 5->2 classes, straight boundary at width 0.012 rad; stepsweep agreement w/ N=45: 2%(1) 55%(2) 81%(4) 92%(8) 98%(23); boundary edges saturate ~1170 by N=8; memo net vs exact same image on 44.5% of pixels, 17 vs 16 images reached, net median d1/d2 0.04, exact median d1 0; clf test acc 99.3%.
 - DONE after first commit: learned maps + zoom ddim50_learned_scatter12 (windowed D 1.20->1.05, boundary px flat 1500-2050 => smooth); `render_toy.py atlas verify` re-run -> gallery/toy/atlas_learned_{confidence,paper,night}.png (viewed: same as analytic, wavy edges); zoom_ode_scatter12 mp4 2.6 MB / gif 6.7 MB / plate rendered (NOT viewed). README updated with learned atlas, learned verdict row, ODE zoom links; link check 48 links, 0 missing.
-- RUNNING at handoff (logged, OK to leave):
+- (both jobs below FINISHED and followed up; see STATUS above):
   * GPU `mnist_compute.py uncert 16384` (eps 0.1..1e-4, ~5 min/eval, 8 evals) -> cache/mnist_uncert_M16384.json, logs/mnist_uncert16k.log. When done: put alpha/D into README section 4 MNIST row and replace the sentence "A larger run is described in NOTES.md, and its number is added below if it finished."
   * CPU `render_toy.py ... zoom:iter_ring6` (logs/render_toy_rest.log) -> gallery/zooms/zoom_iter_ring6.*; check sizes (<20 MB mp4, <15 MB gif; re-encode like ring8: CRF21, gif fps=8 scale=360 128 colours bayer), view plate, add to README 2a, rerun link check, commit.
 - Remaining optional: view zoom_ode_scatter12_plate.png.

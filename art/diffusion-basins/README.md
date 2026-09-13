@@ -74,6 +74,12 @@ Here D(x, σ) = E[x₀ | x_σ = x] is the Tweedie denoiser. For the toys it is e
 
 MP4 [zoom_iter_ring8.mp4](gallery/zooms/zoom_iter_ring8.mp4) (1080², 54 s) · GIF [zoom_iter_ring8.gif](gallery/zooms/zoom_iter_ring8.gif) (360 px).
 
+**Ring 6 zoom, 30 levels ×2** (γ = 2.10, centred on the 6-fold junction at the origin, width 8 → 1.5 × 10⁻⁸): the 6-petal flower re-forms around the junction at every scale.
+
+<p align="center"><img src="gallery/zooms/zoom_iter_ring6_plate.png" width="80%"></p>
+
+MP4 [zoom_iter_ring6.mp4](gallery/zooms/zoom_iter_ring6.mp4) (1080², 46 s) · GIF [zoom_iter_ring6.gif](gallery/zooms/zoom_iter_ring6.gif) (360 px).
+
 **γ sweep film** (1.0 → 2.12): the invertible map (γ ≤ 1.06) has straight ray boundaries, and the flowers grow out of the junctions as γ approaches the stability limit.
 
 <p align="center"><video src="gallery/animations/gamma_sweep_ring8_night.mp4" autoplay loop muted playsinline width="60%"></video><br><a href="gallery/animations/gamma_sweep_ring8_night.gif">GIF</a></p>
@@ -225,7 +231,7 @@ python render_mnist.py basin boundary mosaic memo steps zoom
 | **iterated denoiser, ring8, γ = 2.12** | **1.571 ± 0.021** | **1.270** | 36 levels ×2, float64: D repeats with **period 9 levels** (×512), mean 1.46 | **fractal** |
 | iterated denoiser, ring6, γ = 2.10 | 1.408 ± 0.033 | 1.177 | 30 levels, period 9, D 1.18–1.38 | fractal |
 | positive control: Newton z³ − 1 | 1.470 | 1.441 | – | fractal reference |
-| **MNIST DDPM, DDIM-50** | – | 1.17 (M = 2048, ε 0.1…0.003, weak; local slope in last decade 0.97) | 4 levels ×4: 5 → 2 classes, one straight boundary at width 0.012 rad | **smooth** |
+| **MNIST DDPM, DDIM-50** | – | 1.10 ± 0.05 (M = 16384, ε 0.1…3 × 10⁻⁴; local slope steepens to 0.97–0.99 below ε = 0.003, i.e. D → 1.0) | 4 levels ×4: 5 → 2 classes, one straight boundary at width 0.012 rad | **smooth** |
 
 Box counting on smooth curves over-reads 1.06–1.09 at this resolution (see the circle null), so the samplers match the nulls exactly. The uncertainty exponent is the sharper test: 0.98–1.00 for the samplers versus 1.27 for the iterated denoiser and 1.44 for Newton.
 
@@ -242,7 +248,7 @@ Box counting on smooth curves over-reads 1.06–1.09 at this resolution (see the
 - ring8 ODE/DDIM basins are exactly straight rays by symmetry, and grid25 gives plain rectangles. Only asymmetric scatter12 shows stretched curved boundaries.
 - For scatter12 the iterated denoiser is nearly Voronoi. The flowers need a symmetric junction where several modes meet.
 - The iterated map is invertible (smooth, ray boundaries) for γ ≤ ~1.06. Folding and fractality are tied to over-relaxation, not to denoising itself.
-- The MNIST uncertainty exponent at M = 2048 is statistically weak (4 flips at ε = 10⁻³). A larger run is described in NOTES.md, and its number is added below if it finished.
+- The MNIST uncertainty exponent at M = 2048 (D = 1.17) was statistically weak (4 flips at ε = 10⁻³). The rerun at M = 16384 (33 flips at 10⁻³, 10 at 3 × 10⁻⁴) gives α = 0.90, **D = 1.10 ± 0.05** (Poisson bootstrap, fit over the 6 points with ≥ 10 flips). The residual excess over 1 comes from the large-ε end: fitting ε 0.01…3 × 10⁻⁴ only gives D = 1.05, and the local slope between 3 × 10⁻³ and 3 × 10⁻⁴ is 0.97–0.99. This is consistent with a smooth boundary, in line with the MNIST zoom.
 
 ## 5. Caveats
 
