@@ -14,8 +14,9 @@ import torch
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ntk_core import cifar_binary, empirical_ntk, init_params, net
 
-torch.cuda.set_per_process_memory_fraction(0.08)
-dev = "cuda"
+dev = os.environ.get("DEV", "cuda")  # the alpha sweep (m=1024) runs fine on CPU: DEV=cpu
+if dev == "cuda":
+    torch.cuda.set_per_process_memory_fraction(0.08)
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = f"{HERE}/cache"
 os.makedirs(CACHE, exist_ok=True)
@@ -24,16 +25,19 @@ xtr, ytr, xte, yte = cifar_binary()
 n = len(ytr)
 Xtr = torch.tensor(xtr, device=dev, dtype=torch.float32); Xall = torch.tensor(np.concatenate([xtr, xte]), device=dev, dtype=torch.float32)
 Y = torch.tensor(ytr, device=dev, dtype=torch.float32)
+LR_ALPHA, STEPS_ALPHA = 0.5, 6000  # alpha=0.01 diverges at lr 2 (probe), fine at 0.5
 SUB = np.concatenate([np.where(ytr == -1)[0][:48], np.where(ytr == 1)[0][:48]])  # 96 pts sorted by class
 
 
-def run(m, seed, alpha=None, lr=2.0, steps=3000, n_ck=40, tag=""):
+def run(m, seed, alpha=None, lr=2.0, steps=3000, n_ck=40, tag="", positive_a=False):
     """alpha=None: plain NTK parameterization. alpha>0: Chizat-Oyallon-Bach model alpha*(f - f0), loss / alpha^2."""
     out_path = f"{CACHE}/{tag}.npz"
     if os.path.exists(out_path):
         print("skip", out_path); return
     t0 = time.time()
-    p = init_params(192, m, seed, dev, dtype=torch.float32)  # float32 is 10x faster here; f64 spot-check in test
+    p = init_params(192, m, seed, dev, dtype=torch.float32)  # float32 is 10x faster here
+    if positive_a:  # all readout weights positive: breaks the sign cancellation in the kernel's first-order change
+        p["a"] = p["a"].abs()
     p0 = {k: v.clone() for k, v in p.items()}
     f0_all = net(p0, Xall).detach()
     scale = 1.0 if alpha is None else alpha
@@ -84,9 +88,13 @@ if __name__ == "__main__":
             for lr in [0.5, 2.0]:
                 run(1024, 0, alpha=alpha, lr=lr, steps=int(sys.argv[2]), n_ck=6, tag=f"probe_a{alpha}_lr{lr}")
     elif what == "alpha":
-        for seed in range(2):
+        for seed in [int(sys.argv[2])]:
             for alpha in [0.01, 0.03, 0.1, 0.3, 1.0, 3.0, 10.0, 30.0, 100.0]:
                 run(1024, seed, alpha=alpha, lr=LR_ALPHA, steps=STEPS_ALPHA, n_ck=60, tag=f"alpha_a{alpha}_s{seed}")
+    elif what == "posa":  # centered model (alpha=1) with a_j = |N(0,1)|
+        for m in [256, 1024, 4096]:
+            run(m, 0, alpha=1.0, tag=f"posa_m{m}_s0", positive_a=True)
+            run(m, 0, alpha=1.0, tag=f"cent_m{m}_s0", positive_a=False)
     elif what == "widths":
         for seed in range(3):
             for m in [64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384]:

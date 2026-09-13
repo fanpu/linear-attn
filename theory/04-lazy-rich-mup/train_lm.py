@@ -141,12 +141,12 @@ def sweep(kind, shard=0, n_shards=1):
                     continue  # identical to muP at the base width
                 runs += [dict(param=param, d=d, L=4, lr=lr, steps=1000) for lr in lrs]
     elif kind == "depth":
-        lrs = [2 ** k for k in range(-13, -5)]
+        lrs = [2 ** k for k in range(-11, -4)]  # 4.9e-4 ... 3.1e-2
         for L in [2, 4, 8, 16]:
             for dm in [True, False]:
-                if L == 4 and not dm:
-                    continue  # identical at the base depth
-                runs += [dict(param="mup", d=256, L=L, lr=lr, steps=1000, depth_mup=dm) for lr in lrs]
+                if L == 4 and dm:
+                    continue  # identical at the base depth (multiplier 1, same LR): reuse the width-sweep runs
+                runs += [dict(param="mup", d=128, L=L, lr=lr, steps=1000, depth_mup=dm) for lr in lrs]
     elif kind == "budget":
         lrs = [2 ** k for k in range(-13, -5)]
         for steps in [375, 6000]:
