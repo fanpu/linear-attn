@@ -143,7 +143,7 @@ def steps(name, fps=12, style='spectral'):
     idx = 0
     E_prev = None
     for i, T in enumerate(cps):
-        img = colf(MTn[i], ref)
+        img = colf(MTn[i])   # per-frame rank normalisation (declared): colours = within-frame speed rank
         im = Image.fromarray(img).resize((N, N), Image.NEAREST)
         canvas = Image.new('RGB', (N, N + 120), (14, 12, 16))
         canvas.paste(im, (0, 0))
@@ -171,7 +171,7 @@ def steps(name, fps=12, style='spectral'):
     for j, s in enumerate(sel[:10]):
         r, c = divmod(j, 5)
         x = pad + c * (T + pad); y = pad + r * (T + pad + 50)
-        sheet.paste(Image.fromarray(colf(MTn[s], ref)).resize((T, T), Image.NEAREST), (x, y))
+        sheet.paste(Image.fromarray(colf(MTn[s])).resize((T, T), Image.NEAREST), (x, y))
         dd.text((x, y + T + 8), f'T = {cps[s]}', font=font(MONO, 28), fill=(220, 210, 200))
     sheet.save(f'gallery/steps_{name}_{style}_multiples.png')
     print('steps', mp4, os.path.getsize(mp4) / 1e6, 'MB', gif, os.path.getsize(gif) / 1e6, 'MB')
