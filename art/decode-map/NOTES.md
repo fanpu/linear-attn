@@ -1,23 +1,33 @@
 # decode-map: NOTES (living handoff)
 
-## State (2026-09-13, agent 3)
-- `qwen.py`: hand-written Qwen3-0.6B (bf16 body, fp32 head), static KV. NEW `StepGraphs`: CUDA-graph
-  single-token step per window offset (masked full-length attention, fixed Fb rows).
-- `decode.py`: prefix-trie engine. NEW certified sampler `sample_fast` (default for icdf):
-  per node row, fp32 top-K (K=2048) + histogram of all logits (bins 0.04 below max; count, fp64 sum).
-  Tail mass per (row,T) bracketed by Jensen (lower) and convexity chord between bin edges (upper);
-  a pixel is accepted only if the top-p cutoff / icdf token agree at W_lo and W_hi and lie inside K'.
-  Tiers K'=256 -> 2048 -> 32768 -> full float64 sort. Flags: `--nograph`, `--slow` (old sampler).
-  `DM_TIMING=1` env prints per-stage seconds in stats.
-- Exactness: `test_engine.py` (fp32, vs naive batch-1 full sort) unchanged by the new path:
-  tp 1/144, tr 9/144, same pixels/ranks as before (all near-tied tail tokens, ranks 1.6k-88k).
-- Speed (128^2, L=12, contended GPU): old 34-49 s -> 33 s; sampler 17 s -> ~12 s, fallbacks ~0.2% pixel-steps.
-  Forward is compute bound (~1.6 ms/row at Fb=128; CUDA graphs barely help under contention).
-  Memory: KV = 73 MB per (Ncap+Fb) row-block of 1280... i.e. 28*rows*8*128*2B per position:
-  Ncap+Fb=512, P+L~85 -> 5.8 GB. Ncap 1024 OOMs at the 0.10 fraction. Use Ncap 384, Fb 128.
-- Toy L-as-time animation: `gallery/toy/refine_toy_glass.{mp4,gif}` + stills (looks good).
+## State (2026-09-13, agent 4) -- README written, heroes rendered
+- README.md complete draft: gallery, placement table, horizon, box counting verdict, commands, caveats.
+- heroes.py (CPU): `maps` (glass/ink/mosaic/age for story/list/fact 256; story also firstdiv/coherence Spectral,
+  aurora, riso), `metrics` (sheet, rep Spectral, entropy magma), `diptych` (icdf vs gumbel 128), `table`
+  (cache/story_tp256_transects.html; README embeds rows with shared<48), `redo` (story plates only).
+- verify.py: NEW `horizon` (prefix agreement + boundary Jaccard vs l). Run: `python verify.py placement cells horizon box`.
+- Films: anim2 job (logs/anim2.log) re-rendering gallery/film/refine_story256_{glass,ink} slower (hold 22, fade 8, ~80 s).
+  If ink files missing: rerun the python -c line in README Commands with mode='ink'.
+- decode.py patch: UB capped at 192 when repetition penalty is used (fp64 penalised logits OOMed at UB=1024).
+- c4 (logs/c4.log, via gpu_run): story_tr192 relaunched with Ncap 256 (first attempt c2b OOMed). Not in README yet.
 
-## Key findings this session
+## Key numbers
+- Placement table (64², L32): same kernels 0%; shuffled Fb16 1.95%; eager vs graph 68.5%; bf16 vs fp32 57.9%;
+  128² Fb32 vs Fb128 78.5%. Prefix agreement at l=8: 100/99.6/82/81/95%; l=16: 100/99.2/67/65/57%.
+- Cells story256: 152 (l1), 955 (l4), 1604 (l8), 2056 (l16), 8376 (l64); singletons 79% (128²: 78%).
+- icdf vs gumbel 128 L48: 71 vs 2 first tokens, 1945 vs 269 texts, singletons 78% vs 12%.
+- Box counting: whole plane slopes 1.3-1.8, no plateau, resolution-consistent; nulls smooth 0.6-0.97, speckle 1.84-1.99.
+  Resolved half T<0.75 at l<=16: 0.9-1.1 -> piecewise smooth curves; not fractal.
+- EOS: story/list never end within horizon; fact ends at token 10 in >95%.
+
+## Weak spots / next
+1. When c4 finishes: `python heroes.py` style plates for story_tr192 (axes label tr handled via LAB), add a README section.
+2. firstdiv Spectral plate is flat (few fd values); age plate dim at downscale (consider w=3). Mosaic muddier than glass.
+3. Check the slower film frames and GIF sizes (<15 MB), then commit.
+4. Careful: `pkill -f` matches your own shell; kill by PID.
+
+## Earlier findings (agent 3)
+
 - Speed reality: toy 64^2 L32 T0-2: old engine 309 s -> new 207 s (25k node-steps, ~8 ms/node-step incl.
   1.6 ms forward). High-T pixels with huge nuclei (T>1.2, p->1) dominate sampler cost (tiers 32768/full).
   Projection: 256^2 L64 T0-1.5 may take several hours on the contended GPU. If too slow: cap T at 1.2,

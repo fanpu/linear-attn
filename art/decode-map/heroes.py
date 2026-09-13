@@ -56,7 +56,8 @@ def maps(names=("story_tp256", "list_tp256", "fact_tp256"), s=10):
             put(R.style_split(sig, s, pairing="aurora_ember"), f"{n}_coherence_aurora.png", "hero", d,
                 "Coherent vs degenerate, aurora / ember split", q + "\nsame field, palettes.py aurora_ember pairing (declared)")
             Hm = A.mean_entropy(d)
-            fill = np.argsort(np.argsort(Hm.ravel())).reshape(Hm.shape) / Hm.size
+            from scipy.stats import rankdata   # round first: bf16 batch noise (~1e-3 nats) inside one cell must not band
+            fill = rankdata(np.round(Hm, 2).ravel()).reshape(Hm.shape) / Hm.size
             put(R.style_riso(d, s, shift=4, fill=fill), f"{n}_riso.png", "hero", d, "Two-ink riso", q +
                 "\nblue = boundaries (full ink if born in the first half); pink coverage = rank of mean model entropy; pink misregistered 4 px (declared)", dark=False)
 
@@ -128,11 +129,12 @@ def table(n="story_tp256", ps=(0.5, 0.9), T_max=1.5, rows=10):
     print("\n".join(out)[:3000])
 
 
+def redo():
+    """Regenerate only the story plates that changed (first-divergence split, riso)."""
+    maps(("story_tp256",))
+
+
 if __name__ == "__main__":
     for w in sys.argv[1:] or ["maps", "metrics", "diptych", "table"]:
         globals()[w]()
 
-
-def redo():
-    """Regenerate only the story plates that changed (first-divergence split, riso)."""
-    maps(("story_tp256",))
