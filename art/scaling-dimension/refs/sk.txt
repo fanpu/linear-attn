@@ -1,0 +1,1934 @@
+                                                         A Neural Scaling Law from
+                                                     the Dimension of the Data Manifold
+
+
+                                                       Utkarsh Sharma                                Jared Kaplan
+                                                      usharma7@jhu.edu                              jaredk@jhu.edu
+arXiv:2004.10802v1 [cs.LG] 22 Apr 2020
+
+
+
+
+                                                                  Department of Physics and Astronomy
+                                                                        Johns Hopkins University
+
+
+
+                                                                                 Abstract
+
+                                         When data is plentiful, the loss achieved by well-trained neural networks scales as a power-
+                                         law L ∝ N −α in the number of network parameters N . This empirical scaling law holds
+                                         for a wide variety of data modalities, and may persist over many orders of magnitude. The
+                                         scaling law can be explained if neural models are effectively just performing regression
+                                         on a data manifold of intrinsic dimension d. This simple theory predicts that the scal-
+                                         ing exponents α ≈ 4/d for cross-entropy and mean-squared error losses. We confirm the
+                                         theory by independently measuring the intrinsic dimension and the scaling exponents in a
+                                         teacher/student framework, where we can study a variety of d and α by dialing the prop-
+                                         erties of random teacher networks. We also test the theory with CNN image classifiers on
+                                         several datasets and with GPT-type language models.
+Contents
+
+1   Introduction                                                                                              2
+
+    1.1   Main Ideas . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .    3
+
+    1.2   Contributions: Predictions and Results . . . . . . . . . . . . . . . . . . . . . . . . . . . . .    4
+
+
+2   A Simple Theory for Scaling in the Underfitting Regime                                                   5
+
+    2.1   A Toy Model . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .     6
+
+    2.2   A Conjectural Theory for Neural Networks . . . . . . . . . . . . . . . . . . . . . . . . . .        6
+
+    2.3   Measuring the Intrinsic Dimension of the Data Manifold . . . . . . . . . . . . . . . . . . .        8
+
+
+3   Experiments and Results                                                                                  10
+
+    3.1   Teacher/Student with Random Teachers . . . . . . . . . . . . . . . . . . . . . . . . . . . .       10
+
+    3.2   Product Data Manifolds and Other Loss Functions . . . . . . . . . . . . . . . . . . . . . . .      12
+
+    3.3   Image Classification with Simple CNNs . . . . . . . . . . . . . . . . . . . . . . . . . . . .      13
+
+    3.4   Language Modeling with GPT-type Models . . . . . . . . . . . . . . . . . . . . . . . . . .         13
+
+
+4   Related Work                                                                                             15
+
+
+5   Discussion                                                                                               16
+
+
+A Technical Details and Minor Results                                                                        17
+
+
+B Review of Intrinsic Dimension Estimation Methods                                                           21
+
+
+C Examples and Tests of Intrinsic Dimension Estimation                                                       24
+
+
+1   Introduction
+
+Neural Network based Machine Learning has made enormous progress in a wide variety of domains. Scale
+has been a key ingredient in this success: large amounts of computation, large datasets, and large models with
+millions or billions of parameters.
+
+Not only is scale beneficial to performance, but the benefits from scale can be predicted precisely. Recent
+works [HNA+ 17, HAD19, RRBS19, KMH+ 20] studying a variety of data modalities and model architectures
+all find the same scaling relation in the underfitting regime. In particular, the dependence of the loss on the
+number of model parameters N has the following properties, and each suggests a corresponding question:
+
+
+                                                       2
+                                                   Intrinsic Dimension vs 4/
+                                         ID = 4/ for reference
+                                   102   Teacher Student
+                                         CIFAR10
+                                         MNIST
+                                         Fashion MNIST
+             Intrinsic Dimension
+                                         SVHN
+                                         GPT
+                                   101
+
+
+
+
+                                                             101                         102
+                                                                4/
+Figure 1: This figure shows the relationship between the measured intrinsic dimension (ID) of the data mani-
+fold and α4 , where α is the model size scaling exponent. We include data from fully-connected teacher/student
+experiments, simple CNNs, and GPT-type [RNSS18, RWC+ 19] language models (represented as a lower-
+bound due to large uncertainties with large IDs).
+
+
+      • As the number of model parameters N is increased, the cross-entropy loss of well-trained and well-
+        tuned models scales with N as a power-law
+                                                                       1
+                                                            L(N ) ∝                                       (1.1)
+                                                                      Nα
+         with observed values such as α ≈ 0.076 for language modeling [KMH+ 20], and much larger α ≈
+         0.5 observed for image classification [RRBS19]. Why do we encounter this simple functional form,
+         and what determines the value of the exponent α?
+      • Scaling holds very accurately across a wide range of N , sometimes spanning many orders of mag-
+        nitude [HNA+ 17, HAD19, KMH+ 20]. Why does scaling persist over a large range of model sizes,
+        and what determines the Nmax where it eventually breaks down?
+      • Empirically, the scaling exponent α may not depend greatly on model architecture. For example,
+        LSTMs and Transformers scale similarly over a large range of N [KMH+ 20], with losses differing
+        only by an overall, N -independent factor. Why would scaling exponents be roughly independent of
+        model architecture?
+
+We will argue that a simple conjectural theory can address these questions while making a number of testable
+predictions.
+
+
+1.1   Main Ideas
+
+The key idea is that neural models map the data to a manifold with intrinsic dimension d, and then use added
+capacity to carve up this manifold into ever smaller sub-regions. If the underlying data varies continuously
+on the manifold, then the size of these sub-regions (rather than their number) determines the model’s loss. To
+shrink the size of the sub-regions by a factor of 2 requires increasing the parameter count by a factor of 2d ,
+
+
+                                                                 3
+                                    Cross Entropy (CE)                                           Mean Squared Error (MSE)
+                    log(Nmax) = 0.45d + 0.69                                           log(Nmax) = 0.84d + 0.54
+          103                                                                    105
+
+                                                                                 104
+   Nmax
+
+
+
+
+                                                                          Nmax
+          102
+                                                                                 103
+
+                                                                                 102
+          101
+                    4           6            8         10   12   14                    4          6           8         10   12   14
+                                     Intrinsic Dimension                                               Intrinsic Dimension
+
+
+Figure 2: This figure estimates the behavior of Nmax , the maximum network size where we find power-law
+scaling, as a function of the intrinsic dimension in student/teacher experiments. We determine Nmax as the
+model size where the loss reaches an arbitrarily chosen small value of 0.006, as a stand-in for the entropy of
+real data. We discuss this procedure in section 3.1.
+
+
+and so the inverse of the scaling exponent 1/α will be proportional to the intrinsic dimension d of the data
+manifold. We develop these ideas in detail in section 2.
+
+The scaling exponent α can be measured by training a succession of models of varying size. We measure
+the intrinsic dimension d within the final layer1 activations of trained networks, using the distances among
+nearest neighbor activation vectors [LB05, FdRL17].
+
+We test the theory in a student/teacher framework, which makes it possible to scan over a large range of α
+and d and test more idiosyncratic features of the theory (see figure 4). We also perform tests using CNNs
+for image classification, and by measuring the intrinsic dimension of GPT-type models [RNSS18, RWC+ 19],
+where scaling exponent have already been documented [KMH+ 20].
+
+
+1.2       Contributions: Predictions and Results
+
+In what follows we list the concrete predictions made by our theory, and their status based on our results2 and
+information in the literature. Throughout we use L to denote the loss, N to denote the number of parameters
+in a neural network (often referred to informally as ‘model size’), α as the power-law scaling exponent, and
+d as the intrinsic dimension of the data manifold.
+
+          1. Prediction: In the range of N where the loss scales as L(N ) ∝ N1α , we predict α ∝ d1 , where d
+             is the intrinsic dimension of the data manifold for the dataset and task in question. If the network
+             is composed of ReLU non-linearities and the loss is mean squared error or cross-entropy (or KL
+             divergence), we predict
+                                                                             4
+                                                                      α&                                                               (1.2)
+                                                                             d
+                with equality expected in the generic case.
+                Results: See figure 1 for the summary combining all datasets. We find a variety of evidence sup-
+                porting this prediction, and the factor of ‘4’ fits quite well. We show in figure 8 that this factor can
+                be modified if we use other loss functions. For language modeling with GPT [RNSS18, RWC+ 19],
+      1
+      It was shown in [ALMZ19] that the final hidden layer activations have the smallest intrinsic dimension in image
+classifiers. Our findings are largely consistent with this.
+    2
+      Code for our experiments will be available at: https://github.com/U-Sharma/NeuralScaleID
+
+
+                                                                      4
+                               Intrinsic Dimension (ID) vs Network Size for 8 features (CE)                                                 Intrinsic Dimension (ID) vs Network Size for CIFAR10
+                               7.8
+                                                                                                                                     18.5
+                                                                                                                                     18.0
+                               7.6
+                                                                                                                                     17.5
+    Intrinsic Dimension (ID)
+
+
+
+
+                                                                                                          Intrinsic Dimension (ID)
+                                                                                        10 3
+                                                                                                                                     17.0
+                               7.4
+
+
+
+
+                                                                                                                                                                                                         Test Loss
+                                                                                               Loss
+                                                                                                                                     16.5
+                               7.2                                                                                                   16.0
+                                                                                        6 × 10 4                                     15.5                                                          100
+                               7.0                                                                                                   15.0
+                                                                                                                                                                                               9 × 10 1
+                                                                                        4 × 10 4                                     14.5
+                                                103                                                                                                       104
+                                                       Network Size                                                                                             Network Size
+
+
+Figure 3: We show how ID measurements vary among different student network sizes N trained from the
+same teacher (left), and for CNNs on CIFAR10 (right). We display the test loss L(N ) for reference. The ID
+does not depend significantly on N , though it increases by about 10% among the various model sizes tested
+as N increases.
+
+
+                                     we know α4 ≈ 53 while we measure the intrinsic dimension as d ≥ 90 (figure 10), in accord with
+                                     the inequality, but quite far from equality.
+
+                                2. Prediction: The maximum network size Nmax where we obtain power-law scaling grows with d via
+                                   log Nmax ∝ d. Larger d should correspond with much larger Nmax .
+                                     Results: We have confirmed the approximate relation log Nmax ∝ d (see figure 2) with
+                                     teacher/student experiments by identifying when L(Nmax ) reaches a fixed value.
+
+                                3. Prediction: The exponent α will not depend significantly on model architecture except through the
+                                   intrinsic dimension d. Since larger α and smaller d lead to improved performance with scale, the
+                                   best architectures will tend to have the smallest d.
+                                     Results: In [ALMZ19] it was discovered empirically that better performing image classifiers have
+                                     smaller d, and [KMH+ 20] showed that LSTMs and Transformers have very similar exponents. We
+                                     leave the measurement of both α and d across distinct architectures to future work.
+
+                                4. Prediction: Models with size N ∈ [Nmin , Nmax ] where the loss scales as a power-law in N all
+                                   map the data to a manifold with the same intrinsic dimension d.
+                                   Results: We verify this for teacher/student experiments in figure 3 and for CIFAR10 in figure 9.
+                                   This prediction holds to about 10% for these models.
+                                                                                                                 P
+                                5. Prediction: If the data manifold M = X1 × X2 · · · × Xn and the loss L(x) = i Li (xi ), then we
+                                   should replace the dimension of M with the maximum dimension of Xi when estimating α, as the
+                                   network can behave as an ensemble, modeling each Xi independently (see the right of figure 4).
+                                     Results: We confirm this prediction in section 3.2.1, see figure 7.
+
+
+2                      A Simple Theory for Scaling in the Underfitting Regime
+
+In this section we explain our theory, beginning with a toy model in section 2.1. Then in section 2.2 we argue3
+that the toy model can be applied to realistic neural networks with only a few small modifications. In section
+2.3 we explain how we measure the dimension of the data manifold, a necessary step in validating the theory.
+
+         3
+                   one might say conjecture; for a more sophisticated perspective in a simpler context see [BL+ 07]
+
+
+                                                                                                      5
+2.1       A Toy Model
+
+Consider one of the simplest scenarios for multidimensional regression. We are given a Lipschitz function
+f : [0, 1]d → R, and we would like to approximate it as a piecewise constant function c(x), by cutting [0, 1]d
+into smaller hypercubes. If these hypercubes have a side length s, then we will have
+                                                   N = s−d                                                       (2.1)
+cubes, and so our approximation will depend on the N constant values c(x) takes within each hypercube. If
+the loss is mean-squared error (MSE), then it will be bounded by
+                                   Z 1
+                                        dd x|f (x) − c(x)|2 . λ2 s2 d
+                                                                     
+                                L=                                                                  (2.2)
+                                         0
+
+where λ is the Lipschitz bound |f (x + y) − f (x)| < λ|y|, and we have ignored overall numerical factors.
+                                                                1
+Translating the s-dependence into N , this means that L(N ) . N 2/d up to a constant factor.
+
+If the model is piecewise linear instead of piecewise constant and f (x) is smooth with bounded derivatives,
+then the deviation |f (x) − c(x)| ∝ s2 , and so the L2 loss will scale4 as s4 . We would predict
+                                                       1
+                                                L(N ) ∝                                                (2.4)
+                                                     N 4/d
+This will be important later, since networks with ReLU activations produce piecewise linear functions.
+
+Finally, consider the case where fi (x) encode a smooth probability distribution over i = 1, · · · , k possibili-
+ties, and we replace the MSE loss with the KL divergence. If the ci (x) are a piecewise linear model for the
+logits, then we also find that L ∝ s4 . So the KL and MSE losses will scale with the same exponent in N
+at a given value of d. We demonstrate this in appendix A.5; it is a simple consequence of the fact that the
+expansion of DKL (p||q) in (q − p) begins at second order. Note that if we use a cross-entropy instead of
+the KL divergence, the loss will scale in the same way towards a fixed constant value, the entropy of the true
+distribution.
+
+
+2.2       A Conjectural Theory for Neural Networks
+
+Neural Networks perform well on data with thousands or even millions of dimensions. It is widely believed
+that this is possible because neural networks map the data into a much lower-dimensional ‘data manifold’,
+preserving and focusing on the features that are relevant for the task.
+
+We emphasize that the data manifold is a feature of both the dataset and the task or loss function that has
+been optimized. Classifiers need only attend to features relevant for classification. Similarly, in the case of
+autoregressive models the data manifold would consist only of the features necessary to predict the next token
+in a sequence. So the data manifold for such a model (as we are defining it) may have many fewer dimensions
+than the space of full sequences, such as complete images or text samples. Properties of the data manifold
+may also depend on the model that is learning it, such as its architecture and activation functions.
+
+We can explain the observed scaling relations for NNs by applying our toy theory while replacing the ambient
+dimension of the dataset with the intrinsic dimension of the data manifold. If we perform regression with
+      4
+     A straightforward generalization suggests that if c(x) is composed of piece-wise k-degree polynomials, and we use
+a loss |f − c|p , then
+
+                                                L(s) ∝ s(k+1)p                                                    (2.3)
+
+in the infinite data limit. But if p is large then c(x) within each hypercube will utilize many parameters. We test the
+p-dependence of this prediction in figure 8.
+
+
+                                                          6
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      Teacher with d ⇡ k
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      <latexit sha1_base64="+HS8quEbYZVnTuN916DQRKsxLyA=">AAACEHicbZDLSsNAFIYnXmu9RV26GSyiq5KIoMuiG5cVeoMmlMnkpBk6uTAzUUvoI7jxVdy4UMStS3e+jZM2C239YeDjP+cw5/xeyplUlvVtLC2vrK6tVzaqm1vbO7vm3n5HJpmg0KYJT0TPIxI4i6GtmOLQSwWQyOPQ9UbXRb17B0KyJG6pcQpuRIYxCxglSlsD88SJiApFlLeA0BAEdvA9UyGeaPCxQ9JUJA94hAdmzapbU+FFsEuooVLNgfnl+AnNIogV5UTKvm2lys2JUIxymFSdTEJK6IgMoa8xJhFIN58eNMHH2vFxkAj9YoWn7u+JnERSjiNPdxbry/laYf5X62cquHRzFqeZgpjOPgoyjlWCi3SwzwRQxccaCBVM74ppSAShSmdY1SHY8ycvQuesblt1+/a81rgq46igQ3SETpGNLlAD3aAmaiOKHtEzekVvxpPxYrwbH7PWJaOcOUB/ZHz+ADHynAM=</latexit>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         M = X1 ⇥ X2
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         <latexit sha1_base64="NumH16CN9zKH42U0fWxHHF16giE=">AAAB+3icbZDLSgNBEEVr4ivG1xiXbhqD4CrMBEE3QtCNGyGCeUAyDD2dnqRJz4PuGjGE/IobF4q49Ufc+Td2kllo4oWGw60qqvoGqRQaHefbKqytb2xuFbdLO7t7+wf2Ybmlk0wx3mSJTFQnoJpLEfMmCpS8kypOo0DydjC6mdXbj1xpkcQPOE65F9FBLELBKBrLt8t35Ip0fJf0UERcG6z5dsWpOnORVXBzqECuhm9/9foJyyIeI5NU667rpOhNqELBJJ+WepnmKWUjOuBdgzE1i7zJ/PYpOTVOn4SJMi9GMnd/T0xopPU4CkxnRHGol2sz879aN8Pw0puIOM2Qx2yxKMwkwYTMgiB9oThDOTZAmRLmVsKGVFGGJq6SCcFd/vIqtGpV16m69+eV+nUeRxGO4QTOwIULqMMtNKAJDJ7gGV7hzZpaL9a79bFoLVj5zBH8kfX5A2Jckrg=</latexit>
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        x1
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        <latexit sha1_base64="9Ebez7AsyXnUS7K0KmzSc78bSSE=">AAAB6nicbVBNS8NAEJ3Ur1q/qh69LBbBU0lEqMeiF48V7Qe0oWy2k3bpZhN2N2IJ/QlePCji1V/kzX/jts1BWx8MPN6bYWZekAiujet+O4W19Y3NreJ2aWd3b/+gfHjU0nGqGDZZLGLVCahGwSU2DTcCO4lCGgUC28H4Zua3H1FpHssHM0nQj+hQ8pAzaqx0/9T3+uWKW3XnIKvEy0kFcjT65a/eIGZphNIwQbXuem5i/Iwqw5nAaamXakwoG9Mhdi2VNELtZ/NTp+TMKgMSxsqWNGSu/p7IaKT1JApsZ0TNSC97M/E/r5ua8MrPuExSg5ItFoWpICYms7/JgCtkRkwsoUxxeythI6ooMzadkg3BW355lbQuqp5b9e4uK/XrPI4inMApnIMHNajDLTSgCQyG8Ayv8OYI58V5dz4WrQUnnzmGP3A+fwALsI2g</latexit>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            X1
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            <latexit sha1_base64="44fq65DDyzyeC/EbtZ0GHLZRJeg=">AAAB6nicbVBNS8NAEJ3Ur1q/oh69LBbBU0lE0GPRi8eK9gPaUDbbTbt0swm7E6GE/gQvHhTx6i/y5r9x2+agrQ8GHu/NMDMvTKUw6HnfTmltfWNzq7xd2dnd2z9wD49aJsk0402WyER3Qmq4FIo3UaDknVRzGoeSt8Px7cxvP3FtRKIecZLyIKZDJSLBKFrpodP3+27Vq3lzkFXiF6QKBRp996s3SFgWc4VMUmO6vpdikFONgkk+rfQyw1PKxnTIu5YqGnMT5PNTp+TMKgMSJdqWQjJXf0/kNDZmEoe2M6Y4MsveTPzP62YYXQe5UGmGXLHFoiiTBBMy+5sMhOYM5cQSyrSwtxI2opoytOlUbAj+8surpHVR872af39Zrd8UcZThBE7hHHy4gjrcQQOawGAIz/AKb450Xpx352PRWnKKmWP4A+fzB9rhjYA=</latexit>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     sha1_base64="hP+6LrUf2d3tZaldqaQQvEKMXyw=">AAAB2XicbZDNSgMxFIXv1L86Vq1rN8EiuCozbnQpuHFZwbZCO5RM5k4bmskMyR2hDH0BF25EfC93vo3pz0JbDwQ+zknIvSculLQUBN9ebWd3b/+gfugfNfzjk9Nmo2fz0gjsilzl5jnmFpXU2CVJCp8LgzyLFfbj6f0i77+gsTLXTzQrMMr4WMtUCk7O6oyaraAdLMW2IVxDC9YaNb+GSS7KDDUJxa0dhEFBUcUNSaFw7g9LiwUXUz7GgUPNM7RRtRxzzi6dk7A0N+5oYkv394uKZ9bOstjdzDhN7Ga2MP/LBiWlt1EldVESarH6KC0Vo5wtdmaJNChIzRxwYaSblYkJN1yQa8Z3HYSbG29D77odBu3wMYA6nMMFXEEIN3AHD9CBLghI4BXevYn35n2suqp569LO4I+8zx84xIo4</latexit>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     sha1_base64="gv9bEce64rmfhUQfzzFoUURuaG0=">AAAB33icbZBLSwMxFIXv1FetVatbN8EiuCozbnQpuHFZ0T6gHUomvdOGZjJDckcoQ3+CGxeK+K/c+W9MHwttPRD4OCch954oU9KS7397pa3tnd298n7loHp4dFw7qbZtmhuBLZGq1HQjblFJjS2SpLCbGeRJpLATTe7meecZjZWpfqJphmHCR1rGUnBy1mN3EAxqdb/hL8Q2IVhBHVZqDmpf/WEq8gQ1CcWt7QV+RmHBDUmhcFbp5xYzLiZ8hD2Hmidow2Ix6oxdOGfI4tS4o4kt3N8vCp5YO00idzPhNLbr2dz8L+vlFN+EhdRZTqjF8qM4V4xSNt+bDaVBQWrqgAsj3axMjLnhglw7FVdCsL7yJrSvGoHfCB58KMMZnMMlBHANt3APTWiBgBG8wBu8e8p79T6WdZW8VW+n8Efe5w/A64wr</latexit>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     sha1_base64="vEknGFuss/jOACSTbhwPfFVMasU=">AAAB6nicbVA9TwJBEJ3DL8Qv1NJmIzGxIns2WhJtLDEKksCF7C1zsGFv77K7Z0Iu/AQbC42x9RfZ+W9c4AoFXzLJy3szmZkXplIYS+m3V1pb39jcKm9Xdnb39g+qh0dtk2SaY4snMtGdkBmUQmHLCiuxk2pkcSjxMRzfzPzHJ9RGJOrBTlIMYjZUIhKcWSfdd/p+v1qjdToHWSV+QWpQoNmvfvUGCc9iVJZLZkzXp6kNcqat4BKnlV5mMGV8zIbYdVSxGE2Qz0+dkjOnDEiUaFfKkrn6eyJnsTGTOHSdMbMjs+zNxP+8bmajqyAXKs0sKr5YFGWS2ITM/iYDoZFbOXGEcS3crYSPmGbcunQqLgR/+eVV0r6o+7Tu39Fa47qIowwncArn4MMlNOAWmtACDkN4hld486T34r17H4vWklfMHMMfeJ8/2aGNfA==</latexit>
+  ···                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                <latexit sha1_base64="C/ThE3LO0bsU2xdfe5suNCnJ9S4=">AAAB7XicbVBNS8NAEJ3Ur1q/qh69LBbBU0lE0GPRi8cK9gPaUDabTbt2kw27E6GE/gcvHhTx6v/x5r9x2+agrQ8GHu/NMDMvSKUw6LrfTmltfWNzq7xd2dnd2z+oHh61jco04y2mpNLdgBouRcJbKFDybqo5jQPJO8H4duZ3nrg2QiUPOEm5H9NhIiLBKFqp3WehQjOo1ty6OwdZJV5BalCgOah+9UPFspgnyCQ1pue5Kfo51SiY5NNKPzM8pWxMh7xnaUJjbvx8fu2UnFklJJHSthIkc/X3RE5jYyZxYDtjiiOz7M3E/7xehtG1n4skzZAnbLEoyiRBRWavk1BozlBOLKFMC3srYSOqKUMbUMWG4C2/vEraF3XPrXv3l7XGTRFHGU7gFM7BgytowB00oQUMHuEZXuHNUc6L8+58LFpLTjFzDH/gfP4ArlePLw==</latexit>
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               X2
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               <latexit sha1_base64="kmtT9ugJciGP5Za9H6MNICTHCRk=">AAAB6nicbVBNS8NAEJ3Ur1q/qh69LBbBU0mKUI9FLx4r2g9oQ9lsN+3SzSbsToQS+hO8eFDEq7/Im//GbZuDtj4YeLw3w8y8IJHCoOt+O4WNza3tneJuaW//4PCofHzSNnGqGW+xWMa6G1DDpVC8hQIl7yaa0yiQvBNMbud+54lrI2L1iNOE+xEdKREKRtFKD91BbVCuuFV3AbJOvJxUIEdzUP7qD2OWRlwhk9SYnucm6GdUo2CSz0r91PCEsgkd8Z6likbc+Nni1Bm5sMqQhLG2pZAs1N8TGY2MmUaB7Ywojs2qNxf/83ophtd+JlSSIldsuShMJcGYzP8mQ6E5Qzm1hDIt7K2EjammDG06JRuCt/ryOmnXqp5b9e6vKo2bPI4inME5XIIHdWjAHTShBQxG8Ayv8OZI58V5dz6WrQUnnzmFP3A+fwDcZY2B</latexit>
+
+
+
+
+           xk
+           <latexit sha1_base64="11y8G8fa9znQEUBriE41aw9ZOlk=">AAAB6nicbVBNS8NAEJ3Ur1q/qh69LBbBU0lEqMeiF48V7Qe0oWy2m3bpZhN2J2IJ/QlePCji1V/kzX/jts1BWx8MPN6bYWZekEhh0HW/ncLa+sbmVnG7tLO7t39QPjxqmTjVjDdZLGPdCajhUijeRIGSdxLNaRRI3g7GNzO//ci1EbF6wEnC/YgOlQgFo2il+6f+uF+uuFV3DrJKvJxUIEejX/7qDWKWRlwhk9SYrucm6GdUo2CST0u91PCEsjEd8q6likbc+Nn81Ck5s8qAhLG2pZDM1d8TGY2MmUSB7YwojsyyNxP/87ophld+JlSSIldssShMJcGYzP4mA6E5QzmxhDIt7K2EjaimDG06JRuCt/zyKmldVD236t1dVurXeRxFOIFTOAcPalCHW2hAExgM4Rle4c2Rzovz7nwsWgtOPnMMf+B8/gBjmI3a</latexit>
+
+
+
+
+Figure 4: Left: This shows the setup of a teacher network, emphasizing how we can control the data manifold
+dimension via the number of input features k. Right: When the data manifold is a product and the teacher
+T (X) = T1 (X1 ) + T2 (X2 ), then student networks can learn T by combining sub-networks and behaving, in
+effect, like an ensemble. Then we predict 4/α ≈ dmax , the maximum d among the components.
+
+
+a neural network with ReLU activations and a mean-squared error or KL divergence loss, the analysis of
+section 2.1 implies5
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      1           4
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           L(N ) ∝     α
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         with α ≈                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         (2.5)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     N            d
+In the case where the function f (x) depends in a generic way on d independent variables, we will confirm
+this prediction empirically in section 3.1 (see figure 1). We also explore some special data manifolds and
+other loss functions in section 3.2.
+
+This theory also largely explains why the scaling relation holds over such a large range of N . To double
+the resolution with which the model differentiates different points on the data manifold, we need 2d times
+more parameters. It’s reasonable to expect that model performance improves smoothly when we change the
+resolution by an order-one factor. But this seemingly natural assumption implies that if d  1, we will see
+smooth scaling with N over many orders of magnitude. We would predict that the range in ∆N over which
+smooth scaling holds satisfies log(∆N ) ∝ d. This also strongly suggests log Nmax ∝ d, where Nmax is the
+largest network size exhibiting power-law scaling, as we do not expect Nmin , the beginning of the power-law
+region, to increase with d. We discuss some reasons why power-law scaling may cease in section 2.2.2.
+
+Finally, the theory suggests an interpretation for the fact that different NN architectures tend to have similar
+scaling exponents when applied to the same dataset. It would appear that a given dataset and task are as-
+sociated with a data manifold of fixed dimension, and improvements in architecture do not greatly alter its
+properties. Network architectures that can achieve smaller d on the same dataset can be scaled up to achieve
+larger gains, and so we would expect smaller d to correlate with better performance.
+
+The interpretation of 4/α as the dimension of the data manifold has a close connection with the notion of
+fractal dimensions. Typically fractal dimensions measure how the number of components needed to approx-
+imate a fractal scales as the components shrink. But we can reinterpret this definition by asking how many
+components are needed to obtain a certain quality of approximation to the underlying fractal. When we use
+   5
+    Depending on the network architecture and parameter values, the network could represent a piecewise linear function
+with C  N piecewise components [MPCB14]. However, these C components cannot be independently configured to
+optimize the loss. Since there are only N independent degrees of freedom available, we expect N , rather than C, to
+determine the effective capacity.
+
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         7
+the loss itself to measure the quality of the approximation, then 4/α is proportional to the corresponding
+fractal dimension.
+
+Before moving on, let us discuss a few subtleties.
+
+
+2.2.1      A Bound, Not an Equality
+
+The classic analysis we reviewed in section 2.1 provides an upper bound on the loss for function approx-
+imation (regression in the infinite data limit) using piecewise constant or piecewise linear approximators.
+This bound becomes an estimate when the function being approximated is a generic Lipschitz function in
+d-dimensions. However, if the function has a simple, non-generic structure then the loss may decrease much
+more quickly with increasing model size. So we should expect that
+                                                       4
+                                                      α&                                                  (2.6)
+                                                       d
+In special cases where the true underlying function or distribution is non-generically simple, we may find that
+this inequality is far from saturation.
+                                                                                                   P
+As a concrete example, consider a data manifold M = X1 × X2 × · · · × Xn with loss L(x) = i Li (xi ), as
+suggested on the right of figure 4. In this case a fully connected neural network may learn6 this decomposition,
+computing each Li (Xi ) using a separate path through the network, and only combining these paths in the
+last layer. This would result in a scaling exponent determined by the maximum of the dimensions di of the
+manifolds Xi . We test L(N ) for product data manifolds in section 3.2.1 and verify these predictions.
+
+We may end up finding d > α4 for other reasons. We will attempt to measure d among neural activations,
+but there may not be any single layer where the model compresses all of the data onto the data manifold.
+For example, one might imagine a scenario where different components of the manifold are processed or
+compressed in different layers of the network. And networks with non-ReLU activations (eg Transformers
+and ResNets) may mix and superimpose different data manifolds upon each other, obscuring the manifold
+structure and causing the measured dimension to exceed the true dimension.
+
+
+2.2.2      Why Does Power-Law Scaling Break Down?
+
+If the dataset size is finite, then power-law scaling with model size N will cease when we begin to overfit the
+data. Overfitting dominates performance on many real-world datasets, obscuring potentially clean scalings
+with N . We encounter it with CIFAR10 in figure 9 and on other datasets in appendix A.4.
+
+Even in the infinite data limit, if the data contains any entropy or noise then the power-law scaling must
+eventually end with the loss reaching a final plateau. Scaling could also end for other, more interesting
+reasons. For example, perhaps beyond a certain point the loss can only improve by exploring a higher
+dimensional data manifold. This is possible if the data manifold has a pancake-like structure, with a small
+width that can only be dissected by models with very large capacity. We will explore the simplest possibility,
+where the data has entropy, with mock teacher/student experiments; see figure 2 for the result.
+
+
+2.3       Measuring the Intrinsic Dimension of the Data Manifold
+
+In section 2.2 we extended the toy model in order to make a variety of predictions relating the scaling of the
+loss with model size to d, the intrinsic dimension (ID) of the data manifold. In some of our experiments, we
+      6
+     If the total loss does not decompose as a sum, it is less clear that the network can learn an effective decomposition,
+but it may still be possible.
+
+
+                                                            8
+                                                                             features: 2                                              features: 3                                              features: 4                                              features: 5
+                                                                                                   4/ : 3.89                                                4/ : 2.21                                                 4/ : 3.9                                                4/ : 4.42
+                                                                                                   2 layers                                                 2 layers                                                  2 layers                                                2 layers
+                                                         10 6                                      3 layers                                                 3 layers                                                  3 layers                                                3 layers
+                                                                                                   4 layers                                                 4 layers       10 4                                       4 layers                                                4 layers
+                                                                                                  ID: 1.89                                                 ID: 2.94                                                  ID: 3.87                                                ID: 4.51
+                                                                                                                  10 5
+
+
+
+                                                                                                                                                                                                                                    10 4
+
+
+                                                                                 103                                                      103                                                      103                                                      103
+                    features: 6                                              features: 7                                              features: 8                                              features: 9                                              features: 10
+                                         4/ : 4.65                                                 4/ : 7.71                                                4/ : 6.59                                                4/ : 7.22                                                4/ : 8.06
+      10 3                               2 layers                                                  2 layers                                                 2 layers                                                 2 layers                                                 2 layers
+                                                                                                                                                                                                                                 2 × 10 3
+                                         3 layers     6 × 10 4                                     3 layers                                                 3 layers                                                 3 layers                                                 3 layers
+   6 × 10 4
+                                         4 layers                                                  4 layers       10 3                                      4 layers       10 3                                      4 layers                                                 4 layers
+                                         ID: 5.42                                                 ID: 6.68                                                 ID: 7.36                                                  ID: 8.08                                                ID: 8.85
+                                                      4 × 10 4
+   4 × 10 4
+
+   3 × 10 4                                           3 × 10 4                                                 6 × 10 4                                                 6 × 10 4                                                    10 3
+
+   2 × 10 4
+                                                      2 × 10 4
+                                                                                                               4 × 10 4
+                                                                                                                                                                        4 × 10 4
+                        103                                            103                             104                      103                             104                      103                             104                      103                             104
+                    features: 11                                             features: 12                                             features: 13                                             features: 14                                             features: 15
+   2 × 10 3
+                                          4/ : 9.49                                               4/ : 9.97    3 × 10 3
+                                                                                                                                                       4/ : 10.88                                               4/ : 11.91                                               4/ : 11.72
+                                          2 layers    3 × 10 3                                    2 layers                                             2 layers         4 × 10 3
+                                                                                                                                                                                                                2 layers         4 × 10 3
+                                                                                                                                                                                                                                                                         2 layers
+                                          3 layers                                                3 layers                                             3 layers                                                 3 layers                                                 3 layers
+                                          4 layers                                                4 layers                                             4 layers                                                 4 layers                                                 4 layers
+                                         ID: 9.74     2 × 10 3
+                                                                                                  ID: 10.51    2 × 10 3                                ID: 11.14        3 × 10 3                                ID: 11.67        3 × 10 3                                ID: 12.13
+      10 3
+
+
+
+                                                                                                                                                                        2 × 10 3                                                 2 × 10 3
+   6 × 10 4
+
+              103                  104                           103                        104                           103                        104                           103                        104                           103                        104
+                    features: 16                                             features: 17                                             features: 18                                             features: 19
+   6 × 10 3
+                                          4/ : 12.6                                           4/ : 13.03                                               4/ : 13.77                                                   4/ : 13.28
+                                          2 layers    6 × 10 3
+                                                                                              2 layers                                                 2 layers                                                     2 layers
+                                          3 layers                                            3 layers         6 × 10 3
+                                                                                                                                                       3 layers                                                     3 layers
+   4 × 10 3                               4 layers                                            4 layers                                                 4 layers                                                     4 layers
+                                                                                                                                                                        6 × 10 3
+                                         ID: 12.83                                            ID: 13.28                                                ID: 13.59                                                    ID: 13.74
+                                                      4 × 10 3
+   3 × 10 3
+                                                                                                               4 × 10 3
+
+                                                      3 × 10 3                                                                                                          4 × 10 3
+
+   2 × 10 3                                                                                                    3 × 10 3
+
+              103                  104                           103                        104                           103                        104                           103                        104
+
+
+
+
+Figure 5: This figure shows L(N ) along with power-law fits for teacher/student experiments. The students
+learn from a randomly initialized 2-layer teacher with 2-19 features and use a cross-entropy loss. The students
+have 2,3, or 4 layers, but for k > 5 input features the 2-layer students perform best and determine the model-
+size scaling. The measured 4/α increases linearly with the number of features, as shown in figure 6.
+
+
+will control d by constructing generic functions of d inputs and then measuring α. But the theory would be
+tautological for real-world data if we could not independently measure the data manifold’s ID.
+
+We will define d by measuring the ID of neural activations as the network processes data from the distribution
+on which it was trained. There is an extensive literature on intrinsic dimension estimation (for a review see
+[CS16]). In most cases we use the simple two-nearest neighbors (TwoNN) method [FdRL17], though we also
+compare to the MLE estimation [LB05] method on which TwoNN was based.
+
+To summarize the method, let rk be the distance from a given datapoint to its kth nearest neighbor, and define
+µk ≡ rk /r1 . Then the cumulative distribution C(µk ) takes the form
+                                                          k−1
+                                                         1
+                                       C(µk ) = 1 − d                                                    (2.7)
+                                                        µk
+and so we can measure the intrinsic dimension d by using the relation
+                                                           1
+                                                               
+                                            log 1 − C(µk ) k−1
+                                        d=                                                          (2.8)
+                                                   log µk
+Practically speaking, we evaluate µk for every point on the manifold, and then apply linear regression to
+measure the slope d. We measure d using various k and verify that different values of k give consistent
+results. We also verify that the MLE method [LB05] agrees with the TwoNN method. Fortunately, nearest
+neighbors can be efficiently identified [BLB+ 13].
+
+The TwoNN method (the case k = 2) has already been applied to neural networks [ALMZ19]. There it was
+found that the dimension is smallest when measured using the activations of the final hidden layer of the
+
+
+                                                                                                                                      9
+                                      Teacher/Student with CE Loss                                               Teacher/Student with MSE Loss
+                20.0                                                                          20.0
+                             ID = 4.08/ 0.0                                                                ID = 3.9/ + 0.71
+                17.5         NumFeatures = 5.6/   1.57                                        17.5         NumFeatures = 5.28/    0.59
+                15.0                                                                          15.0
+                12.5                                                                          12.5
+    Dimension
+
+
+
+
+                                                                                  Dimension
+                10.0                                                                          10.0
+                 7.5                                                                           7.5
+                 5.0                                                                           5.0
+                 2.5                                                                           2.5
+                       0.5      1.0       1.5     2.0     2.5        3.0   3.5                       0.5      1.0      1.5       2.0     2.5   3.0   3.5
+                                                  1/                                                                              1/
+
+
+Figure 6: These figures show the correlation between the inverse scaling exponent 4/α and both the measured
+intrinsic dimension and the number of input features (dimensions) in the teacher network. Both notions of
+dimension are linearly correlated with 1/α, and the intrinsic dimension scales almost exactly as 4/α, as
+predicted in section 2.2.
+
+network (immediately before the logits or output, so sometimes we refer to this as ‘prefinal’). We will use
+these activations to measure d and compare to 1/α. For the GPT-type models (and for some others as a test
+in appendix C) we show ID measurements for every layer.
+
+For convenience we provide a self-contained derivation of these ID measurement algorithms and a minor
+extension (k > 2) in appendix B. We also provide several tests of the method in appendix C, using both
+synthetic and neural activation data. We find that the method is fairly accurate for d . 20, while for larger
+dimensions it’s less reliable, and typically (but not always) underestimates the true dimension. Statistical
+errors from these methods are often fairly small (particularly from TwoNN), but we expect there may be
+larger systematic errors, as discussed in the appendices.
+
+
+3          Experiments and Results
+
+In this section we discuss results from teacher/student experiments and various extensions, and also some
+tests using image classification and language modeling. We relegate a variety of technical details and a few
+minor observations to appendix A. We discuss potential errors in the ID measurement, along with several
+examples, in appendix C.
+
+
+3.1             Teacher/Student with Random Teachers
+
+We generate functions of k = 2, 3, · · · , 19 input features using a randomly initialized, fully connected
+‘teacher’ neural network with a 20-dimensional input space. To achieve k < 20 we simply zero out all
+other inputs to this single teacher. We refer to k as the number of features, and distinguish it from d, the
+intrinsic dimension, which we measure using the activations of trained student networks.
+
+For each value of k, we train fully connected student networks of various widths and depths to imitate the
+outputs of the teacher. We work in the online setting, generating random inputs in [− 12 , 12 ]k so the dataset size
+is effectively infinite. Details of the network topologies, training procedure, fits, errors, and ID measurements
+are documented in appendix A.2.
+
+After training the students, we evaluate the loss Lk (N ) for each number of features k. Then we fit
+                                                           c
+                                              Lk (N ) = α                                                                                                  (3.1)
+                                                         N
+
+                                                                                 10
+                   X3 × X3                                 X3 × X3 × X3                                  X3 × X6
+                                 4/ = 2.46                                4/ = 2.66                                       4/ = 5.76
+                                                    10 2
+                                  ID: 5.52                                 ID: 7.29                                    ID: 7.86
+
+        10 3                                                                                    10 2
+
+
+
+
+                                                                                      Loss
+ Loss
+
+
+
+
+                                             Loss
+                                                                                             6 × 10 3
+                                                    10 3
+                                                                                             4 × 10 3
+        10 4
+                                                                                             3 × 10 3
+
+                        103                                      103                                          103
+                  Network Size                             Network Size                                 Network Size
+
+
+
+Figure 7: This figure shows results for α and d for product data manifolds with teachers T3+3 (left), T3+3+3
+(middle), and T3+6 (right). We see that in all cases α4 ≈ max(di ) among the product factor manifolds. The
+total measured IDs are approximately equal to the sum of the dimensions of the product factors, as expected.
+
+
+
+
+to measure c, α for each k. The results of this process (with cross-entropy loss) are shown in figure 5.
+
+Next we measure the intrinsic dimension from the activations of the final hidden layer of each trained student.
+We use 12, 000 activation vectors for each ID measurement. In all cases we find that using more nearest
+neighbors, as discussed in section 2.3, does not change the result significantly. In figure 3 we show the
+measured ID of the final layer of a student network with various sizes N , along with a plot of the loss L(N ).
+We see that the ID is approximately constant for these networks, though it does slowly grow by about 10%
+from the smallest to the largest student network.
+
+We plot the relationship between 4/α and either the number of features or the measured ID d. The result,
+along with linear fits, are shown in figure 6. For both the cross-entropy and MSE loss functions, α4 ≈ d. The
+inverse exponent 1/α is linearly related to the number of input features k, but the multiplier is larger than 4.
+
+In section 2.2.2 we argued that scaling should end at an Nmax that grows as log Nmax ∝ d. We would like to
+test this prediction with teacher/student experiments, but in this case the data has no entropy. So instead we
+will introduce an artificial threshold for the loss, as a fictitious stand-in for the entropy of real data. Then we
+simply ask at what Nmax the loss L(N ) reaches this fixed, arbitrary value.
+
+We chose L = 6 × 10−3 as an arbitrary threshold in figure 2. Note that for the teacher networks with fewer
+features we used the power-law fit for L(N ) to estimate Nmax , as it was smaller than any network tested. This
+means we had to extrapolate L(N ), so these results are not purely empirical. We also compare log Nmax and
+d by defining Nmax as the end of the purely empirical power-law scaling region for 2-layer students (due to a
+failure of optimization or numerical precision issues); these results are relegated to figure 12 in the appendix.
+
+The ID is typically a bit smaller than the number of input features. This may arise from a combination of two
+factors: the ID measurement may be underestimating the data manifold dimension, and randomly initialized
+networks may not provide sufficiently generic or non-linear functions of their inputs. We explore the second
+hypothesis in appendix A.3, where we show that by vetting the teacher networks we can improve agreement
+between ID and the number of input features. Figure 18 provides some idea of the potential errors in the ID
+measurements. Since the inputs themselves are drawn from a uniform distribution it is plausible that the ID
+is somewhat of an underestimate due to boundary effects.
+
+
+                                                            11
+                                      Scaling Exponent vs Dimension with Generalized Loss
+                                1.6          = 2d p
+                                1.4
+                                1.2
+                                1.0
+                                0.8
+                                0.6
+                                0.4
+                                0.2
+                                       1.0   1.5      2.0   2.5    3.0 3.5   4.0   4.5   5.0
+                                                                  power
+
+Figure 8: This figure shows the relationship between α and the power p when we use the generalized loss
+|y − y ∗ |p . As expected from section 2.1, we find α = d2 p. This is a student/teacher experiment with d ≈ 7.
+
+
+3.2     Product Data Manifolds and Other Loss Functions
+
+3.2.1    Product Data Manifolds M = X1 × · · · × Xn
+
+If the data manifold takes the form M = X1 × X2 × · · · × Xn , with the underlying function of x ∈ M
+                           P
+decomposing as F (x) = i fi (xi ), then we expect that a neural network should be capable of separately
+modeling each fi within separate blocks of activations, and then combining them in the final layer to compute
+                                                                             P
+the full F . This means that although the ID of M will be measured as dM = i dXi , we should expect
+                                                           4
+                                              α =                                                        (3.2)
+                                                     max(dXi )
+as we discussed briefly in section 2.2.1, and demonstrate diagrammatically on the right of figure 4.
+
+To test this prediction we use a vetted teacher network with 3 real inputs T3 (x1 , x2 , x3 ) and another vetted
+teacher taking 6 real inputs T6 (x1 , · · · x6 ). Individually, these had ID d3 = 2.98 and d6 = 5.31 and their
+L(N ) exponents satisfied α43 = 3.3 and α46 = 4.9. These teachers each produce a pair of logits. We then
+constructed the new teacher functions with logits
+                        T3+3 (x)      = T3 (x1 , x2 , x3 ) + T3 (x4 , x5 , x6 )
+                     T3+3+3 (x)       = T3 (x1 , x2 , x3 ) + T3 (x4 , x5 , x6 ) + T3 (x7 , x8 , x9 )
+                        T3+6 (x)      = T3 (x1 , x2 , x3 ) + T6 (x4 , x5 , · · · , x9 )                     (3.3)
+and trained students to imitate these teachers using the cross-entropy loss. We then measured the resulting
+ID and α for these three product-manifold teachers. For the T3+3 and T3+3+3 cases we used two or three
+different teachers to make sure the network could not take advantage of the exact repetition of a single teacher.
+
+As shown in figure 7, the results confirm our predictions. This provides a concrete example where we may
+find that α > d4 for reasons that the theory precisely anticipates. More importantly, it provides a very detailed
+test of our theoretical picture relating scaling exponents to properties of the data manifold.
+
+3.2.2    Other Loss Functions
+
+The factor of ‘4’ in the relation d ≈ α4 is derived from the behavior of the loss function and the expectation
+that networks with ReLU activations form piecewise linear functions. If we use a loss function such as
+L(y, y ∗ ) = |y − y ∗ |p for regression, from the argument of section 2.1 we would expect
+                                                       2p
+                                                    α≈                                                   (3.4)
+                                                        d
+
+                                                                  12
+                              CIFAR10                                                     CIFAR10
+                                            test 4/ : 17.83                                             test 4/ : 16.23
+                                            train 4/ : 14.19                                            train 4/ : 12.17
+                                            ID: 17.04                                                   ID: 17.04
+
+                                                                        4 × 10 1
+
+
+
+
+                                                                Error
+ Loss
+
+
+
+            100
+        9 × 10 1                                                        3 × 10 1
+        8 × 10 1
+
+        7 × 10 1
+                       104                                                         104
+                             Network Size                                                Network Size
+
+
+Figure 9: The left figure shows the test and training loss L(N ) for various sizes of CNN trained on CIFAR10,
+while the right figure shows error (1− accuracy). All results are evaluated at the early stopping step, where
+the test loss is minimized. We report test loss results in figure 1, but note that the exponents for accuracy are
+very close to those for loss.
+
+
+where the MSE case corresponds to p = 2. We verify this in figure 8 using a fixed teacher with intrinsic
+dimension d ≈ 7, as measured in the usual student/teacher context.
+
+
+3.3      Image Classification with Simple CNNs
+
+Our goal with these experiments was to study a simple, all ReLU architecture that could scale down to a
+small enough size to avoid overfitting CIFAR10 [Kri09]. So we used a version of the default tutorial CNN in
+tensorflow [AAB+ 15], which we modified only by scaling the number of channels (ie the width). Figure 9
+shows the scaling of the test loss with number of parameters N . Our only regularization was early stopping.
+The results match 4/α = d quite well.
+
+In an ideal test of the theory, we would measure α fully in the underfitting regime, with no distinction between
+train and test performance. But there is a train/test gap even for the smallest network sizes, so its unclear how
+to model the error in the α measurement. In addition to the test loss, we also measured the scaling of the
+training loss for these models, recording it at the early-stopping step, and found that it also scales similarly.
+Furthermore, note that on the right of figure 9 we record the error rate (≡ 1− accuracy), and find that it scales
+very similarly to the loss.
+
+We performed a very similar analysis on the MNIST [LC10], fashion MNIST [XRV17], and SVHN
+[NWC+ 11] datasets using slightly smaller networks (see section A.4). We plot L(N ) in figure 15, which
+we have relegated to the appendix, as the power-law trends on these datasets are less clear than on CIFAR10.
+
+Power-law exponents and IDs for CIFAR10 have been measured elsewhere using more powerful architec-
+tures, finding both a larger value of α ≈ 0.5 (for the error rate) [RRBS19] and a smaller ID ≈ 8 [ALMZ19].
+We cannot make a clean comparison, but given that we find that the exponent for error-rate and loss scaling
+seem to be similar, these results appear to match our predictions.
+
+
+3.4      Language Modeling with GPT-type Models
+
+The GPT-type language models display power-law scaling of L(N ) over at least five orders of magnitude in
+N , with exponent α ≈ 0.076 [KMH+ 20]. This value of α is much smaller than those observed for many
+
+
+                                                               13
+                  GPT: ID (MLE) vs layer (last token)                          GPT: ID (nearest neigh.) vs layer (last token)
+
+       120                                                               160
+                                                                         140
+       100
+                                                                         120
+  ID
+
+
+
+
+                                                                    ID
+       80                                                                100
+                                                                         80
+       60                                        attention                                                         attention
+                                                 fully connected         60                                        fully connected
+                                                 residual block                                                    residual block
+       40
+              2        4        6        8        10        12                  2        4         6        8        10         12
+                                 layer                                                              layer
+
+
+Figure 10: These figures show the ID estimates for the attention and fully-connected outputs of a 117M
+parameter GPT-type model, where 4/α ≈ 53. The left figure shows results from the nearest neighbor method,
+with 2,3, and 4 neighbors, while the right plot shows results from the MLE method. The results roughly agree
+for the first layer, but the MLE method gives smaller IDs for later layers, and is likely an under-estimate.
+
+
+other datasets [RRBS19], meaning that it allows us to probe a rather different regime, where we predict the
+quite large value d & 53.
+
+We generated activation vectors from the ‘small’ 117M parameter GPT-2 model using test data drawn
+from the same distribution as the training data [RNSS18, RWC+ 19], and measured the IDs. Decoder-only
+[LSP+ 18] Transformers [VSP+ 17] have a residual structure with blocks including an attention mechanism
+and a fully-connected component. For each layer of blocks, one can measure the ID from the output of the
+attention mechanism, the fully-connected layer, or from the output of the residual re-combination.
+
+The activations that contribute to the Transformer’s outputs at any given token-position depend on all activa-
+tions from earlier in the sequence, except for the case of the final layer (before multiplying by the unembed-
+ding matrix). Thus it is only the final layer activations that can be said to capture the data manifold associated
+with the model’s prediction for a single token. The mean loss over tokens has scaling exponent α ≈ 0.076,
+and from figure 21 of [KMH+ 20] we see that α is roughly constant for tokens that occur late in any text
+sequence. So we use the activations from the last token in each sequence to measure the ID, though the ID
+does not vary significantly across token positions (see figure 11).
+
+In figure 10 we plot the measured ID for the attention output, the fully connected output, and the combined
+output of the residual blocks for all layers. For these measurements we used 10,000 activation vectors, each
+from the last token in a different text sequence (for more details see appendix C.2). We see that unlike
+the case of image classifiers [ALMZ19], the ID is roughly constant across layers, with the exception of the
+first layer, where it is significantly smaller. If instead we measure the ID from the 1024 tokens in a single
+contiguous passage of text, we instead find an ID ≈ 7. This strongly suggests that the data manifold has a
+scale-dependent structure, and may not be well-characterized by a single intrinsic dimension.
+
+It is tempting to observe that the intrinsic dimension of activations from the first attention layer is of order 50-
+80, which matches well with 4/α for these models. One might argue that this bounds the total data manifold
+dimensionality entering the model through its input tokens. But as discussed above, this reasoning seems
+untrustworthy as an estimate of the data manifold dimensionality relevant for next-token predictions. So we
+take a conservative attitude and do not use early layer IDs as an estimate of the relevant ID for scaling.
+
+We conclude that since d > 90, we have that d ≥ 4/α ≈ 53, which accords with our expectations (see 2.2.1).
+Given the very small value of α in language modeling, it is satisfying to observe that the corresponding ID
+is very large. But it would have been more exciting to discover α ≈ 4/d for language modeling. We do not
+
+
+                                                                   14
+         GPT: ID (nearest neigh.) vs layer (all tokens in one test sequence)               GPT: ID (nearest neigh.) vs Token Number (prefinal layer)
+                                                                                     170
+         8.00
+                                                                                     165
+         7.75
+                                                                                     160
+         7.50
+                                                                                     155
+         7.25
+    ID
+
+
+
+
+                                                                                ID
+         7.00                                                                        150
+
+         6.75                                                                        145
+         6.50                                           attention                    140           attention
+                                                        fully connected                            fully connected
+         6.25                                           residual block               135           residual block
+                     2        4        6        8        10        12                        100                     101              102
+                                        layer                                                                          token number
+
+Figure 11: ID estimates from a single 1024-token text sequence (left) and the final layer ID as measured
+using tokens with fixed positions within distinct sequences (right). The data manifold associated with a
+single sequence has a much, much smaller dimension than the full manifold.
+
+
+
+know if the discepancy is due to added complexities from the structure of the Transformer, special structure on
+the data manifold itself, a scrambling of data manifolds due to the residual structure and attention mechanism,
+or some other oversimplification in our theory.
+
+
+
+
+4    Related Work
+
+
+The theory of scaling we have advocated applies basic, ‘textbook’ [Was06] ideas from regression and density
+estimation. Our work was also partly inspired by similar scaling relations in random forest models; with some
+added assumptions, it is possible to prove them [Bia12]. As one passes from classical techniques, to random
+forests, and then to neural networks, the models become increasingly powerful but less and less amenable to
+a direct analysis. Nevertheless, we argue that similar principles apply and underly their scaling behavior. A
+similar overall perspective has been discussed by Bickel and collaborators [BL+ 07].
+
+There is a large literature on dimensionality estimation; for a nice overview see [CS16]. We have primarily
+used the two nearest neighbor method [FdRL17], which was based on the MLE method [LB05] for distances
+among points in a local neighborhood. In neural image classifiers, the intrinsic dimension of the data mani-
+fold was studied [ALMZ19] using the TwoNN method. They demonstrated that the ID is much smaller than
+the dimension estimated via linear methods such as PCA, among other interesting results. Other authors have
+established a connection between ID and noisy labels [MWH+ 18], and demonstrated that neural models can
+effectively identify a low-dimensional manifold in a larger ambient space [BJ16]. It would be interesting to
+understand the relationship between the data manifold and neural circuits [OCS+ 20], and how the manifold
+changes when non-robust features are eliminated [IST+ 19]. Recent work [SGW19] relates data dimension-
+ality and dataset size scaling exponents for kernel methods. The intrinsic dimension of the neural network
+parameter space has also been discussed [LFLY18].
+
+Neural scaling laws have been studied in a number of papers. Perhaps the first work on the subject was
+[HNA+ 17]. The more recent work [RRBS19] studies scaling with model size and dataset size, both inde-
+pendently and simultaneously. Language models were studied in [KMH+ 20], where scaling relations with
+model size, dataset size, training compute, and training steps were identified. EfficientNet [TL19] displays
+near power-law scaling with model size, though these models are not in the underfitting regime.
+
+
+                                                                               15
+5       Discussion
+
+
+We have proposed a theory connecting the model-size scaling exponent with the intrinsic dimension of the
+data manifold. Many other neural scaling laws have been identified [HNA+ 17, RRBS19, KMH+ 20], includ-
+ing scalings with dataset size and compute budget, and fairly accurate power-law fits to learning curves. We
+have focused on scaling with model size in the infinite data limit because we expect it to be the simplest and
+most theoretically tractable scaling relation. Scaling with dataset size may involve issues of regularization,
+requiring a balance between bias and variance, while understanding the scaling with compute would require
+that we contend with optimization.
+
+Nevertheless, neural scaling exponents with dataset size are often very similar7 to model size exponents. One
+might argue that dataset size scaling can be understood as a consequence of interpolation between points on
+the data manifold, and so should have a similar relationship to the data manifold dimension. Recent works
+have made this case [SGW19]. Compute scaling exponents [KMH+ 20] are also not far from model-size
+exponents, but combine optimization and model scaling. It seems most natural to interpret them by modeling
+learning curves, but perhaps optimization can be re-interpreted as the identification and dissection of the data
+manifold. Something like this will be necessary in order to explain the fact that larger models are much more
+sample efficient [KMH+ 20] than small models. This may be the most impactful direction for future work.
+
+It will be interesting to test this theory with a wider variety of models and datasets. Generative modeling may
+be the ideal setting, since the abundance of unlabeled text, image, and video data provides many opportunities
+to train large models on nearly unlimited datasets. In this context, it may be interesting to explore what
+the theory suggests for finetuning pre-trained generative models on downstream tasks. We would expect
+that these tasks benefit from the pre-established existence of the data manifold; perhaps finetuning can be
+understood as a process of zooming-in and refining performance in a small region of this manifold. It would
+also be interesting to understand how scaling relations for the loss compare to those for quantities that are
+not directly optimized, such as prediction accuracies. In the case of CIFAR10 we saw that accuracy and
+loss exhibit similar exponents. Finally, it’s worth thinking about the extent to which larger models perform
+better in reinforcement learning [CHHS19]. Due to the non-stationary distribution in RL it may be difficult
+to understand model-size scaling quantitatively, and it’s less clear how to apply our theory in that context. A
+theory of sample efficiency scaling would be more likely to be relevant to RL.
+
+
+
+
+Acknowledgments
+
+
+We thank Yasaman Bahri, Ethan Dyer, Tom Henighan, Danny Hernandez, Jaehoon Lee, and Sam McCandlish
+for interesting discussions and feedback. We especially thank Ethan for sharing his notes on linear models and
+Yasaman for emphasizing that our theory of model size scaling might be re-purposed as a theory of dataset
+size scaling. JK has been supported in part by NSF grant PHY-1454083. This work was also supported in
+part by Open Philanthropy.
+
+
+
+
+    7
+     Though in almost all cases [RRBS19, KMH+ 20] dataset exponents are slightly larger. This runs somewhat counter
+to classical expectations [Was06], where the number of parameters determines a tradeoff between bias and variance, and
+dataset size exponents are smaller than the bias-scaling exponents that depend on model size.
+
+
+                                                         16
+                  Power-Law Scaling Region vs Intrinsic Dimension (CE)                           Power-Law Scaling Region vs Intrinsic Dimension (MSE)
+                                                    log(Nmax) = 0.17d + 6.35                          log(Nmax) = 0.2d + 5.95
+    Nmax
+
+
+
+
+                                                                                    Nmax
+                                                                                           103
+           103
+
+
+                  2        4       6           8        10      12        14                      2        4         6             8       10   12   14
+                                    Intrinsic Dimension                                                                  Intrinsic Dimension
+
+
+Figure 12: This figure shows the maximum number of parameters Nmax at which we observe power-law
+scaling of L(N ), as a function of the intrinsic dimension, for teacher/student experiments. This Nmax is
+determined as described in appendix A.1. The left plot uses cross-entropy loss, while the right uses MSE
+loss. This plot should be viewed as a more empirical (but less well understood) alternative to figure 2.
+
+
+A      Technical Details and Minor Results
+
+A.1        Fitting
+
+To extract the scaling exponent α we need to fit power-laws to the empirical L(N ) for trained models with
+N parameters. For this purpose we simply fit straight lines to log L vs log N , assuming that the error in log L
+was independent of N (ie we assumed Gaussian errors in log L). We fit from the smallest value of N tested
+until the power-law behavior breaks down. This point is quite clear visually in most cases, as seen in figures
+5, 13, and 9. For the case where we had networks with both different widths and different depths 5 we only
+used the networks that performed among the best at each model size (ie we used points on the ‘convex hull’
+in the L vs N plane).
+
+However, to avoid bias we determined the last point to include in the fit in the following way. We fit a circle
+(parameterized by its center and radius) to the first n ≥ 3 points in the log L vs log N plane (starting at
+N = Nmin ), and evaluated r(n), the radius of the best-fit circle for each n. We then chose the value of n
+that achieved the maximal radius r, as this is the ‘most linear’ set of points. Finally, we fit a straight line
+log L = −α log N + b to this collection of points to determine α.
+
+Note that this provides an alternative way to determine Nmax , the largest network in the power-law scal-
+ing region. This was the input for figure 12, where we show Nmax as a function of d for teacher/student
+experiments.
+
+The power-law scaling breaks down in CIFAR10 and other small image datasets due to overfitting. We do not
+have a complete understanding of why it breaks down for the teacher/student experiments, but it seems to be
+due to a failure of optimization, perhaps related to numerical precision. We note that the power-law behavior
+persists to larger model size and smaller loss with the deeper networks in figure 5.
+
+
+A.2        Teacher/Student Experiments
+
+A.2.1            Network Architectures
+
+Our teacher networks had shape [20, 600, 600, 2] (i.e. 20 dimensional input, two hidden layers of output
+dimension 600, and final layer ouput of dimension 2) for experiments with cross entropy loss (figures 5,
+
+
+                                                                               17
+                 Experiment          student        training steps   batch size learning rate
+                     (T/S)         architecture                                   (ADAM)
+                   (random)       MSE: [20,n,n,1]      0-200k          200           0.01
+                figures 6, 7, 8   CE: [20,n,n,2]      200-220k        1000           0.01
+                                                      220-240k        4000          0.001
+                   (vetted)                            0-100k          200           0.01
+                  figure 14          [9,n,n,2]        100-150k         200          0.001
+                                                      150-170k         200         0.0001
+Table 1: Architectures and training schedules for Teacher/Student experiments in the paper, referenced by the
+figures in which the results are described.
+
+
+
+7 and 8), [20, 600, 600, 1] for MSE loss (figure 13) and [9, 240, 240, 2] for cross entropy loss with vetted
+teacher (figure 14). The teachers are randomly initialized, with√biases set to zero, and weights picked from
+a gaussian distribution of mean zero and standard deviation 1/ N , where N is the input size of the layer.
+We experimented with including random non-zero biases, but did not find that they significantly alter the
+behavior of teachers.
+
+For experiments with mean-squared error loss, the teacher and student networks each outputted a single real
+value. For experiments using a cross-entropy loss, networks output two logits, and we computed the cross
+entropy directly from these teacher outputs (ie we did not sample discrete values from the teacher, but used
+its exact output distribution). For cross-entropy experiments we used students with 2, 3, and 4 hidden layers,
+and let the best performing models define the L(N ) fits, while for MSE loss we simply used students with 2
+hidden layers.
+
+We ran 10 trials each for cross-entropy and MSE losses, and in each case selected the ones with the 9 lowest
+losses. Intrinsic dimension calculations were done using the same 9 networks. For vetted teacher experiments,
+we took 90 trials and computed the mean of the loss excluding the 10 worst performing students.
+
+
+A.2.2    Optimization and LR Schedule
+
+We use the ADAM optimizer [KB14] with default settings except for the learning rate. In order to optimize
+effectively, we scanned over a grid of learning rates, and experimented with cosine, linear, and step-function
+learning rate schedules. We ended up using step function schedules for teacher/student experiments, and a
+constant learning rate for CIFAR10 and other image datasets, as these performed roughly as well or better
+than other choices. We did not find it necessary to vary the overall learning rate among different network
+sizes, but the schedules themselves were important for optimization. Our learning rate schedules for the
+various teacher/student experiments in the paper (labeled by associated figures) are summarized in table 1.
+
+
+A.3     Vetting Teachers to Increase Intrinsic Dimension
+
+In figure 6, the ID is typically smaller than the number of features, especially when the latter is large. One
+might worry that this indicates ID measurements are inaccurate. In fact, we believe that this occurs partly
+because randomly initialized teacher networks do not typically produce fully generic functions of their inputs.
+
+We can partially remedy this problem by generating a large number of teachers and vetting them, keeping
+only those that produce the most complicated and non-linear functions of their inputs. The result is pictured
+in figure 14, where we repeat the experiment of section 3.1 with up to 9 features. We see that sufficiently
+vetted teachers have ID nearly equal to their feature count, and that the relationship α ≈ d4 continues to hold.
+
+
+                                                      18
+                                                                                 2 features                                   3 features                                      4 features                             5 features
+                                                                                          4/ : 2.06                                           4/ : 2.5                                4/ : 3.03                              4/ : 3.81
+                                                                  10 5                                                                                         10 3
+                                                                                                               10 4
+                                                                                                                                                                                                     10 3
+
+                                                                  10 6                                                                                         10 4
+                                                                                                               10 5
+                                                                                        103                                             103                                         103                                    103
+                                  6 features                                     7 features                                   8 features                                      9 features                             10 features
+                                          4/ : 4.82                                           4/ : 6.7         10 2                       4/ : 6.43                                   4/ : 7.52                              4/ : 7.68
+                                                                                                                                                               10 2
+                                                                                                                                                                                                     10 2
+
+
+                    10 3                                          10 3
+                                                                                                               10 3
+                                        103                                    103                                          103                                             103                                    103
+                                  11 features                                    12 features                                  13 features                                     14 features                            15 features
+                 2 × 10 2                                                                                 3 × 10 2
+                                          4/ : 9.53                                      4/ : 10.01                                      4/ : 10.48       3 × 10 2                   4/ : 11.31   4 × 10 2                  4/ : 12.44
+                                                            2 × 10 2                                      2 × 10 2                                                                                3 × 10 2
+                                                                                                                                                          2 × 10 2
+                    10 2                                                                                                                                                                          2 × 10 2
+                                                                  10 2                                         10 2
+                 6 × 10 3                                                                                                                                      10 2
+                                                            6 × 10 3                                                                                                                                 10 2
+                 4 × 10 3                                                                                 6 × 10 3
+                                                            4 × 10 3                                                                                      6 × 10 3
+                 3 × 10 3                                                                                 4 × 10 3
+                                                            3 × 10 3                                                                                                                              6 × 10 3
+                            103                 104                      103                     104                  103                        104                  103                   104              103                   104
+                                  16 features                                    17 features                                  18 features                                     19 features
+                                                                                                          6 × 10 2                                        6 × 10 2
+                 4 × 10 2                4/ : 12.52                                      4/ : 12.45                                       4/ : 13.4                                  4/ : 14.43
+                                                            4 × 10 2                                      4 × 10 2
+                 3 × 10 2                                   3 × 10 2                                                                                      4 × 10 2
+                                                                                                          3 × 10 2
+                 2 × 10 2                                                                                                                                 3 × 10 2
+                                                            2 × 10 2                                      2 × 10 2
+                                                                                                                                                          2 × 10 2
+                    10 2                                          10 2                                         10 2
+                                                                                                                                                               10 2
+                            103                 104                      103                     104                  103                        104                  103                   104
+
+
+
+
+Figure 13: This figure shows L(N ) with a MSE loss for students (all with 2 hidden layers) learning from a
+randomly initialized teacher with 2-19 features. Figure 5 shows the results for cross-entropy loss.
+
+                                                                               Teacher/Student with CE Loss (Vetted Teacher)
+                                                                  9                  ID = 3.79/ + 0.25
+                                                                                     NumFeatures = 4.61/                          0.3
+                                                                  8
+                                                                  7
+                                                      Dimension
+
+
+
+
+                                                                  6
+                                                                  5
+                                                                  4
+                                                                  3
+                                                                  2
+                                                                         0.6           0.8               1.0           1.2              1.4              1.6            1.8          2.0
+                                                                                                                                  1/
+
+
+Figure 14: This figure shows the number of features and ID vs 1/α for vetted teachers. ID is still smaller
+than the number of input features, but vetting partially closes the gap. Compare the slope of 4.61 for number
+of features vs 1/α here to the left of figure 6, where the slope was 5.48. Slopes for ID vs 1/α are very similar
+with or without vetting.
+
+
+Presumably many vetting procedures could be successfully applied to filter the teacher networks. To increase
+the complexity and non-linearity of teachers so that ID would better match the number of input features, we
+followed this ad-hoc approach:
+
+      1. For a given teacher, we took a random slice along each input coordinate axis (i.e. the values of
+         the other coordinates are chosen uniformly at random from [−1/2, 1/2)). We performed linear
+         regression on this slice and computed the score(R2 , the coefficient of determination), and took the
+         mean of the scores across coordinate axes. A low score implies more non-linearity.
+      2. We repeated this procedure 200 times and computed the mean score of all the trials. This is the score
+         for the teacher.
+      3. We iterated over 5000 randomly generated teachers and selected the one with the minimum score.
+
+
+                                                                                                                            19
+                                           MNIST                                                                     FMNIST                                                            SVHN
+                                                           test 4/ : 5.95                                                            test 4/ : 10.67           6 × 10 1                            test 4/ : 10.71
+                                                           train 4/ : 6.59                                                           train 4/ : 12.03                                              train 4/ : 9.76
+                                                           ID: 9.38                                                                  ID: 9.92                                                      ID: 11.43
+          6 × 10 2
+   Loss                                                                             3 × 10 1                                                                   4 × 10 1
+
+
+
+
+                                                                             Loss
+
+
+
+
+                                                                                                                                                        Loss
+          4 × 10 2                                                                                                                                             3 × 10 1
+
+          3 × 10 2
+                                                                                    2 × 10 1                                                                   2 × 10 1
+                     3 × 103   4 × 103           6 × 103             104                       3 × 103   4 × 103           6 × 103              104                       6 × 103      104                2 × 104
+                                         Network Size                                                              Network Size                                                     Network Size
+
+
+
+Figure 15: This shows train and test loss on MNIST, Fashion MNIST, and test loss on SVHN, along with the
+exponents and ID measurement.
+
+
+
+
+                                         Layer       Output shape
+                                        Conv2D         (32, 32, n)
+                                     MaxPooling2D      (16, 16, n)
+                                        Conv2D        (16, 16, 2n)
+                                     MaxPooling2D       (8, 8, 2n)
+                                        Conv2D          (6, 6, 2n)
+                                         Dense            (64)
+                                        Output            (10)
+Table 2: Architecture of the CNN network used for CIFAR10. We chose n in the range 1 ≤ n ≤ 13 to
+minimize overfitting. All convolutions were 3 × 3 with unit stride, and the images have 3 colors, so the
+network has a total of N = 714 + 4640n + 54n2 parameters.
+
+
+
+
+A.4         CNNs on CIFAR10, MNIST, FMNIST, and SVHN
+
+
+
+For CIFAR10 we used the architecture from the tensorflow CNN tutorial [AAB+ 15], and modified the chan-
+nel width. The architecture is recorded in table 2.
+
+The networks were trained for 50 epochs with the ADAM optimizer with default hyperparameters. We use
+40 iterations of each network and average the loss (on log scale) over the iterations. Note that we record the
+test and training loss at the early stopping point where the test loss reaches its minimum value. These are the
+results in figure 9.
+
+For MNIST [LC10], fashion MNIST [XRV17], and SVHN [NWC+ 11], we use a slightly smaller network
+(3 instead of 4 hidden layers) with architecture shown in table 3. We used a smaller network in the hopes of
+identifying a power-law scaling region without significant overfitting.
+
+For MNIST and fashion MNIST, we ran each network for 20 trials and took the mean loss (on log scale).
+The networks were trained for 50 epochs with the ADAM optimizer with default hyperparameters. As with
+CIFAR10, we take the minimum test loss during training (i.e. early stopping), and also report training loss at
+this point.
+
+For SVHN, the networks were trained for 5 epochs with both training and additional datasets used for training
+(total 604k images), and test dataset (26k images) for testing. We used default hyperparameters.
+
+
+                                                                                                               20
+                         Layer        Output shape        Layer       Output shape
+                       Conv2D          (28, 28, n)       Conv2D        (32, 32, n)
+                   MaxPooling2D        (14, 14, n)    MaxPooling2D     (16, 16, n)
+                       Conv2D          (12, 12, n)       Conv2D        (14, 14, n)
+                   MaxPooling2D         (6, 6, n)     MaxPooling2D      (7, 7, n)
+                        Dense             (32)            Dense           (32)
+                        Output            (10)           Output           (10)
+Table 3: Architecture of the CNN network used for MNIST and fashion MNIST (left) and SVHN (right). All
+convolutions were 3 × 3 with unit stride.
+
+
+A.5   Scaling of KL Divergence with Piecewise Linear Logits
+
+We assume the logits ci (x) are linear in a small region of volume sd we take to surround the origin, and that
+the underlying probability distribution fi (x) over k discrete choices is smooth. The loss in this region is
+                                                    k Z
+                                                  X                      fi (x)
+                                      L =                 dd xfi (x) log                                       (A.1)
+                                                  i=1
+                                                                         qi (x)
+                                P                
+                                    k      cj (x)
+where log qi (x) = ci (x) + log     j=1  e          . If we write qi (x) = fi (x) + δi (x) then as is well known
+                                 k Z
+                                 X                                fi (x)
+                        L =                 dd xfi (x) log
+                                 i=1
+                                                             fi (x) + δi (x)
+                                            k                                              2           !
+                                                        δi (x) 1                   δi (x)
+                                 Z          X
+                                       d
+                            =        d x     fi (x) 0 −       +                                  + ···
+                                         i=1
+                                                        fi (x) 2                   fi (x)
+                                            k
+                                              1 δi (x)2
+                                 Z          X
+                            ≈        dd x                                                                     (A.2)
+                                            i=1
+                                                  2 fi (x)
+
+After optimization the linear ci (x) will determine a δi (x) that is quadratic in x, and so the loss per unit
+volume will scale as s4 , as claimed.
+
+
+B     Review of Intrinsic Dimension Estimation Methods
+
+In this section we review the two nearest neighbor method [ALMZ19] and explain that it can be extended to
+k-nearest neighbors. Then we note that the same analysis derives the maximum likelihood method [LB05].
+
+
+B.1   The Two Nearest Neighbor Method
+
+Assume that points are drawn from a distribution with density ρ(x) with support on a d-dimensional manifold
+in a potentially much higher dimensional ambient space. We will see that ρ(x) drops out of our results,
+assuming that it is constant across the first few nearest neighbors, so we will drop its explicit x-dependence
+in what follows.
+
+The probability of finding n points from the dataset in a region with d-dimensional volume V is Poisson:
+                                                   (ρV )n −ρV
+                                              Pn (V ) =   e                                       (B.1)
+                                                     n!
+To see this, note that in an infinitesimal volume δV , P0 = 1 − ρδV and P1 = ρδV , with all Pn>1 = 0.
+Thus the generating function for Pn in a finite volume V can be found by taking the product of binomial
+
+
+                                                              21
+                                Nearest Neighbor ID Measurement Technique (T/S CE)                                             Nearest Neighbor ID Measurement Technique (CIFAR10)                                   Nearest Neighbor ID Measurement Technique (GPT)
+                                                                                                                        20.0                                                                                    12
+                                      k:2, d = 9.15                                                                                   k:2, d = 17.09                                                                        k:2, d = 142.88
+                           12         k:16, d = 8.88                                                                    17.5          k:16, d = 15.51                                                                       k:16, d = 139.68
+                                      k:128, d = 8.19                                                                                 k:128, d = 12.58                                                          10          k:128, d = 138.92
+                           10                                                                                           15.0
+                                                                                                                        12.5                                                                                    8
+      log(1 C( k)k 1 1 )
+
+
+
+
+                                                                                                   log(1 C( k)k 1 1 )
+
+
+
+
+                                                                                                                                                                                           log(1 C( k)k 1 1 )
+                           8
+                                                                                                                        10.0                                                                                    6
+                           6
+                                                                                                                         7.5
+                           4                                                                                                                                                                                    4
+                                                                                                                         5.0
+                           2                                                                                             2.5                                                                                    2
+
+                           0                                                                                             0.0                                                                                    0
+                                0.0    0.2     0.4      0.6      0.8    1.0    1.2   1.4   1.6                                  0.0     0.2      0.4     0.6       0.8   1.0   1.2   1.4                             0.00           0.02         0.04     0.06   0.08
+                                                              log( k)                                                                                      log( k)                                                                              log( k)
+
+
+
+Figure 16: This figure shows the relationship in equation B.16, which we use to determine the ID using the
+nearest neighbor method. We display examples using teacher/student data, CIFAR10, and GPT.
+
+
+distributions over all δV in V , giving
+                                                                                                                                                                                     ∞
+                                                                                                                                                                         V           X (xρV )n
+                                                               G(x; V ) = lim ((1 − ρδV ) + xρδV ) δV =                                                                                                                     e−ρV                                        (B.2)
+                                                                                           δV →0
+                                                                                                                                                                                     n=0
+                                                                                                                                                                                              n!
+The coefficients of xn are the Pn above.
+
+With this result in hand, we can consider the distribution of nearest-neighbor distances. Consider some
+point in the dataset. The probability for its nearest neighbor to be in [r1 , r1 + dr] is given by the product
+of the probability that there are no points in r < r1 times the probability of finding a point in the shell
+r1 < r < r1 + dr, which is
+                                                                      d
+                                 P (r1 )dr1 = dρωd r1d−1 dr1 e−ρωd r1
+                                                             
+                                                                                                         (B.3)
+where ωd is the volume of a unit d-ball. This result easily generalizes to the case where there are many ri
+corresponding to the first k nearest neighbors. For example for two nearest neighbors we find
+                                                                                                                                                                          d
+                                                                              P (r1 , r2 )dr1 dr2 = (ρωd d)2 e−ρωd r2 r1d−1 r2d−1 dr1 dr2                                                                                                                               (B.4)
+since we are demanding that there are two points on two infinitesimal shells at radii r1 , r2 and no points
+otherwise.
+
+Now we can compute the distribution over nearest neighbor distances, and their ratios. The TwoNN method
+[ALMZ19] is based on the distribution of the ratio µ2 = r2 /r1 , which we can compute by integrating over
+r1 , r2 while fixing their ratio:
+                                                         
+                                                       r2
+                                    Z
+                                                                            d
+                        P (µ2 ) =     dr1 dr2 δ µ2 −        (ρωd d)2 e−ρωd r2 r1d−1 r2d−1
+                                                       r1
+                                    Z
+                                                          d d
+                                  =   dr1 (ρωd d)2 e−ρωd µ r1 r12d−1 µ2d−1
+                                                                                                      d
+                                                                                           =                                                                                                                                                                            (B.5)
+                                                                                                 µd+1
+                                                                                                  2
+This means that the cumulative distribution for µ2 is
+                                            Z µ
+                                                   d           1
+                                   C(µ) =         d+1
+                                                      dµ = 1 − d                                                                                                                                                                                                        (B.6)
+                                              1  µ2
+                                                              µ 2
+
+This means that we can identify the dimension d by measuring the slope of a linear fit of log µ2 vs log(1 −
+C(µ2 )). That’s the TwoNN method, as seen in figure 16.
+
+
+B.2                        Extension to k-Neighbors and MLE
+
+The beauty of the TwoNN method [ALMZ19] is that it uses very short-distance information, and so it’s
+plausible that the density ρ(x) can be well-approximated as a constant. A down-side of this method is that
+
+
+                                                                                                                                                         22
+it primarily measures the dimension on short scales. This can be mitigated by applying the method while
+sampling different numbers of points from the data distribution, but it’s also easy to validate the TwoNN
+method by simply using more neighbors.
+
+Let’s see what happens with three neighbors, and then we will generalize. We can compute the distribution
+of µ2 = r2 /r1 , µ3 = r3 /r1 , and use it for validation. We have
+                                                                  
+                                                   r2             r3
+                                 Z
+                                                                                        d
+             P (µ2 , µ3 ) =         dri δ µ2 −         δ µ3 −           (ρωd d)3 e−ρωd r3 (r1 r2 r3 )d−1
+                                                   r1             r1
+                                 Z
+                                                           d
+                           =        dr1 (ρωd d)3 e−ρωd µ3 r3 r13d−1 µ2d−1 µ3d−1
+
+                                 2d2 µd−1
+                                      2
+                            =                                                                           (B.7)
+                                  µ2d+1
+                                   3
+
+Intuitively, large µ3 becomes unlikely because it implies that there are few points inside a large radius, but
+with fixed µ3 , a larger value of µ2 is more probable due to the larger volume at large radius.
+
+We find a nice simplification when we study P (µ3 ) and its cumulative distribution after marginalizing over
+µ2 . The probability distribution is
+                                       Z µ3
+                                               2d2 µ2d−1     2d
+                                                         = 2d+1 µd3 − 1
+                                                                          
+                             P (µ3 ) =      dµ2 2d+1                                                   (B.8)
+                                        1       µ3         µ3
+The cumulative distribution is then
+                                                                     2
+                                                                1
+                                            C(µ3 ) =       1−                                           (B.9)
+                                                                µd3
+Thus we also find a simple method for identifying d based on µ3 alone, namely
+                                                    p       
+                                           log 1 − C(µ3 )
+                                      d=                                                               (B.10)
+                                                  log µ3
+This directly generalizes the TwoNN; in practice we measure d via a linear fit to the numerator as a function
+of the denominator in this expression.
+
+Generalizing to k neighbors, the probability distribution for µ2 , · · · , µk is
+                                                           Qk−1 d−1
+                                                             i=2 µi
+                                  P (µi ) = dk−1 (k − 1)! 1+d(k−1)                                     (B.11)
+                                                           µk
+for µi = ri /r1 . This can be used directly for maximum likelihood estimation [LB05]. If we maximize log P
+with respect to d we find
+                                                      k−1
+                                    d=                    Pk−1                                         (B.12)
+                                          (k − 1) log µk − j=2 log µj
+In fact, this MLE estimator is biased; the unbiased estimator is [LB05]
+                                       "                                #
+                                                     k−2
+                                d=E                       Pk−1                                         (B.13)
+                                         (k − 1) log µk − j=2 log µj
+In practice, we can compute the RHS for all points in the manifold (after fixing some value for the number of
+neighbors k) and compute the mean. We display a histogram of the MLE estimates over many points in the
+data manifold for two examples in figure 17. The variance provides some measure of the errors. Alternatively,
+we could directly measure log P and evaluate the likelihood as a function of d. The variance of this estimator
+was studied in [LB05]. They also found numerically that it can be useful to tune of the value of k, as very
+small k overestimates ID while large k underestimates ID.
+
+
+                                                           23
+                          T/S CE: MLE ID estimate (histogram)                                        CIFAR10: MLE ID estimate (histogram)                                    GPT: MLE ID (last token, prefinal layer attention)
+                                                         ID = 8.45 ± 1.4                                                                ID = 14.2 ± 9.12
+             1400                                                                         600                                                                          600
+             1200                                                                         500                                                                          500
+             1000                                                                                                                                                      400
+                                                                                          400
+ Frequency
+
+
+
+
+                                                                              Frequency
+
+
+
+
+                                                                                                                                                           frequency
+             800
+                                                                                          300                                                                          300
+             600
+                                                                                          200                                                                          200
+             400
+             200                                                                          100                                                                          100
+
+               0                                                                           0                                                                            0
+                      6         8       10       12        14          16                       5        10        15              20          25                            80     90    100    110        120   130   140   150
+                                          ID                                                                            ID                                                                             ID
+
+
+
+Figure 17: These figures show a histogram of the results for d from MLE (with 100 neighbors) among all of
+the points used for measurement. On the left we have a teacher with 10 features, in the middle we have the
+n = 5 CNN trained on CIFAR10, while on the right we have the GPT model’s prefinal attention output for
+the last token in the text sequence. Smaller numbers of neighbors typically give larger IDs.
+
+
+We can use these results to extend the TwoNN method in a simple way to general k. Marginalizing over all
+but µk , we find that
+                                                                                                      (k − 1)d                                 k−1
+                                                                            P (µk ) =                 (k−1)d+1
+                                                                                                                              µdk − 1                                                                                               (B.14)
+                                                                                                     µk
+which leads to the cumulative distribution
+                                                                                                                                  k−1
+                                                                                                                             1
+                                                                                          C(µk ) =                1−                                                                                                                (B.15)
+                                                                                                                             µdk
+and the formula
+                                                                                                                   1
+                                                                                                                       
+                                                                                                    log 1 − C(µk ) k−1
+                                                                                   d=                                                                                                                                               (B.16)
+                                                                                                               log µk
+for the kth nearest neighbor. This can be used as a cross-check for TwoNN. For examples of the relationship
+between the numerator and denominator with various k, and the relevant fits, see figure 16. Just as with MLE,
+we find empirically that larger k leads to smaller estimates of ID (see figure 21).
+
+
+C               Examples and Tests of Intrinsic Dimension Estimation
+
+The MLE and TwoNN methods have been tested and demonstrated by their authors [LB05, ALMZ19]. We
+conduct a few tests with synthetic data. Then we provide some other examples of the ID measurement
+process, including errors, using our student/teacher, CIFAR10, and language data.
+
+
+C.1                 Tests on Synthetic Data
+
+As a baseline test, we evaluate the TwoNN and MLE methods on synthetic datasets with dimensions ranging
+from 2 to 128, with results in figure 18. We display synthetic data on the hypercube [0, 1]d as well as a d-torus
+S 1 × S 1 × · · · × S 1 embedded in 2d dimensions (in the simplest way, by embedding each circle factor in 2
+Euclidean dimensions).
+
+We notice that 1) results are more accurate for smaller d, with quite reliable results for the TwoNN method for
+d . 20, 2) at large d all methods tend to underestimate the true ID, but 3) its certainly possible to both under
+and over-estimate the true ID, and measurements are not necessarily even monotonic with the number of
+points used for the measurement. We also see that for the torus the ID estimates are reasonably accurate even
+for dimensions ∼ 100, though there’s certainly no guarantee that this will hold for unknown data manifolds.
+
+
+                                                                                                                   24
+                                                                   Nearest Neighbor uniform                                                           Nearest Neighbor torus
+                                      102                                                                                                 102
+
+
+
+
+                          Dimension
+
+
+
+
+                                                                                                                              Dimension
+                                      101                                                                                                 101
+
+
+
+
+                                                                            103                       104                                                  103                                 104
+                                                                           Number of Points                                                               Number of Points
+
+                                                                            MLE uniform                                                                     MLE torus
+                                      102                                                                                                 102
+                         Dimension
+
+
+
+
+                                                                                                                             Dimension
+                                      101
+                                                                                                                                          101
+
+
+
+
+                                      100
+                                                                            103                       104                                                  103                                 104
+                                                                          Number of Points                                                               Number of Points
+
+
+Figure 18: Here we show measured ID as a function of the number of points in the dataset used for the
+measurement, for both the TwoNN (top) and MLE (bottom) methods (with k = 100). The left plots show
+a uniform distribution in the hypercube [0, 1]d , while the plot on the right show a d-torus embedded in 2d
+dimensions.
+
+               ID vs number of vectors (15 features, n = 28)                                                CIFAR10: ID vs Number of vectors                            GPT layer 12 (prefinal): ID vs Number of points
+      12.50                                                                                                                                                                  attention
+                                                                                              16.75                                                            145.0         fully connected
+      12.25
+                                                                                              16.50                                                            142.5
+      12.00
+                                                                                              16.25                                                            140.0
+      11.75
+                                                                                              16.00                                                            137.5
+      11.50
+ ID
+
+
+
+
+                                                                                        ID
+
+
+
+
+                                                                                                                                                          ID
+
+
+
+
+                                                                                              15.75                                                            135.0
+      11.25
+                                                                                              15.50                                                            132.5
+      11.00
+                                                                                                                                                               130.0
+      10.75                                                     layer1                        15.25
+                                                                layer2 (prefinal)                                                                              127.5
+      10.50                                                                                   15.00
+                103                                       104                                                 103                               104                    103                                                104
+                                      number of vectors                                                             number of vectors                                                          number of points
+
+
+
+Figure 19: Variation of Intrinsic Dimension(ID) with number of vectors for a single student network (left),
+for the last layer of an n = 5 CNN trained on CIFAR10 (middle), and also for the last layer and last token of
+GPT (right). The student is of size [15, 28, 28, 2] and was trained on teacher with 15 features.
+
+
+As other authors have noted [CS16], the ID is under-estimated on the hypercube, likely because cubes have
+sharp boundaries and corners which reduce the number of neighbors. Similarly, we believe that the ID is
+often over-estimated for the torus because (due to the curvature of the circles in the embedding space) points
+are often closer together than they would be in flat Euclidean space. We have also seen as shown in [LB05]
+that for small k the MLE method typically overestimates ID. The NN method seems a bit less sensitive to k
+as compared to MLE.
+
+
+C.2           Tests on Neural Network Activations
+
+In all cases we measure ID from fully trained networks, and we always use students (not teachers) in that
+context. There are a large variety of potential statistical and systematic errors associated with these measure-
+ments:
+
+
+                                                                                                                        25
+                                    Variance in ID Among Different Students with 10 features                                      Variance in ID Among Different Students with 15 features
+                             9.50
+  Intrinsic Dimension (ID)   9.25                                                                                          13.0
+
+
+
+
+                                                                                                Intrinsic Dimension (ID)
+                             9.00                                                                                          12.5
+                             8.75                                                                                          12.0
+                             8.50
+                                                                                                                           11.5
+                             8.25
+                                                                                                                           11.0
+                             8.00
+                             7.75                                                                                          10.5
+                                                   103                                                                                  103                                       104
+                                                             Network Size                                                                                Network Size
+
+Figure 20: Variation of Intrinsic Dimension (ID) across network sizes for a single teacher. The figure on the
+left shows number of inputs features = 10 and the one on the right has 15. Each point on either figure is
+one student. All students on each figure are trained on the same teacher, but the teacher for the left and right
+figures are different.
+
+                                               ID vs Number of nearest neighbors                                                              ID vs Number of nearest neighbors
+                              9.0
+                                                                                                                  11.75
+                              8.8                                                                                 11.50
+                                                                                                                  11.25
+                              8.6                                                                                 11.00
+          ID
+
+
+
+
+                                                                                               ID
+
+
+
+
+                                                                                                                  10.75
+                              8.4
+                                                                                                                  10.50
+                              8.2                                                                                 10.25
+                                                                                                                  10.00
+                              8.0
+                                      0       50         100      150      200   250   300                                          0         50    100      150      200    250        300
+                                                           nearest neighbours                                                                         nearest neighbours
+
+
+Figure 21: Variation of Intrinsic Dimension (ID) with number of neighbors used in the algorithm. The figure
+on the left shows a student of size [20, 25, 25, 2] trained on a teacher with 10 features, while the one on the
+right has student shape [15, 28, 28, 2] trained on teacher with 15 features.
+
+
+                               • Variation among IDs measured from students of the same size and trained with the same teacher
+                                 network (or dataset), but with different initialization (see figure 20).
+                               • Variation of ID measurements among random groups of points sampled from the same data manifold
+                               • Dependence of ID on the number of points used (and so the overall density) from the data manifold.
+                                 More points samples shorter distance scales on the manifold. See figure 19.
+                               • Dependence of ID on how many nearest neighbor points are used, either for NN (see figure 21) or
+                                 MLE type estimation.
+                               • Variation of ID from among points in different locations on the data data manifold (we show a
+                                 histogram of results from MLE in figure 17)
+                               • Dataset specific distinctions, eg from the same or different classes in an image classifier, or from the
+                                 same or different text sequences in a language model (discussed in section 3.4)
+                               • Dependence of ID measurements on the layer studied (see figures 10 and 19)
+
+We provide some brief information about many of these sources of variation in the referenced plots. In most
+cases we find that the variation of the ID is small as long as it is measured with sufficiently many vectors. It
+
+
+                                                                                               26
+                    GPT: MLE ID (last token, prefinal layer attention)                       GPT: MLE ID (last token, prefinal layer fully connected)                     GPT: MLE ID (last token, prefinal layer residual block)
+                                                                                       800                                                                          600                                          ID = 121.2 ± 11.5
+              600
+                                                                                       700
+                                                                                                                                                                    500
+              500                                                                      600
+                                                                                       500                                                                          400
+              400
+  frequency
+
+
+
+
+                                                                           frequency
+
+
+
+
+                                                                                                                                                        frequency
+                                                                                       400                                                                          300
+              300
+                                                                                       300
+              200                                                                                                                                                   200
+                                                                                       200
+              100                                                                                                                                                   100
+                                                                                       100
+               0                                                                        0                                                                            0
+                    80     90    100    110        120   130   140   150                      80        100       120        140      160        180                       90    100   110    120   130    140   150    160    170
+                                              ID                                                                        ID                                                                          ID
+
+
+
+Figure 22: These figures are histograms of the GPT MLE estimates using the last token of the prefinal layer
+(using nneighbor = 100). Counts include the number of points in the data manifold that produce a given
+maximum-likelihood ID. These are computed using all available text sequences, ie test+validation (10k pts)
+
+
+would be interesting obtain a more precise theoretical and experimental characterization of these methods in
+the future.
+
+But as evidenced by the synthetic examples in figure 18, this does not lead us to believe that the IDs are
+fully trustworthy, especially when they are measured to be large. Though the apparent statistical errors in ID
+measurements may seem small, there may be systematic errors that are more difficult to observe.
+
+It’s conceivable that deficiencies in ID measurement actually work to the advantage of the theory relating d
+and 4/α. For example, d tends to be underestimated when the data manifold has a boundary (or simply less
+support in some region), but this may also correlate with regions of the manifold where there really is less
+data, and these regions do not need to be modeled as precisely to achieve a good test loss. But we leave a
+more thorough investigation of such subtleties to future work.
+
+
+References
+[AAB+ 15] Martı́n Abadi, Ashish Agarwal, Paul Barham, Eugene Brevdo, Zhifeng Chen, Craig Citro,
+          Greg S. Corrado, Andy Davis, Jeffrey Dean, Matthieu Devin, Sanjay Ghemawat, Ian Good-
+          fellow, Andrew Harp, Geoffrey Irving, Michael Isard, Yangqing Jia, Rafal Jozefowicz, Lukasz
+          Kaiser, Manjunath Kudlur, Josh Levenberg, Dandelion Mané, Rajat Monga, Sherry Moore,
+          Derek Murray, Chris Olah, Mike Schuster, Jonathon Shlens, Benoit Steiner, Ilya Sutskever,
+          Kunal Talwar, Paul Tucker, Vincent Vanhoucke, Vijay Vasudevan, Fernanda Viégas, Oriol
+          Vinyals, Pete Warden, Martin Wattenberg, Martin Wicke, Yuan Yu, and Xiaoqiang Zheng.
+          TensorFlow: Large-scale machine learning on heterogeneous systems, 2015. URL https:
+          //www.tensorflow.org/. Software available from tensorflow.org.
+[ALMZ19] Alessio Ansuini, Alessandro Laio, Jakob H. Macke, and Davide Zoccolan. Intrinsic dimension
+         of data representations in deep neural networks, 2019, 1905.12784.
+[Bia12]                         GÃŠrard Biau. Analysis of a random forests model. Journal of Machine Learning Research,
+                                13(Apr):1063–1095, 2012.
+[BJ16]                          Ronen Basri and David Jacobs. Efficient representation of low-dimensional manifolds using
+                                deep networks, 2016, 1602.04723.
+[BL+ 07]                        Peter J Bickel, Bo Li, et al. Local polynomial regression on unknown manifolds. In Complex
+                                datasets and inverse problems, pages 177–186. Institute of Mathematical Statistics, 2007.
+[BLB+ 13]                       Lars Buitinck, Gilles Louppe, Mathieu Blondel, Fabian Pedregosa, Andreas Mueller, Olivier
+                                Grisel, Vlad Niculae, Peter Prettenhofer, Alexandre Gramfort, Jaques Grobler, Robert Layton,
+                                Jake VanderPlas, Arnaud Joly, Brian Holt, and Gaël Varoquaux. API design for machine learn-
+
+
+                                                                                                                     27
+            ing software: experiences from the scikit-learn project. In ECML PKDD Workshop: Languages
+            for Data Mining and Machine Learning, pages 108–122, 2013.
+[CHHS19]    Karl Cobbe, Christopher Hesse, Jacob Hilton, and John Schulman. Leveraging procedural
+            generation to benchmark reinforcement learning, 2019, 1912.01588.
+[CS16]      Francesco Camastra and Antonino Staiano. Intrinsic dimension estimation: Advances and open
+            problems. Information Sciences, 328:26–41, 2016.
+[FdRL17]    Elena Facco, Maria dErrico, Alex Rodriguez, and Alessandro Laio. Estimating the intrinsic
+            dimension of datasets by a minimal neighborhood information. Scientific Reports, 7, 12 2017.
+            doi:10.1038/s41598-017-11873-y.
+[HAD19]     Joel Hestness, Newsha Ardalani, and Gregory Diamos. Beyond human-level accuracy: compu-
+            tational challenges in deep learning. In Proceedings of the 24th Symposium on Principles and
+            Practice of Parallel Programming, pages 1–14, 2019.
+[HNA+ 17] Joel Hestness, Sharan Narang, Newsha Ardalani, Gregory Diamos, Heewoo Jun, Hassan Kia-
+          ninejad, Md. Mostofa Ali Patwary, Yang Yang, and Yanqi Zhou. Deep learning scaling is
+          predictable, empirically, 2017, 1712.00409.
+[IST+ 19]   Andrew Ilyas, Shibani Santurkar, Dimitris Tsipras, Logan Engstrom, Brandon Tran,
+            and Aleksander Madry.      Adversarial examples are not bugs, they are features.
+            In H. Wallach, H. Larochelle, A. Beygelzimer, F. d’Alché Buc, E. Fox, and
+            R. Garnett, editors, Advances in Neural Information Processing Systems 32, pages
+            125–136. Curran Associates, Inc., 2019.     URL http://papers.nips.cc/paper/
+            8307-adversarial-examples-are-not-bugs-they-are-features.pdf.
+[KB14]      Diederik P. Kingma and Jimmy Ba. Adam: A method for stochastic optimization, 2014,
+            1412.6980.
+[KMH+ 20] Jared Kaplan, Sam McCandlish, Tom Henighan, Tom B. Brown, Benjamin Chess, Rewon Child,
+          Scott Gray, Alec Radford, Jeffrey Wu, and Dario Amodei. Scaling laws for neural language
+          models, 2020, 2001.08361.
+[Kri09]     Alex Krizhevsky. Learning multiple layers of features from tiny images. Technical report, 2009.
+[LB05]      Elizaveta Levina and Peter J Bickel. Maximum likelihood estimation of intrinsic dimension. In
+            Advances in neural information processing systems, pages 777–784, 2005.
+[LC10]      Yann LeCun and Corinna Cortes. MNIST handwritten digit database. 2010. URL http:
+            //yann.lecun.com/exdb/mnist/.
+[LFLY18]    Chunyuan Li, Heerad Farkhoor, Rosanne Liu, and Jason Yosinski. Measuring the intrinsic
+            dimension of objective landscapes, 2018, 1804.08838.
+[LSP+ 18]   Peter J. Liu, Mohammad Saleh, Etienne Pot, Ben Goodrich, Ryan Sepassi, Lukasz Kaiser, and
+            Noam Shazeer. Generating wikipedia by summarizing long sequences. arXiv:1801.10198 [cs],
+            2018, 1801.10198. URL http://arxiv.org/abs/1801.10198.
+[MPCB14] Guido F Montufar, Razvan Pascanu, Kyunghyun Cho, and Yoshua Bengio. On the number of
+         linear regions of deep neural networks. In Advances in neural information processing systems,
+         pages 2924–2932, 2014.
+[MWH+ 18] Xingjun Ma, Yisen Wang, Michael E. Houle, Shuo Zhou, Sarah M. Erfani, Shu-Tao Xia, Sudan-
+          thi Wijewickrema, and James Bailey. Dimensionality-driven learning with noisy labels, 2018,
+          1806.02612.
+[NWC+ 11] Yuval Netzer, Tao Wang, Adam Coates, Alessandro Bissacco, Bo Wu, and Andrew Y Ng. Read-
+          ing digits in natural images with unsupervised feature learning. 2011.
+
+
+                                                   28
+[OCS+ 20]   Chris Olah, Nick Cammarata, Ludwig Schubert, Gabriel Goh, Michael Petrov, and Shan
+            Carter. Zoom in: An introduction to circuits. Distill, 2020. doi:10.23915/distill.00024.001.
+            https://distill.pub/2020/circuits/zoom-in.
+[RNSS18]    Alec Radford, Karthik Narasimhan, Tim Salimans, and Ilya Sutskever. Improving language
+            understanding by generative pre-training. URL https://s3-us-west-2. amazonaws. com/openai-
+            assets/research-covers/languageunsupervised/language understanding paper. pdf, 2018.
+[RRBS19]    Jonathan S. Rosenfeld, Amir Rosenfeld, Yonatan Belinkov, and Nir Shavit. A constructive
+            prediction of the generalization error across scales, 2019, 1909.12673.
+[RWC+ 19] Alec Radford, Jeff Wu, Rewon Child, David Luan, Dario Amodei, and Ilya Sutskever. Language
+          models are unsupervised multitask learners. openai.com, 2019.
+[SGW19]     Stefano Spigler, Mario Geiger, and Matthieu Wyart. Asymptotic learning curves of kernel
+            methods: empirical data v.s. teacher-student paradigm, 2019, 1905.10843.
+[TL19]      Mingxing Tan and Quoc V. Le. Efficientnet: Rethinking model scaling for convolutional neural
+            networks. CoRR, abs/1905.11946, 2019, 1905.11946. URL http://arxiv.org/abs/1905.
+            11946.
+[VSP+ 17]   Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N Gomez,
+            Ł ukasz Kaiser, and Illia Polosukhin. Attention is all you need. In I. Guyon, U. V. Luxburg,
+            S. Bengio, H. Wallach, R. Fergus, S. Vishwanathan, and R. Garnett, editors, Advances in Neural
+            Information Processing Systems 30, pages 5998–6008. Curran Associates, Inc., 2017. URL
+            http://papers.nips.cc/paper/7181-attention-is-all-you-need.pdf.
+[Was06]     Larry Wasserman. All of nonparametric statistics. Springer Science & Business Media, 2006.
+[XRV17]     Han Xiao, Kashif Rasul, and Roland Vollgraf. Fashion-mnist: a novel image dataset for bench-
+            marking machine learning algorithms. 08 2017.
+
+
+
+
+                                                   29
+
