@@ -1,48 +1,48 @@
 # scaling-dimension NOTES (living handoff)
 
-Python: `/home/fzeng/ml/research/art/.venv/bin/python` (call it PY). Run everything from this dir.
+Python: `/home/fzeng/ml/research/art/.venv/bin/python` (call it PY). Run everything from this directory.
 
-## State (2026-09-13 14:37, agent 1 handing off)
-### Background jobs (left running on purpose; check with `ps aux | grep -E "ts_train|real_train"`)
-1. **Main T/S sweep** -> `cache/main/ts_main.npz` (saved after each width; log `cache/logs/ts_main.log`).
-   fams relu0 (paper teacher, zero bias) + relub (biases N(0,.1^2)); d=2,3,4,5,6,8,10,12; 3 seeds;
-   widths in order 6,16,45,4,11,32,90,8,23,64 (N=199..~10.8k); 60k steps, batch 1024, Adam 3e-3 then cosine->3e-6 over last 60%.
-   ~4 min/width, expected done ~15:10. Widths 6,16 done at handoff.
-2. **Real-data CNN sweep** (queued behind gpu_run.sh slot at handoff; log `cache/logs/real.log`, empty until slot acquired)
-   -> `cache/real/real.json` (resumable: skips done keys). cifar10,fmnist,mnist; widths c=2,4,8,16,3,6,12,24; 12 epochs, batch 256, 1 seed;
-   per width: best test loss (early stopping), err, final-hidden TwoNN/MLE ID; plus pixel ID (10k imgs). Toy MNIST pixel ID: TwoNN 13.9, MLE10 12.7.
-   If it never gets a slot: run it directly on CPU is too slow for cifar; consider `--data mnist,fmnist --widths 2,4,8,16` or wait.
+## State (2026-09-13 16:15, agent 2): the project is essentially complete
+- No background jobs are running. Both sweeps are finished:
+  - `cache/main/ts_main.npz`: 10 widths × 8 d × 2 families × 3 seeds, 72 min.
+  - `cache/real/real.json`: cifar10, fmnist, mnist × 8 widths, 1 seed.
+- Analysis: `cache/main/ts_main_analysis.{json,npz}` (ts_analyze.py). The summary table is in `cache/main/summary.json` and `summary_table.md`. That table was built by an inline snippet, and the same numbers are in the README.
+- The README is complete: 8 sections, the full results table, real-data table, disagreements, reproduce commands.
+- Gallery, all committed:
+  - `diptych_`, `fan_`, `agree_` × {paper, dark, riso, spectral}.png
+  - `zoom_{dark,paper,riso}.mp4` (720², CRF 32, 9–15 MB) and `.gif` (420 px, 10 fps, 8–9 MB).
+  - The 1080² masters `zoom_*_1080.mp4` (85–96 MB) stay local and are NOT committed (over 20 MB). The README says so.
 
-### Scripts
-- `idlib.py` TwoNN/MLE/N(r). **Fixed bug**: neighbour_count_curve subtracted self once per chunk instead of per centre.
-- `ts_train.py` batched sweep (edited: shared pools per (fam,d), per-width incremental save, --mem_frac).
-- `ts_analyze.py NPZ --id_widths 16,45,90` -> `NPZ_analysis.{json,npz}`: alpha fit per fam_d (median over seeds, bootstrap CI, local slopes),
-  IDs of students' final hidden layer (12k pts; TwoNN, MLE k=5,10,20), N(r) curves (radii in units of median NN dist), input-ID sanity.
-  Run on GPU briefly (<2 min, fine without slot) once sweep done: `PY ts_analyze.py cache/main/ts_main.npz --id_widths 16,45,90`.
-  Toy (1000 steps) numbers: student ID d=2:1.98, d=6:5.6, d=12:9.8 (TwoNN; MLE lower at high d, known underestimate).
-- `style.py` styles paper (log paper, cream + orange ruling + one ink), dark (magma), riso (Federal Blue + Fluo Pink, misregistration), spectral.
-- `render_plates.py --analysis cache/main/ts_main_analysis --pieces diptych,fan --styles paper,dark,riso,spectral --idw 45`
-  diptych works (checked on toy, looks clean). **fan() is a rough draft** (upper N(r) fan hack with a dead `if False` expression) - rewrite.
-  **agreement plate not yet written**: x = median student TwoNN d (per fam,d; error bar = seed/width range), y = 4/alpha (CI from bootstrap),
-  y=x line, relu0 filled / relub hollow; real-data points from real.json (fit alpha over c widths of test_loss vs N; x = final-hidden ID median,
-  also pixel ID as secondary hollow marker); GPT-2 annotation off-scale: 4/alpha~53, d>90 (arrow, from paper, not measured here).
-- `zoom_compute.py` + `render_zoom.py`: **the zoom film** (prototype works, looks strong). d=2 relub teacher graph + students (widths 6,16,45,90, seed 0)
-  sampled on the same K random offsets in a window shrinking 10^-decades around z0; heights relative to teacher's tangent plane at z0, divided by rho
-  (isotropic zoom). Teacher creases -> flattens to a plane; students peel away in order of N (bigger N stays glued longer = the scaling law, visible).
-  Final commands (after sweep has w45,w90):
-  `PY zoom_compute.py --npz cache/main/ts_main.npz --fam relub --widths 6,16,45,90 --frames 900 --K 80000 --decades 2.5 --rho0 0.2 --out cache/zoom/zoom.npz`
-  `OMP_NUM_THREADS=1 PY render_zoom.py --data cache/zoom/zoom.npz --style dark --out gallery/zoom_dark` (also paper, riso). Check stills first with `--frames 0,300,600,899 --size 720`.
-  Tune: kappa 0.5, slab 0.9 (new clip, untested), maybe add inset L(N) line with markers lighting as each student peels off.
+## Key numbers
+- relu0, 4/α vs student TwoNN ID:
+  - d=2: 2.42 / 2.01
+  - d=3: 3.09 / 2.97
+  - d=4: 4.02 / 3.94
+  - d=5: 4.41 / 4.86
+  - d=6: 5.16 / 5.84
+  - d=8: 6.63 / 7.55
+  - d=10: 7.30 / 9.36
+  - d=12: 8.46 / 10.73
+- relub is similar except at low d (d=2: 3.42, d=3: 3.68).
+- Slope through the origin: 4/α ≈ 0.84·ID.
+- Fit-range sensitivity: the small-N half and the large-N half differ by ±30–40% (the L(N) curves are concave). The seed-bootstrap CIs are too narrow with 3 seeds.
+- Real data, 4/α (raw CE power law) vs hidden-layer TwoNN:
+  - MNIST: 7.3 vs 8.9
+  - FMNIST: 19.7 vs 8.9
+  - CIFAR-10: 27.5 vs 11.8 (the paper reports a CIFAR match and FMNIST 5.95 vs 9.4)
+  - Only MNIST agrees. The README lists the likely causes: CE floor, 12 epochs, 1 seed, 2c bottleneck.
+- GPT-2 doc claim: checked, see the README (4/α ≈ 53; first-layer ID 50–80; other layers > 90).
 
-## Doc-claim check (GPT-2 d>=90) - done, goes in README
-Sharma&Kaplan JMLR 2022 sec 3.3 (refs/jmlr.txt ~l.1157-1200): GPT-2 small, alpha=0.076 -> 4/alpha~53; ID from last-token activations,
-10k vectors, every layer (attn/FC/residual): ID roughly constant across layers **except first layer, significantly smaller (50-80, which matches 4/alpha)**;
-"since d > 90, d >= 4/alpha ~ 53". IDs from 1024 tokens of one passage: ~7. So doc claim is essentially right but omits the first-layer exception and the
-authors' note that ID estimators underestimate for d >~ 20 (appendix C). Paper setup: teacher [20,600,600,1] MSE, k features zero-padded (we embed via random
-orthonormal Q into D=24, equal in distribution), students [20,n,n,1], 240k steps growing batch; ID from final hidden layer, 12k vectors; best 9 of 10 trials.
+## Scripts
+- `ts_train.py`, `ts_analyze.py`, `idlib.py` (+ `test_idlib.py`), `real_train.py`
+- `render_plates.py --pieces diptych,fan,agree --styles paper,dark,riso,spectral --idw 45 --dpi 180` (renders from cache, about 1 min)
+- `zoom_compute.py` then `render_zoom.py` (commands are in the README). Re-encode for commit:
+  - MP4: `ffmpeg -i zoom_S_1080.mp4 -vf scale=720:720 -crf 32 -tune grain`
+  - GIF: fps 10, 420 px, 64 colours, bayer 5
+- `style.py`: the spectral style now uses a charcoal ground (#18191f), so the pale Spectral midtones stay visible.
 
-## Remaining pieces / todo
-1. analyse main sweep; inspect local slopes (low-d curves may saturate at big N -> restrict fit range, report).
-2. render diptych (4 styles), rewrite fan, write agreement plate (4 styles), zoom film (dark/paper/riso MP4+GIF).
-3. real-data points; README (brief's 8 sections) with metrics, caveats (MLE underestimates high d; alpha depends on fit range; relub vs relu0).
-4. commit via `/home/fzeng/ml/research/art/_shared/commit.sh scaling-dimension "msg"`.
+## Optional next steps (only if more budget)
+1. Diptych right panel: the d = 8/10/12 labels crowd at the top. Place the labels by angle instead of at count = 2000.
+2. Real data: longer training (50 epochs, 3+ seeds), and fit L − L∞ or use the error rate over the clean range; then re-render agree.
+3. Longer T/S training (240k steps, as in the paper) to test whether the large-N concavity is an optimisation floor.
+4. Zoom film: an L(N) inset whose markers light up as each student peels off.
