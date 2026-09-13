@@ -53,6 +53,14 @@ first 5000 CIFAR-10 train, per-channel standardise with full-CIFAR stats, 3072-2
 PyTorch default init, MSE 0.5*sum_classes averaged over examples; Fig 1 FC legend lists
 2/eta in {20,50,80,110} (panel attribution from text extraction uncertain); Fig 3 uses 2/600.
 
+## RENDER STATE (successor 2)
+Done & viewed: print_eta80{,_detail}_{night,paper,riso,spectral}, multiples_5400_*, ladder_*,
+orbit_main4_* (render_phase rewritten: smoothed orbit, growth plate, burst return maps), growth_main4_paper,
+return_main4_{paper,night}, plotter_eta80 (pen2 = below-edge steps), film_eta80 (gif 9.7MB), diptych_frames_eta80.
+README.md written (sweep section placeholder <!-- SWEEP -->). Warm lam is ALWAYS <= cold (lower bound).
+Growth plate: zero growth at r~+5-8%, not 0 (quadratic model wrong equilibrium). Return maps = clouds (negative).
+Remaining: sweep16 plates (render_sweep.py) when sweep16 finishes -> fill README SWEEP section; commit.
+
 ## Resume
 cd art/edge-of-stability; P=../.venv/bin/python
 $P render_print.py main4.npz 1 eta80      # etc; film: $P render_film.py main4.npz 1 eta80 5
