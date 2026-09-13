@@ -91,7 +91,13 @@ for NL in tanh relu sin; do ../_shared/gpu_run.sh ../.venv/bin/python window_com
 ../_shared/gpu_run.sh ../.venv/bin/python zoom_compute.py --tag null_quadratic --nonlin quadratic --res 256 --dec 0.5 --depth 6
 OMP_NUM_THREADS=4 ../.venv/bin/python liu_toy.py --name liu_eps05_1024 --res 1024 --eps 0.05 --lam 0.2   # and --eps 0, --res 2048
 OMP_NUM_THREADS=4 ../.venv/bin/python zoom_compute.py --tag liu --nonlin liu --device cpu --res 256 --dec 0.5 --depth 15 --c0 -0.3 --c1 -0.3 --hw 0.6
-python merge_zoom.py; python render_zoom.py zoomAB --plates --video; python render_hero.py hero_overview_tanh_1024_f32 overview_tanh
+python merge_zoom.py fillpath; ../_shared/gpu_run.sh ../.venv/bin/python zoom_compute.py --tag fill --res 256 --path cache/fill_path.json
+../_shared/gpu_run.sh ../.venv/bin/python window_compute.py --name steps_zoomA2_384 --res 384 --steps 1000 --checkpoints 10:1000:10 --from_zoom zoomA:2
+../_shared/gpu_run.sh ../.venv/bin/python window_compute.py --name sem_sigma_lr_384 --axes sigma_lr --res 384 --c0 0.5 --c1 1.5 --hw 3
+../_shared/gpu_run.sh ../.venv/bin/python window_compute.py --name sem_wd_lr_384 --axes wd_lr --res 384 --c0 -1 --c1 1.5 --hw 4
+python merge_zoom.py; python render_zoom.py zoomAB --video; for S in spectral riso isolines aurora_ember; do python render_zoom.py zoomAB --plates --style $S; done
+python render_descent.py zoomAB --cols 7; python render_descent.py zoomAB --cols 7 --style aurora_ember
+python render_windows.py steps steps_zoomA2_384; python render_windows.py semantic; python render_hero.py hero_overview_tanh_1024_f32 overview_tanh
 python render_windows.py diptych B; python render_windows.py liu; python verify.py zoomAB null_quadratic liu
 ```
 Sanity tests: `test_core.py` (gradients, early exit, checkpoints) and `test_early_exit_speckle.py`.

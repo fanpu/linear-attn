@@ -61,3 +61,8 @@ GPU time so far: sessions 1-2 ~10 GPU-h wall (contended); session 3 jobs above a
 - ov_relu_512_f64 DONE (conv 33.6%, 1691 s). sem_wd_lr_384 now running in the sem slot (dummy removed by script).
 - Background CPU chain (logs/s4_video.log, s4_plates.log -> ALLDONE): video crf24 -> plates 4 styles -> descent spectral+aurora_ember.
   Then: add <video> at ZOOM-VIDEO, delete gallery/zoom_zoomA_spectral.*, descent image into sec 1, check sizes (<20MB commit, GIF<15MB).
+- 15:00 zoom film DONE: gallery/zoom_zoomAB_spectral.mp4 (2-pass 2700k, 18.6 MB, 54 s) + .gif (12.7 MB, 300px 8fps); old zoomA video deleted.
+  Plates (14) re-rendered in 4 styles, contact sheets, descent posters; README sec 1 has video + descent; Reproduce block updated.
+- REMAINING: sem_wd (running, ~16:30) -> `python render_windows.py semantic` + README <!-- SEM-WD -->;
+  hero f64 + deep1024 (~21:15) -> render_hero (spectral, aurora_ember, indigo_madder), fill <!-- HERO -->/<!-- HEROT -->, drop f32 caveat;
+  diptych OV (`python render_windows.py diptych OV`); deep1024 -> render_hero + deep_verify.py deep_zoomA4_1024_f64 zoomA:4 -> README "Across decades"; rm dummy deep_zoomA3.
