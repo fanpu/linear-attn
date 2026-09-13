@@ -114,3 +114,23 @@ def braid(d, m, kind=None, ts=40):
         v = d["x"][:, m].astype(float).copy()
     v[:ts] = np.nan
     return v
+
+
+def coord_label(kind=None, short=False):
+    """Caption text for the oscillation coordinate actually used."""
+    kind = kind or COORD
+    if kind == "pca":
+        return "windowed-PCA oscillation coordinate" if short else \
+            "braid = windowed-PCA oscillation coordinate (64-step windows, detrended)"
+    return "⟨θₜ − θ̄ₜ, u₁(t)⟩" if short else "braid ⟨θₜ − θ̄ₜ, u₁(t)⟩ (current top eigenvector)"
+
+
+def crossings(c, ts=40, amin=1e-5):
+    """Phase slips of the period-2 oscillation: sign changes of (-1)^t c_t where the amplitude is > amin."""
+    c = c.astype(float).copy()
+    c[:ts] = np.nan
+    T = len(c)
+    amp = np.sqrt(0.5 * (c ** 2 + np.r_[c[1:], np.nan] ** 2))
+    cd = c * (-1.0) ** np.arange(T)
+    ok = np.isfinite(cd) & (amp > amin)
+    return np.flatnonzero(ok[:-1] & ok[1:] & (np.sign(cd[:-1]) != np.sign(cd[1:]))), amp

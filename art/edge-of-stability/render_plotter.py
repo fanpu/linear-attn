@@ -2,7 +2,7 @@
 
 usage: python render_plotter.py <cache.npz> <model> <tag> [steps_per_row] [t_start]
 
-x_t (oscillation coordinate along the current top Hessian eigenvector) is written as a seismograph
+c_t (oscillation coordinate; windowed PCA by default, EOS_COORD=u1 for the current top eigenvector) is written as a seismograph
 drum sheet: rows of `steps_per_row` steps, joined boustrophedon so the whole sheet is one polyline
 with one vertex per GD step. One global gain for every row (the 99.5th percentile of |x| equals 0.9
 row spacings); larger excursions cross into neighbouring rows (declared, as on a drum recorder).
@@ -82,7 +82,7 @@ if __name__ == "__main__":
     d = load(f)
     X, Y, above, R, dy, inv, T = build(d, m, spr, ts)
     txt = (f"η = 2/{inv:.0f}   steps {ts}–{T - 1}, {spr} per row, one vertex per step, one continuous line"
-           f"   ·   fc-tanh on CIFAR-10 5k, full-batch GD")
+           f"   ·   {coord_label(short=True)}   ·   fc-tanh on CIFAR-10 5k, full-batch GD")
     write_svg(os.path.join(GAL, f"plotter_{tag}.svg"), X, Y, above, txt)
     proof(X, Y, above, f"plotter_{tag}_oneink.png", txt, False)
     proof(X, Y, above, f"plotter_{tag}_twopen.png", txt + "   ·   red pen: λ₁ > 2/η", True)

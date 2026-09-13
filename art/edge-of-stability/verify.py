@@ -76,6 +76,32 @@ def per_model(d, m, ts=40, amin=1e-5):
     # amplitude dips at crossings: amplitude at crossing relative to local (+-20 step) max
     rel = [amp[s] / np.nanmax(amp[max(0, s - 20):s + 20]) for s in sc if np.isfinite(amp[s])]
     out["crossing_amp_rel_median"] = float(np.median(rel)) if rel else None
+    # the same audit in the windowed-PCA coordinate (swap-free)
+    c = braid(d, m, kind="pca", ts=ts)
+    scp, ampp = crossings(c, ts)
+    swp = np.array([np.any(np.abs(bad - s) <= max(2, E)) for s in scp]) if len(scp) else np.zeros(0, bool)
+    out["pca_crossings"] = int(len(scp))
+    out["pca_crossings_after_edge"] = int(np.sum(scp > te + 100))
+    out["pca_crossing_steps"] = [int(v) for v in scp[:50]]
+    out["pca_crossings_at_eigvec_swap_frac"] = float(swp.mean()) if len(scp) else None
+    _, coss, cents = pca_braid(d, m)
+    out["pca_cos_u1_median"] = float(np.median(coss))
+    out["pca_cos_u1_median_after_edge"] = float(np.median(coss[cents > te + 100])) if np.any(cents > te + 100) else None
+    # null for the swap-coincidence audit: share of ALL post-edge steps that lie within 2 steps of a swap
+    badm = np.zeros(T, bool)
+    badm[bad] = True
+    near = np.convolve(badm.astype(float), np.ones(5), "same") > 0
+    post = np.arange(T) > te + 100
+    out["swap_window_base_rate_after_edge"] = float(near[post].mean())
+    scu = sc[sc > te + 100]
+    out["crossings_after_edge"] = int(len(scu))
+    out["crossings_after_edge_at_swap_frac"] = float(near[scu].mean()) if len(scu) else None
+    scq = scp[scp > te + 100]
+    out["pca_crossings_after_edge_at_swap_frac"] = float(near[scq].mean()) if len(scq) else None
+    relp = [ampp[s] / np.nanmax(ampp[max(0, s - 20):s + 20]) for s in scq if np.isfinite(ampp[s])]
+    out["pca_crossing_amp_rel_median"] = float(np.median(relp)) if relp else None
+    if "pca" == COORD:
+        amp = ampp
     la = np.log(amp[te + 50:])
     la = la[np.isfinite(la)]
     if len(la) > 400:
@@ -84,10 +110,20 @@ def per_model(d, m, ts=40, amin=1e-5):
         ac /= ac[0]
         lag = np.arange(len(ac))
         z = np.flatnonzero(ac < 0)
-        sel = (lag >= (z[0] if len(z) else 10)) & (lag <= 600)
-        pk = lag[sel][np.argmax(ac[sel])]
-        out["burst_autocorr_peak_lag"] = int(pk)
-        out["burst_autocorr_peak_val"] = float(ac[pk])
+        sel = (lag >= (z[0] if len(z) else 10)) & (lag <= 1500)
+        if sel.any():
+            pk = lag[sel][np.argmax(ac[sel])]
+            out["burst_autocorr_peak_lag"] = int(pk)
+            out["burst_autocorr_peak_val"] = float(ac[pk])
+    # burst spacing: local maxima of the (7-step max-filtered) amplitude that are the largest within +-15 steps
+    from scipy.signal import find_peaks
+    env = envelope(np.nan_to_num(amp), 3)[te + 100:]
+    pk, _ = find_peaks(env, distance=15, prominence=0.3 * np.median(env))
+    if len(pk) > 3:
+        dpk = np.diff(pk)
+        out["burst_spacing_median"] = float(np.median(dpk))
+        out["burst_spacing_p25_p75"] = [float(np.percentile(dpk, 25)), float(np.percentile(dpk, 75))]
+        out["bursts"] = int(len(pk))
     return out
 
 
@@ -98,10 +134,9 @@ if __name__ == "__main__":
            "models": [per_model(d, m) for m in range(len(d["invs"]))]}
     path = os.path.join(CACHE, f.replace(".npz", "_verify.json"))
     json.dump(res, open(path, "w"), indent=1)
-    keys = ["inv", "diverged_at", "t_edge", "hover_median", "lam2_hover_median", "cold_vs_warm_max_rel",
-            "resid_rel_median", "overlap_frac_lt_0.95", "loss_at_edge", "loss_final",
-            "frac_steps_loss_up_after_edge", "crossings", "crossings_at_eigvec_swap_frac",
-            "crossing_amp_rel_median", "burst_autocorr_peak_lag", "burst_autocorr_peak_val"]
+    keys = ["inv", "t_edge", "crossings_after_edge", "crossings_after_edge_at_swap_frac",
+            "swap_window_base_rate_after_edge", "crossing_amp_rel_median", "pca_crossings_after_edge_at_swap_frac",
+            "pca_crossing_amp_rel_median", "pca_cos_u1_median_after_edge", "pca_crossings", "pca_crossings_after_edge", "pca_cos_u1_median", "burst_autocorr_peak_lag", "burst_spacing_median", "bursts"]
     for mm in res["models"]:
         print(" ".join(f"{k}={mm[k]:.3g}" if isinstance(mm.get(k), float) else f"{k}={mm.get(k)}"
                        for k in keys if k in mm))

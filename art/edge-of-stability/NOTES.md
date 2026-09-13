@@ -30,12 +30,23 @@
   median |cos(PC, u1)| = 0.88 (80), 0.81 (50). corr(x_u1, pca) ~ 0 because of the flips.
 - DECISION: all renderers now use braid(d, m) = PCA coordinate by default (EOS_COORD=u1 env for the
   u1 version -> make a diptych 'rotating frame vs data frame' as an honesty plate).
-- TODO labels: render_print/film/plotter captions still say <theta - thetabar, u1(t)>; change to
-  'windowed-PCA oscillation coordinate' when EOS_COORD=pca. Docstrings too.
+- captions fixed (eos_common.coord_label()).
 - verify.py (writes cache/<run>_verify.json): warm-vs-cold sharpness max rel err 3.7% (50), 3.9% (80);
   RR residual median 14% at 2/eta=50 (near-degenerate top-3, 1 iteration/step) vs 0.2% at 80.
   t_edge 405 for 2/eta=80 (init sharpness 88 starts above 50 and 80; catapult first).
   loss rises on 26-35% of EoS steps yet falls overall. Add PCA-based crossing/burst stats to verify.py.
+
+## FULL main4 VERIFY (6000 steps, successor 2, verify.py -> cache/main4_verify.json)
+- 2/eta 50/80/120/200: t_edge 8/405/1274/3688; hover median (lam1-2/eta)/(2/eta) 7.6/6.2/4.9/2.1%;
+  cold-vs-warm max rel err 7.6/5.8/1.9/0.4%; eigvec swap (overlap<0.95) 35/28/25/10% of steps.
+- u1 crossings after edge 1073/1052/779/373 at median amp 25-50% of local max; 75/68/69/49% within
+  2 steps of a swap BUT base rate of any post-edge step being that close is 55/46/43/30% -> enrichment
+  only ~1.4-1.6x. Earlier '69-76% artefacts' claim must be stated WITH this base rate.
+- PCA crossings after edge 225/82/23/0, at amplitude NODES (median 2-4% of local max), swap-coincidence
+  35/33/57% (<= base rate): genuine phase slips at beat nodes. Earlier '0-1 crossings' was t<=1000 only.
+- PCA burst spacing (find_peaks on amplitude) median 34/42/50/70 steps; |cos(PC,u1)| after edge ~0.76-0.80.
+- Detail window 2000-2600 at 2/eta=80 (print_eta80_detail_*) is the best braid: beating envelopes,
+  strands swap at nodes. Full 6000-step print reads as a seismograph envelope, strands indistinct.
 
 ## Paper setup (checked in arXiv:2103.00065 text)
 first 5000 CIFAR-10 train, per-channel standardise with full-CIFAR stats, 3072-200-200-10 tanh,

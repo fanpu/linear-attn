@@ -54,7 +54,7 @@ def main(f, m, tag, spf=5, ts=40):
     txt = fig.text(0.05, 0.955, "", color=fg, fontsize=14, family=MONO)
     gtxt = fig.text(0.95, 0.37, "", color=fg, fontsize=11, family=MONO, ha="right")
     fig.text(0.05, 0.02, f"fc-tanh on CIFAR-10 (5000), full-batch GD, MSE, η = 2/{inv:.0f}.  "
-             "Top: 2/η and the top three Hessian eigenvalues.  Middle: braid ⟨θₜ − θ̄ₜ, u₁(t)⟩, even/odd steps.  "
+             "Top: 2/η and top-3 Hessian eigenvalues.  Middle: " + coord_label(short=True) + ", even/odd steps.  "
              "Bottom: last 160 steps magnified.", color=fg, fontsize=11, family=MONO)
     frames = os.path.join(CACHE, "frames", tag)
     os.makedirs(frames, exist_ok=True)

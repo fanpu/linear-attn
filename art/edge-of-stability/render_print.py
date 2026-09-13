@@ -4,8 +4,8 @@ usage: python render_print.py <cache.npz> <model index> <tag> [t0 t1]
 Layers (all measured, per step t, no smoothing):
   hairline   2/eta
   strokes    lambda_1 (bright), lambda_2, lambda_3 (dim): top Hessian eigenvalues at theta_t
-  braid      x_t = <theta_t - thetabar_t, u1(t)> (centred 21-step moving average, current top
-             eigenvector). Even steps form one strand, odd steps the other; the thin zigzag joins
+  braid      oscillation coordinate c_t: by default the windowed-PCA coordinate (eos_common.pca_braid);
+             EOS_COORD=u1 gives <theta_t - thetabar_t, u1(t)> along the current top eigenvector. Even steps form one strand, odd steps the other; the thin zigzag joins
              consecutive steps. Strands swap (a crossing) when the period-2 oscillation slips phase.
 Styles: night, paper (single ink + one red hairline), riso (two spot inks, misregistered),
 spectral (zigzag coloured by lambda_1 - 2/eta, split at 0: declared aesthetic mapping).
@@ -49,7 +49,8 @@ def draw(d, m, style, t0=0, t1=None, W=18, H=8, label=True):
     for j, (c, lw) in enumerate([(S["lam1"], 0.9), (S["lam23"], 0.5), (S["lam23"], 0.5)]):
         at.plot(t, lam[:, j], color=c, lw=lw, zorder=3 - j * 0.5, solid_joinstyle="round")
     lo = np.nanmin(lam[:, 2])
-    at.set_ylim(lo - 0.05 * (inv - lo), inv + 0.35 * (inv - lo))
+    hi = max(inv + 0.35 * (inv - lo), np.nanmax(lam[:, 0]) + 0.04 * (inv - lo))
+    at.set_ylim(lo - 0.05 * (inv - lo), hi)
     # --- layer 3: braid
     A = np.percentile(np.abs(x), 99.7) * 1.15 + 1e-12
     ab.set_ylim(-A, A)
@@ -71,10 +72,10 @@ def draw(d, m, style, t0=0, t1=None, W=18, H=8, label=True):
         at.plot(t + off, lam[:, 0], color=S["even"], lw=0.5, alpha=0.6)
     if label:
         kw = dict(color=S["text"], fontsize=9, family=MONO, transform=fig.transFigure)
-        fig.text(0.04, 0.045, f"fc-tanh 3072-200-200-10  ·  CIFAR-10 first 5000  ·  full-batch GD, MSE  ·  "
+        fig.text(0.04, 0.05, f"fc-tanh 3072-200-200-10  ·  CIFAR-10 first 5000  ·  full-batch GD, MSE  ·  "
                  f"η = 2/{inv:.0f}  ·  steps {t0}–{T - 1}", **kw)
-        fig.text(0.96, 0.045, "hairline 2/η   ·   strokes λ₁ λ₂ λ₃ of the loss Hessian   ·   "
-                 "braid ⟨θₜ − θ̄ₜ, u₁(t)⟩, even / odd steps", ha="right", **kw)
+        fig.text(0.04, 0.022, "hairline 2/η   ·   strokes λ₁ λ₂ λ₃ of the loss Hessian   ·   " +
+                 coord_label() + ", even / odd steps", **kw)
         at.text(t0, inv, " 2/η", color=S["hair"], fontsize=9, family=MONO, va="bottom")
     return fig
 
