@@ -48,8 +48,19 @@ for i, f in enumerate(fs):
         print('frame', i, flush=True)
 mp4 = f'gallery/{tag}_{style}.mp4'; gif = f'gallery/{tag}_{style}.gif'
 hold = ['-vf', f'tpad=stop_mode=clone:stop_duration=2,tpad=start_mode=clone:start_duration=1']
-subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-framerate', str(fps), '-i', f'{out}/%04d.png', *hold,
-                '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '18', '-preset', 'slow', mp4], check=True)
+for crf in (18, 22, 26, 30):   # keep MP4 under the 20 MB commit limit
+    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-framerate', str(fps), '-i', f'{out}/%04d.png', *hold,
+                    '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', str(crf), '-preset', 'slow', mp4], check=True)
+    if os.path.getsize(mp4) < 19e6:
+        break
+for gsz, gfps, ncol in ((540, 15, 192), (440, 12, 128), (360, 10, 96), (300, 8, 64)):   # GIF under ~15 MB
+    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-framerate', str(fps), '-i', f'{out}/%04d.png', '-vf',
+                    f'fps={gfps},scale={gsz}:{gsz}:flags=lanczos,split[a][b];[a]palettegen=max_colors={ncol}[p];[b][p]paletteuse=dither=sierra2_4a',
+                    '-loop', '0', gif], check=True)
+    if os.path.getsize(gif) < 15e6:
+        break
+print(mp4, os.path.getsize(mp4) / 1e6, 'MB;', gif, os.path.getsize(gif) / 1e6, 'MB', 'gif size', gsz, 'crf', crf)
+raise SystemExit
 gsz = 540
 subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-framerate', str(fps), '-i', f'{out}/%04d.png', '-vf',
                 f'fps={min(fps, 15)},scale={gsz}:{gsz}:flags=lanczos,split[a][b];[a]palettegen=max_colors=192[p];[b][p]paletteuse=dither=sierra2_4a',
