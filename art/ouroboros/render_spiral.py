@@ -27,8 +27,8 @@ target, model, n, Gmax, K, every = meta[0], meta[1], int(meta[2]), int(meta[3]),
 arms = a.arms.split(",")
 G = min(a.G, Gmax)
 Wd = Hd = a.size
-C = np.array([Wd / 2, Hd / 2])
-R0 = 0.40 * Wd
+C = np.array([Wd / 2, Hd * 0.53])
+R0 = 0.345 * Wd
 canvas = [np.zeros((Hd, Wd)) for _ in arms]
 
 for ai, arm in enumerate(arms):
@@ -83,6 +83,21 @@ else:  # riso: two spot inks multiplied (declared), slight misregistration of th
     fg, dim = (40, 36, 60), (110, 104, 120)
 
 im = Image.fromarray(np.clip(img, 0, 255).astype(np.uint8))
+# declared guides: the spiral path and each tile's data window (a circle inscribed in the tile)
+gd = ImageDraw.Draw(im)
+guide = tuple(int(0.8 * c + 0.2 * g) for c, g in zip(dim, img[5, 5]))
+for ai in range(len(arms)):
+    ii = np.linspace(0, len(range(0, G + 1, a.stride)) - 1, 4000)
+    th = np.pi / 2 + np.pi * ai - a.dtheta * ii
+    pts = C[None] + R0 * (a.r ** ii)[:, None] * np.stack([np.cos(th), -np.sin(th)], 1)
+    gd.line([tuple(p) for p in pts], fill=guide, width=max(1, int(a.size / 2000)))
+    for i in range(len(range(0, G + 1, a.stride))):
+        s = a.r ** i
+        thi = np.pi / 2 + np.pi * ai - a.dtheta * i
+        c = C + R0 * s * np.array([np.cos(thi), -np.sin(thi)])
+        rad = a.tile * Wd * s / 2 * 0.98
+        if rad > 3:
+            gd.ellipse([c[0] - rad, c[1] - rad, c[0] + rad, c[1] + rad], outline=guide, width=1)
 if not a.nocap:
     dr = ImageDraw.Draw(im)
     u = a.size / 3000
