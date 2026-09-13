@@ -7,22 +7,37 @@ requires-python = ">=3.12,<3.13"
 license = { text = "MIT" }
 authors = [{ name = "Fan Pu Zeng", email = "zengfanpu@gmail.com" }]
 
-# Direct dependencies only, pinned to the versions in .venv.
-# Everything else (transformers, einops, triton, nvidia-*, ...) is pulled in
-# transitively; see requirements.lock.txt for the full resolved set.
+# Direct dependencies, pinned to the versions in .venv. Everything else
+# (einops, tokenizers, nvidia-*, ...) is pulled in transitively; see
+# requirements.lock.txt for the full resolved set.
 dependencies = [
-    "flash-linear-attention==0.5.2", # fla kernels (pulls fla-core, einops, transformers)
+    "flash-linear-attention==0.5.2", # fla kernels + fla.models (pulls fla-core)
     "torch==2.14.0",                 # +cu130 build, see [tool.uv.sources] below
-    "numpy==2.5.2",
-    "pandas==3.0.5",                 # day*/plot.py
-    "matplotlib==3.11.1",            # day*/plot.py
+    # Pinned rather than left to fla's `transformers>=4.45.0`: day2 drives
+    # fla.models (GatedDeltaNetForCausalLM / TransformerForCausalLM), which sits
+    # directly on the transformers 5.x model API. Left unpinned, a plain
+    # `uv sync` drifts to a newer 5.x and the fla wrappers break on it.
+    "transformers==5.15.1",
+    # Pinned rather than left to torch's `triton~=3.8.0`: day1's whole result is
+    # kernel numerics, so the Triton codegen version is part of the measurement.
+    "triton==3.8.0 ; platform_system == 'Linux'",
+    "numpy==2.5.2",                  # day1/plot.py, day2 plot
+    "pandas==3.0.5",                 # day1/plot.py
+    "matplotlib==3.11.1",            # day1/plot.py, day2 plot
 ]
 
 [project.optional-dependencies]
-# Not currently installed in .venv; add with `uv sync --extra dev`.
+# Neither group is installed in .venv; add with `uv sync --extra <name>`.
 dev = [
     "pytest>=8",
     "ruff>=0.6",
+]
+# Optional GDN short-convolution accelerator. fla falls back to its own Triton
+# path without it, so day2 runs fine unpinned — this only matters if the short
+# conv shows up as a throughput bottleneck. Builds from source (needs nvcc), and
+# is not known to build cleanly on aarch64 + sm_121a.
+conv1d = [
+    "causal-conv1d>=1.4.0",
 ]
 
 # ---------------------------------------------------------------------------
