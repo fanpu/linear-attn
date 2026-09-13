@@ -135,15 +135,15 @@ def raster_lines(xy, R, lo, hi, width=1.0, weight=1.0):
     return H
 
 
-def riso(R=2200):
-    """Riso 2-ink: player 1 (blue) and player 2 (fluorescent pink) on the same simplex, one chaotic orbit."""
+def riso(R=2200, orbit=0, n=60000, name='simplex_riso_players', gain=0.5):
+    """Riso 2-ink: player 1 (blue) and player 2 (fluorescent pink) on the same simplex.
+    orbit index into SAF starts k = (1, 2, 5, 20); k=1 chaotic, k=5 a regular torus."""
     z = np.load('cache/traj.npz'); d = {k: z[k] for k in z.files}
-    tr = d['traj_0.50'][0]  # SAF k=1, eps=0.5 : chaotic
-    n = 60000  # t in [0, 1200]
+    tr = d['traj_0.50'][orbit]
     lo, hi = -0.04, 1.04
     Hx = raster_lines(tern(tr[:n, :3]), R, lo, hi)
     Hy = raster_lines(tern(tr[:n, 3:]), R, lo, hi)
-    cx = 1 - np.exp(-0.5 * Hx); cy = 1 - np.exp(-0.5 * Hy)
+    cx = 1 - np.exp(-gain * Hx); cy = 1 - np.exp(-gain * Hy)
     # deliberate misregistration of the pink plate by 4 px (declared)
     cy = np.roll(cy, (4, -3), axis=(0, 1))
     paper = hexrgb('#f4efe4')
@@ -156,8 +156,8 @@ def riso(R=2200):
     f = font(40)
     for lab, v in zip(['R', 'P', 'S'], pv[:3]):
         dr.text((v[0] + (-50 if lab == 'R' else 20), v[1] - (60 if lab == 'S' else -5)), lab, fill=(40, 40, 60), font=f)
-    im = im.crop((0, int(R * 0.08), R, R)) if False else im
-    im.save(f'{GAL}/simplex_riso_players.png', optimize=True)
+    im = im.crop((0, int(R * 0.125), R, R))  # trim the empty band above the apex
+    im.save(f'{GAL}/{name}.png', optimize=True)
 
 
 def simplex(R=1400):
@@ -309,6 +309,8 @@ if __name__ == '__main__':
             ink('0.50'); ink('0.00')
             if os.path.exists('cache/kam_eps0.50_H3.0.npz'):
                 pass
+        elif w == 'riso_torus':
+            riso(orbit=2, n=100000, name='simplex_riso_torus_k5', gain=0.35)
         elif w == 'dark':
             dark('0.50'); dark('0.25')
         else:
