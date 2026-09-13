@@ -1,5 +1,18 @@
 # NOTES: Which Dog (diffusion basins)
 
+## Session 3 (final successor) -- state
+- DONE: MNIST renders (gallery/mnist/*: basin confidence/riso/paper/margin-spectral at 2304^2 with bilinear prob interpolation + digit legend; boundary mosaic 24x24 window (72,160) classes 0/3/5/6/8/9; full mosaic; memo_cells (smoothed one-hot); memo mosaic; mnist_steps mp4/gif; zoom plate with caption). All viewed.
+- DONE: gamma film (gallery/animations/gamma_sweep_ring8_night.*, viewed frame: good); steps_scatter12 film + gallery/verify/toy_dimension.png viewed (good).
+- DONE: zoom_iter_ring8 re-encoded: mp4 CRF21 16.6 MB, gif 360px/8fps/128 colours bayer 13.8 MB.
+- DONE: README.md full (verdict table, invertibility explanation, commands); link check passes (inline python regex over src/href/]( ) ).
+- common.write_video now pads odd frame sizes to even; caption_strip word-wraps.
+- MNIST numbers: uncert M=2048 alpha=0.825 D=1.17 (weak, 4 flips at 1e-3); f64 mismatch 0/2304; zoom 5->2 classes, straight boundary at width 0.012 rad; stepsweep agreement w/ N=45: 2%(1) 55%(2) 81%(4) 92%(8) 98%(23); boundary edges saturate ~1170 by N=8; memo net vs exact same image on 44.5% of pixels, 17 vs 16 images reached, net median d1/d2 0.04, exact median d1 0; clf test acc 99.3%.
+- RUNNING at handoff (logged, OK to leave):
+  * GPU `mnist_compute.py uncert 16384` (eps to 1e-4) -> cache/mnist_uncert_M16384.json, logs/mnist_uncert16k.log. When done: put alpha/D into README section 4 table (MNIST row) and remove "added below if it finished" sentence.
+  * GPU `toy_compute.py maps learned; zoom ddim50_learned_scatter12` -> logs/toy_learned.log. When done: `python render_toy.py atlas verify` (atlas renders learned too: gallery/toy/atlas_learned_*), view, add a learned-net row to README gallery 2b and verdict table (zoom_dimensions.json key ddim50_learned_scatter12).
+  * CPU `render_toy.py gamma zoom:ode_scatter12 zoom:iter_ring6` -> logs/render_toy_rest.log; gamma done, zoom films pending. When done: check sizes (<20 MB mp4, <15 MB gif; re-encode as for ring8 if not), view plates, add to README 2a/2b.
+
+
 ## Session 2 (CPU-first; GPU saturated until ~21:00)
 - `common.gpu_setup` honours `DB_DEVICE=cpu DB_THREADS=2` (CPU mode).
 - `toy_compute.iterate_map` now uses active-set compaction; sign/logdet are of F^nu (frozen at convergence). 256^2 ring8 2000 it: 10.7 s tracked / 5 s untracked on 2 CPU threads.
