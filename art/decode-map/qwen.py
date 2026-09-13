@@ -63,8 +63,8 @@ class Qwen3:
         self.cache_v = torch.zeros(shape, device=self.device, dtype=self.dtype)
 
     @torch.no_grad()
-    def forward(self, ids, start):
-        """ids: [B, S] token ids occupying positions start..start+S-1.
+    def forward(self, ids, start, r0=0, n_out=None):
+        """ids: [B, S] token ids occupying positions start..start+S-1, for cache rows r0..r0+B-1.
         Writes KV into the cache and returns logits of the last position [B, V]."""
         B, S = ids.shape
         w = self.w
@@ -83,10 +83,11 @@ class Qwen3:
             v = v.transpose(1, 2)
             q = q * cos + self.rot_half(q) * sin
             k = k * cos + self.rot_half(k) * sin
-            self.cache_k[i, :, :, start:end] = k
-            self.cache_v[i, :, :, start:end] = v
-            K = self.cache_k[i, :, :, :end]
-            V = self.cache_v[i, :, :, :end]
+            r1 = r0 + B
+            self.cache_k[i, r0:r1, :, start:end] = k
+            self.cache_v[i, r0:r1, :, start:end] = v
+            K = self.cache_k[i, r0:r1, :, :end]
+            V = self.cache_v[i, r0:r1, :, :end]
             if S > 1:
                 a = F.scaled_dot_product_attention(q, K, V, is_causal=True, enable_gqa=True)
             else:
@@ -97,5 +98,6 @@ class Qwen3:
             g = F.linear(h, w[p + "mlp.gate_proj.weight"])
             u = F.linear(h, w[p + "mlp.up_proj.weight"])
             x = x + F.linear(F.silu(g) * u, w[p + "mlp.down_proj.weight"])
-        x = self.rms(x[:, -1].to(self.head_dtype), w["model.norm.weight"])
+        x = x[:, -1] if n_out is None else x[:n_out, -1]      # unembed only the rows needed
+        x = self.rms(x.to(self.head_dtype), w["model.norm.weight"])
         return F.linear(x, w["lm_head.weight"])
