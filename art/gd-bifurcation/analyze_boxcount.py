@@ -67,7 +67,7 @@ def ellipse_null(res, eta=0.2, lim=4.5):
 
 def main():
     out = {}
-    for name, tag in [("zhu4", "z1"), ("prod2", "null"), ("lmreg", "pos")]:
+    for name, tag in [("zhu4", "z1"), ("zhu4", "z2"), ("prod2", "null"), ("lmreg", "pos")]:
         per_res = {}
         labels = {}
         for R in [1024, 2048, 4096, 8192]:
@@ -97,8 +97,8 @@ def main():
             if 2 * r in labels:
                 fine = labels[2 * r].reshape(r, 2, r, 2).mean(axis=(1, 3))
                 flips[f"{r}->{2 * r}"] = float(np.mean((fine > 0.5) != labels[r]))
-        out[name] = dict(tag=tag, boundary_pixels=per_res, D_resolution_scaling=Dres, boxcount=f, label_flip=flips)
-        print(f"{name}: box-count D = {f['D']:.3f} ± {f['se']:.3f} over eps in [{f['eps_min']:.1e}, {f['eps_max']:.1e}] "
+        out[f"{name}_{tag}"] = dict(tag=tag, boundary_pixels=per_res, D_resolution_scaling=Dres, boxcount=f, label_flip=flips)
+        print(f"{name}_{tag}: box-count D = {f['D']:.3f} ± {f['se']:.3f} over eps in [{f['eps_min']:.1e}, {f['eps_max']:.1e}] "
               f"(res {Rmax});  D from boundary-pixel scaling over R={Rs}: {Dres:.3f}; flips {flips}")
         print("   local slopes:", np.round(f["local_slopes"], 3))
     # analytic ellipse null (rendering pipeline only)
@@ -107,6 +107,34 @@ def main():
         f = fit(boxcount(boundary(div)), R, 1, int(np.log2(R)) - 3)
         out[f"ellipse_analytic_{R}"] = dict(boxcount=f)
         print(f"analytic ellipse {R}: D = {f['D']:.3f} ± {f['se']:.3f}")
+    # 1D transects: label changes along x = x0, nested segments
+    import glob
+    for f in sorted(glob.glob(f"{CACHE}/transect_*.npz")):
+        d = np.load(f)
+        div = d["status"] == 2
+        ch = np.zeros(len(div), bool)
+        ch[1:] = div[1:] != div[:-1]
+        n = len(ch)
+        counts = []
+        cur = ch
+        j = 0
+        while cur.size >= 2:
+            counts.append((2 ** j, int(cur.sum())))
+            s2 = cur.size // 2
+            cur = cur[: 2 * s2].reshape(s2, 2).any(1)
+            j += 1
+        e = np.array([c[0] for c in counts], float) / n
+        N = np.array([c[1] for c in counts], float)
+        m = (N > 3) & (np.arange(len(e)) >= 1) & (e <= 1 / 64)
+        coef = np.polyfit(np.log(1 / e[m]), np.log(N[m]), 1)
+        local = np.diff(np.log(N)) / np.diff(np.log(1 / e))
+        key = "transect_" + f.split("_")[-1][:-4]
+        out[key] = dict(L=float(d["L"]), D1=float(coef[0]), eps_min=float(e[m].min() * d["L"]), eps_max=float(e[m].max() * d["L"]),
+                        changes=int(ch.sum()), local_slopes=[float(v) for v in local], counts=[int(v) for v in N],
+                        eps=[float(v) for v in e * d["L"]])
+        print(f"{key}: L={float(d['L'])}, label changes {int(ch.sum())}, 1D box dim {coef[0]:.3f} over eps in "
+              f"[{e[m].min() * d['L']:.1e}, {e[m].max() * d['L']:.1e}] -> 1 + D1 = {1 + coef[0]:.3f}")
+        print("   local slopes", np.round(local, 2))
     json.dump(out, open(f"{CACHE}/boxcount.json", "w"), indent=1)
 
 

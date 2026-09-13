@@ -38,6 +38,27 @@ def rows_job(args):
     return lam.astype(np.float32)
 
 
+def gpu_plane(vals, valsb, pattern, burn, rec, rows_per_chunk=512):
+    import torch
+    torch.cuda.set_per_process_memory_fraction(0.10)
+    dev = "cuda"
+    A = torch.tensor(vals, dtype=torch.float64, device=dev)[None, :]
+    out = []
+    for i in range(0, len(valsb), rows_per_chunk):
+        B = torch.tensor(valsb[i:i + rows_per_chunk], dtype=torch.float64, device=dev)[:, None]
+        seq = [A if ch == "A" else B for ch in pattern]
+        u = torch.full((B.shape[0], A.shape[1]), 1.0001, dtype=torch.float64, device=dev)
+        lam = torch.zeros_like(u)
+        for t in range(burn + rec):
+            e = seq[t % len(seq)]
+            if t >= burn:
+                lam += torch.log(torch.abs(1.0 - e * (7 * u ** 6 - 3 * u ** 2)) + 1e-300)
+            u = u - e * (u ** 4 - 1.0) * u ** 3
+            u = torch.where(torch.abs(u) > 1e6, torch.full_like(u, float("nan")), u)
+        out.append((lam / rec).float().cpu().numpy())
+    return np.vstack(out)
+
+
 def full_check(A, B, pattern, burn, rec, seed=0):
     N = len(A)
     x = np.broadcast_to(np.array([1.1, 0.9, 1.05, 0.95]), (N, 4)).copy()
@@ -71,16 +92,20 @@ def main():
     ap.add_argument("--blo", type=float, default=None)
     ap.add_argument("--bhi", type=float, default=None)
     ap.add_argument("--tag", default="")
+    ap.add_argument("--gpu", action="store_true")
     a = ap.parse_args()
     t0 = time.time()
     vals = a.lo + (a.hi - a.lo) * (np.arange(a.res) + 0.5) / a.res
     blo = a.lo if a.blo is None else a.blo
     bhi = a.hi if a.bhi is None else a.bhi
     valsb = blo + (bhi - blo) * (np.arange(a.res) + 0.5) / a.res
-    blocks = np.array_split(valsb, max(1, a.res // 64))
-    with Pool(a.workers) as pool:
-        parts = pool.map(rows_job, [(vals, b, a.pattern, a.burn, a.rec) for b in blocks])
-    lam = np.vstack(parts)  # rows = B, cols = A
+    if a.gpu:
+        lam = gpu_plane(vals, valsb, a.pattern, a.burn, a.rec)
+    else:
+        blocks = np.array_split(valsb, max(1, a.res // 64))
+        with Pool(a.workers) as pool:
+            parts = pool.map(rows_job, [(vals, b, a.pattern, a.burn, a.rec) for b in blocks])
+        lam = np.vstack(parts)  # rows = B, cols = A
     rng = np.random.default_rng(0)
     idx = rng.integers(0, a.res, size=(4000, 2))
     Af, Bf = vals[idx[:, 1]], valsb[idx[:, 0]]
