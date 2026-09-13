@@ -23,7 +23,7 @@ from eos_common import *  # noqa: F401,F403
 def orbit_data(d, m, ts=30):
     inv = float(d["invs"][m])
     lam = ffill(d["evals"][:, m, 0].astype(float)[:, None])[:, 0]
-    x = d["x"][:, m].astype(float)
+    x = braid(d, m)
     A = np.sqrt(0.5 * (x[:-1] ** 2 + x[1:] ** 2))
     n = len(A)
     t = np.arange(n)

@@ -21,7 +21,7 @@ MARGIN = 30.0
 
 
 def build(d, m, spr, ts):
-    x = d["x"][:, m].astype(float)
+    x = braid(d, m)
     lam = ffill(d["evals"][:, m, 0].astype(float)[:, None])[:, 0]
     inv = float(d["invs"][m])
     T = np.where(np.isfinite(x))[0].max() + 1

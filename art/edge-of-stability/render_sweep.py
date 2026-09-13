@@ -47,7 +47,7 @@ def fields(d, t0=0, amin=1e-5):
     alive = np.isfinite(d["loss"]).T  # (M, T)
     edge = ((lam - invs[None]) / invs[None]).T
     edge[~alive] = np.nan
-    x = d["x"].astype(float).T
+    x = np.stack([braid(d, r) for r in range(len(d["invs"]))])
     T = x.shape[1]
     s = (-1.0) ** np.arange(T)
     xd = x * s[None]
@@ -85,7 +85,7 @@ def main(f, tag):
         h = (1 - 0.08) / M
         for r in range(M):
             ax = fig.add_axes([0.06, 1 - 0.03 - (r + 1) * h, 0.92, h * 0.92], facecolor=bg)
-            x = d["x"][:, r].astype(float)
+            x = braid(d, r)
             t = np.arange(len(x))
             ok = np.isfinite(x)
             if ok.sum() < 10:

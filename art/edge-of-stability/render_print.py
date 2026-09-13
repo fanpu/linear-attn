@@ -32,7 +32,7 @@ def draw(d, m, style, t0=0, t1=None, W=18, H=8, label=True):
     S = STYLES[style]
     inv = float(d["invs"][m])
     lam = ffill(d["evals"][:, m])
-    x = d["x"][:, m].astype(float)
+    x = braid(d, m)
     T = len(x) if t1 is None else t1
     t = np.arange(t0, T)
     lam, x = lam[t0:T], x[t0:T]

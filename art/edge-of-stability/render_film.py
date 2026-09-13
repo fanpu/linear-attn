@@ -19,7 +19,7 @@ from eos_common import *  # noqa: F401,F403
 def main(f, m, tag, spf=5, ts=40):
     d = load(f)
     inv = float(d["invs"][m])
-    x = d["x"][:, m].astype(float)
+    x = braid(d, m)
     T = np.where(np.isfinite(x))[0].max() + 1
     lam = ffill(d["evals"][:, m].astype(float))[:T]
     x = np.nan_to_num(x[:T])
