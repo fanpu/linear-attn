@@ -50,3 +50,9 @@ Relaunch an unfinished job: `nohup ../_shared/gpu_run.sh bash logs/s3_<job>.sh >
 (window_compute skips existing outputs; zoom_compute resumes from cached keyframes).
 CAUTION: don't `pkill -f <pattern>` from a shell whose own command line contains the pattern (it kills the calling shell).
 GPU time so far: sessions 1-2 ~10 GPU-h wall (contended); session 3 jobs above add several more.
+
+## Session 4 results so far
+- sem_sigma_lr_384 DONE (2666 s): conv 60.1%; boundary eta = 10^1.99..10^2.20 across 6 decades of sigma; D=1.21+-0.05 (b=2-32). Plates gallery/sem_sigma_lr_384_{spectral,magma,riso,line}.png (absolute ticks).
+- steps_zoomA2_384 DONE (4903 s; window c=(0.860,2.377) hw=0.45): per-frame rank normalisation. T=10/30/100/250/500/1000:
+  conv .648/.538/.493/.490/.490/.489; D(b=2-48) 1.05/1.27/1.37/1.42/1.41/1.41 -> boundary roughens then saturates by T~250.
+  gallery/steps_steps_zoomA2_384_spectral.{mp4,gif}, _multiples.png. README section not yet written.

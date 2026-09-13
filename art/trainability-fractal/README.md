@@ -42,6 +42,21 @@ The window is $\log_{10}\eta_0\in[1.64, 3.61]$, $\log_{10}\eta_1\in[0.52, 2.48]$
 
 The same pipeline, colour map and edge detector are applied to a two-parameter loss $L(a,b)=a^2+0.6ab+b^2+\epsilon(1+\cos(2\pi(a-b)/\lambda))$, with learning rate $\eta_0$ on $a$ and $\eta_1$ on $b$. Left: $\epsilon=0$, a pure quadratic, gives box-counting $D=1.03\pm0.01$. Right: $\epsilon=0.05,\ \lambda=0.2$ gives $D=1.68\pm0.03$ (1024²) and $1.77\pm0.01$ (2048²). The 2048² native render is at [print](gallery/hero_liu_ripple_2048_spectral_print.png) / [labelled](gallery/hero_liu_ripple_2048_spectral_labelled.png) / [magma diptych](gallery/deflation_liu_diptych_magma.png) / [line-only](gallery/deflation_liu_2048_line.png).
 
+### 4. Training time as the animation axis
+
+<video src="gallery/steps_steps_zoomA2_384_spectral.mp4" autoplay loop muted playsinline width="60%"></video>
+
+<img src="gallery/steps_steps_zoomA2_384_spectral_multiples.png" width="100%">
+
+One 384² run of 1000 steps over the window $\log_{10}\eta_0\in[0.41,1.31]$, $\log_{10}\eta_1\in[1.93,2.83]$ (the $10^{1}$ zoom plate). His measure is re-evaluated at T = 10, 20, …, 1000 from the same trajectories: converged if the mean of the last 20 normalised losses before T is below 1, and $\sum_{t\le T}$ normalised by T. Each frame is rank-normalised on its own (aesthetic, declared), so colour shows within-frame speed and is not comparable between frames. The boundary is measured. At T = 10 it is an almost straight line (box-counting $D=1.05$). It then frays: $D$ = 1.27 at T = 30, 1.37 at 100, 1.42 at 250, and 1.41 at 500 and 1000. The trainable fraction settles at the same time (64.8 % → 49.3 % at T = 100 → 48.9 % at T = 1000). So in this window the rough edge is an effect of long iteration, and it has stopped changing well before the 500 steps used everywhere else. [GIF](gallery/steps_steps_zoomA2_384_spectral.gif).
+
+### 5. Semantic axes: initial scale × learning rate
+
+<img src="gallery/sem_sigma_lr_384_spectral.png" width="49%"> <img src="gallery/sem_sigma_lr_384_riso.png" width="49%">
+
+Here both layers share one learning rate η (vertical) and both weight matrices are scaled at init by σ (horizontal), over six decades each, with 384² float64 networks. The trainability edge sits at $\eta\approx10^{2.0}$–$10^{2.2}$ across all six decades of σ: the learning rate decides trainability almost alone. The edge is ragged at small σ and smoother at large σ; box counting gives $D=1.21\pm0.05$ over the whole plate (b = 2–32 px). The trainable fraction is 60.1 %. Variants: [magma](gallery/sem_sigma_lr_384_magma.png), [boundary line only](gallery/sem_sigma_lr_384_line.png).
+<!-- SEM-WD -->
+
 ## What was computed
 
 | piece | grid | steps | precision | wall time (shared GB10) |
@@ -116,14 +131,14 @@ The trainable fraction is stable (36.6 %, 36.4 %, 36.5 %), so the phase areas ar
 ### What didn't work
 - **Chooser v1** (most raw edge boxes) walked into the $\eta_0\sim10^{5.5}$ speck dust. Plates there show converged-speed texture with scattered red pixels and no visible boundary; the reviewer rightly rejected them.
 - **Chooser v2** (13×13 grid of candidate windows) could drift off the boundary. It was replaced by the boundary-centred mixing chooser.
-- **Throughput.** On a shared GB10, float64 ran at 29–200 px/s. The half-decade sequence was switched to decade steps after $10^{2.5}$ to reach $10^{6.5}$ in the available time. Minibatch, semantic axes (init scale × lr, weight decay × lr), the training-step animation, and riso/line/relief styles for the zoom were built (`window_compute.py --axes sigma_lr|wd_lr`, `--checkpoints`, `styles.py`) and tested at 128², but not rendered at gallery scale.
+- **Throughput.** On a shared GB10, float64 ran at 29–200 px/s. The half-decade sequence was switched to decade steps after $10^{2.5}$ to reach $10^{6.5}$ in the available time. Minibatch-16 and hillshaded relief were built and tested at 128² but not rendered at gallery scale.
 - **The first zoom video** alpha-blended RGB keyframes and showed visible rectangles. It was rewritten to use his scheme: blend rank-normalised values against both neighbouring keyframes, then colour map.
 
 ## Ideas explored / not pursued
 1. **Automatic motif hunt / specimen drawer.** Score windows by coherent-boundary mixing and cluster the motifs. The scorer exists (`choose_next`); the drawer was not rendered because of GPU time.
 2. **Hillshaded relief** of signed log speed (`styles.hillshade`). Tested on toys. At 256² it reads as noise-dominated relief, and it needs ≥1024² native keyframes.
-3. **Training-step animation** (boundary resolving with T). The machinery computes his measure at many T from one run (checkpoint test: 6e-8 agreement with separate runs). Not rendered.
-4. **Semantic axes** (σ × η, λ × η). 128² toys show a sharp boundary at η≈10² that is almost independent of σ and λ over 8 decades, with a feature where weight decay meets η. Not scaled up.
+3. **Training-step animation**: rendered (section 4). His measure is taken at many T from one run; checkpoint test gives 6e-8 agreement with separate runs.
+4. **Semantic axes** (σ × η, λ × η): σ × η rendered at 384² (section 5).
 5. **sin activation** included in the diptych. Minibatch-16 toy computed, not included.
 6. **Cyclic colour map**: skipped. No quantity here is genuinely cyclic.
 
