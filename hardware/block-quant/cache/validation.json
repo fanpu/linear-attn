@@ -1,0 +1,83 @@
+{
+ "e4m3_grid": {
+  "ok": true,
+  "n": 127.0,
+  "max": 448.0,
+  "min_sub": 0.001953125
+ },
+ "e4m3_rtne_vs_torch_cast": {
+  "ok": true,
+  "agreement": 1.0,
+  "n": 400253.0
+ },
+ "e2m1_rtne_vs_modelopt_recipe": {
+  "ok": true,
+  "mismatches": 0.0
+ },
+ "mxfp4_vs_scalar_reference": {
+  "ok": true,
+  "maxdiff": 0.0
+ },
+ "nvfp4_vs_scalar_reference": {
+  "ok": true,
+  "maxdiff": 0.0
+ },
+ "nvfp4_elements_on_levels": {
+  "ok": true
+ },
+ "e2m1_gaussian_mse_theory_vs_mc": {
+  "ok": true,
+  "theory": 0.01270197709482552,
+  "monte_carlo": 0.012681668844761343
+ },
+ "stochastic_unbiased": {
+  "ok": true,
+  "mean_err": 8.489307420078513e-05,
+  "stderr": 0.00027179042914553557
+ },
+ "sr_over_rtn_mse_uniform": {
+  "ok": true,
+  "measured": 1.991522782961299,
+  "expected": 2.0
+ },
+ "mxfp4_clip_fraction_loguniform": {
+  "ok": true,
+  "measured": 0.41487,
+  "expected": 0.4150374992788438
+ },
+ "relmse_gaussian": {
+  "ok": true,
+  "NVFP4_nearest": 0.009050249405432262,
+  "NVFP4_stochastic": 0.018851118531570198,
+  "MXFP4_nearest": 0.013243540560902028,
+  "MXFP4_stochastic": 0.025246667862141997,
+  "ideal_scale_16_nearest": 0.008875622087583994
+ },
+ "relmse_laplace": {
+  "ok": true,
+  "NVFP4_nearest": 0.008619767862099384,
+  "NVFP4_stochastic": 0.018251012961589406,
+  "MXFP4_nearest": 0.015972397152205872,
+  "MXFP4_stochastic": 0.02936463990788405,
+  "ideal_scale_16_nearest": 0.00833776256973605
+ },
+ "relmse_student_t3": {
+  "ok": true,
+  "NVFP4_nearest": 0.00796395590800439,
+  "NVFP4_stochastic": 0.01751995325915673,
+  "MXFP4_nearest": 0.020162025708548807,
+  "MXFP4_stochastic": 0.036394975249723904,
+  "ideal_scale_16_nearest": 0.007595512861924075
+ },
+ "bf16_decode_torch_vs_numpy": {
+  "ok": true,
+  "stored_dtypes": [
+   "BF16"
+  ],
+  "n_tensors": 311.0
+ },
+ "lm_head_equals_embed_bitwise": {
+  "ok": true,
+  "equal": 1.0
+ }
+}
