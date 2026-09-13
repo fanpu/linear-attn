@@ -1,4 +1,13 @@
-# PAUSED: Which Dog (diffusion basins)
+# NOTES: Which Dog (diffusion basins)
+
+## Session 2 (CPU-first; GPU saturated until ~21:00)
+- `common.gpu_setup` honours `DB_DEVICE=cpu DB_THREADS=2` (CPU mode).
+- `toy_compute.iterate_map` now uses active-set compaction; sign/logdet are of F^nu (frozen at convergence). 256^2 ring8 2000 it: 10.7 s tracked / 5 s untracked on 2 CPU threads.
+- render: added measured confidence shading (`margin_confidence` = 1-d1/d2 of sample for samplers; rank log nu for iterated map) -> `atlas_*_confidence`, `hero_*_confidence`, `iter_*_confidence`.
+- Running (CPU, 2 threads each, logs/): toyA = iter hero -> verify -> iter gamma; toyB = maps analytic -> steps analytic -> zoom ode_scatter12; toyC = zoom iter_ring8 iter_ring6.
+- Queued on gpu_run.sh (logs/mnist_memo.log, mnist_ddpm.log, toy_train_scatter12.log): mnist.py memo --steps 12000 --bs 64; clf+ddpm --steps 15000 --bs 128; toy.py train scatter12.
+
+## Session 1 (previous handoff)
 
 Stopped on coordinator request (token budget). All background jobs were killed. The GPU slots were full for most of the session, so almost nothing heavy has run yet.
 

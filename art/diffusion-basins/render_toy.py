@@ -11,9 +11,10 @@ import tempfile
 import numpy as np
 from scipy import ndimage
 
+from toy import mixture
 from common import CACHE, GALLERY, boundary_mask, box_count, fit_dimension, write_video
 from render_common import (INK, NIGHT, PAPER, P, caption_strip, colorize, flipud, grid_images, hx, layout_palette,
-                           line_art, pad_to, riso, riso_levels, save, seam_shade, text_on, upscale_nearest)
+                           line_art, margin_confidence, confidence_shade, nu_confidence, pad_to, riso, riso_levels, save, seam_shade, text_on, upscale_nearest)
 
 KIND_NAMES = {"ddim10": "DDIM 10", "ddim50": "DDIM 50", "ddim1000": "DDIM 1000", "ode": "PF-ODE (RK4)",
               "ddpm1000s0": "DDPM 1000, frozen noise #0", "ddpm1000s1": "DDPM frozen #1", "ddpm1000s2": "DDPM frozen #2"}
@@ -45,7 +46,7 @@ def split_orientation(sign, logabsdet):
 # ----------------------------------------------------------------------------- atlas
 def atlas():
     for score in ["analytic", "learned"]:
-        tiles_paper, tiles_night = [], []
+        tiles_paper, tiles_night, tiles_conf = [], [], []
         rows = ["scatter12", "ring8", "grid25"]
         kinds = ["ddim10", "ddim50", "ddim1000", "ode", "ddpm1000s0"]
         for lay in rows:
@@ -55,10 +56,11 @@ def atlas():
             z = np.load(f)
             pal = layout_palette(lay)
             for k in kinds:
-                lab = z[f"{k}_lab"]
+                lab, x0 = z[f"{k}_lab"], z[f"{k}_x0"]
                 if lab.shape[0] > 512:
-                    lab = lab[::2, ::2]
-                lab = flipud(lab)
+                    lab, x0 = lab[::2, ::2], x0[::2, ::2]
+                lab, x0 = flipud(lab), flipud(x0)
+                tiles_conf.append(colorize(lab, pal, confidence_shade(margin_confidence(x0, mixture(lay)[0]))))
                 tiles_paper.append(line_art(lab, pal=pal, tint_strength=0.55, width=0.9))
                 tiles_night.append(night(lab, pal, d0=4.0))
         cap = [f"Basin atlas, {score} score. Rows: scatter12, ring8, grid25 Gaussian mixtures. Columns: DDIM-10, DDIM-50, DDIM-1000, "
@@ -69,6 +71,10 @@ def atlas():
         save(caption_strip(g, cap, size=20), f"atlas_{score}_paper.png", "toy")
         g = grid_images(tiles_night, 5, 14, NIGHT)
         save(caption_strip(g, cap, ground=NIGHT, ink="#d8d4c8", size=20), f"atlas_{score}_night.png", "toy")
+        capc = cap[:1] + ["Brightness = measured commitment margin 1 - d1/d2 of the generated sample (dark = landed between two modes). "
+                          "Hue = mode (declared palette)."]
+        g = grid_images(tiles_conf, 5, 14, NIGHT)
+        save(caption_strip(g, capc, ground=NIGHT, ink="#d8d4c8", size=20), f"atlas_{score}_confidence.png", "toy")
 
 
 # ----------------------------------------------------------------------------- ODE hero
@@ -77,6 +83,11 @@ def hero():
     lab = flipud(v["ode_scatter12"])
     pal = layout_palette("scatter12")
     save(night(lab, pal, d0=10, floor=0.12), "hero_ode_scatter12_night.png", "toy")
+    zc = np.load(f"{CACHE}/maps_scatter12_analytic.npz")
+    for kind in ["ode", "ddim10", "ddpm1000s0"]:
+        x0 = flipud(zc[f"{kind}_x0"])
+        save(colorize(flipud(zc[f"{kind}_lab"]), pal, confidence_shade(margin_confidence(x0, mixture("scatter12")[0]))),
+             f"hero_{kind}_scatter12_confidence.png", "toy")
     save(line_art(lab, width=1.2, pal=pal, tint_strength=0.0), "hero_ode_scatter12_ink.png", "toy")
     save(riso(lab, riso_levels(12), RISO_INKS, cell=9), "hero_ode_scatter12_riso.png", "toy")
     # stretching plate: largest singular value of the sampler Jacobian (finite differences, 1024^2)
@@ -104,6 +115,8 @@ def iter_pieces():
         lab, pal = flipud(z["lab"]), layout_palette(lay)
         d0 = 8 if lab.shape[0] >= 2048 else 5
         save(night(lab, pal, d0=d0, floor=0.14), f"iter_{lay}_night.png", "iterated")
+        save(colorize(lab, pal, confidence_shade(nu_confidence(flipud(z["nu"])), floor=0.06, gamma=1.4)),
+             f"iter_{lay}_confidence.png", "iterated")
         save(split_orientation(flipud(z["sign"]), flipud(z["logdet"])), f"iter_{lay}_spectral_orientation.png", "iterated")
         if lay == "ring8":
             save(line_art(lab, width=1.1), f"iter_{lay}_ink.png", "iterated")

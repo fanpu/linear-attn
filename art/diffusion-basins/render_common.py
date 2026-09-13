@@ -211,3 +211,26 @@ def grid_images(imgs, ncol, gap, ground):
         r, c = divmod(i, ncol)
         out[gap + r * (h + gap):gap + r * (h + gap) + h, gap + c * (w + gap):gap + c * (w + gap) + w] = im
     return out
+
+
+# ----------------------------------------------------------------------------- confidence shading (measured)
+def margin_confidence(x0, mu):
+    """sampler maps: commitment margin of the generated sample, m = 1 - d1/d2 in [0, 1], where d1, d2 are the
+    distances from x0 to the nearest and second-nearest mixture mean. m ~ 1: sample sits on its mode;
+    m ~ 0: the sample landed half-way between two modes (low-density bridge)."""
+    d = np.sqrt(((x0[..., None, :] - mu[None, None]) ** 2).sum(-1))
+    d.sort(-1)
+    return 1 - d[..., 0] / np.maximum(d[..., 1], 1e-12)
+
+
+def confidence_shade(conf, floor=0.10, gamma=0.6):
+    return floor + (1 - floor) * np.clip(conf, 0, 1) ** gamma
+
+
+def nu_confidence(nu):
+    """iterated map: fast convergence = confident; rank-normalised log(nu), inf -> 0"""
+    v = np.log(np.where(np.isfinite(nu), nu, np.nan))
+    ok = np.isfinite(v)
+    r = np.zeros(nu.shape)
+    r[ok] = (np.argsort(np.argsort(v[ok])) + 0.5) / ok.sum()
+    return np.where(ok, 1 - r, 0.0)

@@ -183,6 +183,9 @@ def write_video(frames_dir, pattern, out_mp4, out_gif=None, fps=30, gif_fps=15, 
 
 
 def gpu_setup(frac=0.10):
+    if os.environ.get("DB_DEVICE") == "cpu":  # CPU mode (GPU saturated): DB_DEVICE=cpu DB_THREADS=2
+        torch.set_num_threads(int(os.environ.get("DB_THREADS", "2")))
+        return torch.device("cpu")
     if torch.cuda.is_available():
         torch.cuda.set_per_process_memory_fraction(frac)
         torch.backends.cuda.matmul.allow_tf32 = False

@@ -93,38 +93,53 @@ def iterate_map(g, sigma, gamma, P, n_iter, delta=1e-3, track=True):
     """x <- F(x) = x + gamma (D(x, sigma) - x).  Returns label (nearest stable fixed point, 255 if the end
     point is > 0.1 from every fixed point), smooth convergence count nu (first n with residual < delta,
     fractional part by log interpolation; inf if never), log10 final residual, and (track=True) the
-    orientation sign and log|det| of the Jacobian of the n_iter-fold composition F^n (exact chain rule)."""
+    orientation sign and log|det| of the Jacobian of F^nu, i.e. of the composition up to the convergence
+    iterate (exact chain rule).  Points are removed from the working set once converged (active-set
+    compaction); their label is fixed from then on (the fixed points are attracting)."""
     fp = FP_CACHE.get((g.name, sigma))
     if fp is None:
         fp = FP_CACHE[(g.name, sigma)] = fixed_points(g, sigma)
+    N = len(P)
+    nu = torch.full((N,), float("inf"), device=DEV, dtype=F64)
+    logdet = torch.zeros(N, device=DEV, dtype=F64)
+    sign = torch.ones(N, device=DEV, dtype=F64)
+    xout = P.clone()
+    act = torch.arange(N, device=DEV)
     x = P.clone()
-    nu = torch.full((len(P),), float("inf"), device=DEV, dtype=F64)
-    logdet = torch.zeros(len(P), device=DEV, dtype=F64)
-    sign = torch.ones(len(P), device=DEV, dtype=F64)
+    ld = torch.zeros(N, device=DEV, dtype=F64)
+    sg = torch.ones(N, device=DEV, dtype=F64)
     prev = torch.cdist(x, fp).min(1).values
     eye = torch.eye(2, device=DEV, dtype=F64)[None]
     for n in range(1, n_iter + 1):
-        if not track:
-            x = x + gamma * (g.denoise(x, sigma) - x)
-            continue
-        Dx, JD = g.denoise_jac(x, sigma)
-        J = (1 - gamma) * eye + gamma * JD
-        det = J[:, 0, 0] * J[:, 1, 1] - J[:, 0, 1] * J[:, 1, 0]
-        logdet += torch.log(det.abs().clamp(min=1e-300))
-        sign *= torch.sign(det)
+        if track:
+            Dx, JD = g.denoise_jac(x, sigma)
+            J = (1 - gamma) * eye + gamma * JD
+            det = J[:, 0, 0] * J[:, 1, 1] - J[:, 0, 1] * J[:, 1, 0]
+            ld += torch.log(det.abs().clamp(min=1e-300))
+            sg *= torch.sign(det)
+        else:
+            Dx = g.denoise(x, sigma)
         x = x + gamma * (Dx - x)
         if n % TRACK_EVERY and n != n_iter:
             continue
         r = torch.cdist(x, fp).min(1).values
-        hit = torch.isinf(nu) & (r < delta)
+        hit = r < delta
         if hit.any():
             frac = torch.log(prev[hit] / delta) / torch.log(prev[hit] / r[hit]).clamp(min=1e-12)
-            nu[hit] = n - TRACK_EVERY + TRACK_EVERY * frac.clamp(0, 1)
+            ia = act[hit]
+            nu[ia] = n - TRACK_EVERY + TRACK_EVERY * frac.clamp(0, 1)
+            xout[ia], logdet[ia], sign[ia] = x[hit], ld[hit], sg[hit]
+            keep = ~hit
+            act, x, ld, sg, r = act[keep], x[keep], ld[keep], sg[keep], r[keep]
+            if len(act) == 0:
+                break
         prev = r
-    d = torch.cdist(x, fp)
+    if len(act):
+        xout[act], logdet[act], sign[act] = x, ld, sg
+    d = torch.cdist(xout, fp)
     rmin, lab = d.min(1)
     lab = torch.where(rmin < 0.1, lab, torch.full_like(lab, 255))
-    return lab, nu, torch.log10(rmin.clamp(min=1e-300)), sign * 0 + sign, logdet
+    return lab, nu, torch.log10(rmin.clamp(min=1e-300)), sign, logdet
 
 
 def iter_map(layout, sigma, gamma, cx, cy, hw, R, n_iter, chunk=1 << 20):
