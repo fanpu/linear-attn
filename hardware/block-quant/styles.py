@@ -98,10 +98,14 @@ def up(a, k):
     return np.repeat(np.repeat(a, k, axis=0), k, axis=1)
 
 
-def save(rgb, name, meta=None):
+def save(rgb, name, palette=None):
+    """palette=N: store as an N-colour indexed PNG (lossless for 1-bit sheets whose only other colours are
+    anti-aliased caption pixels; keeps 1-bit plates far below the 20 MB commit cap)."""
     os.makedirs(GALLERY, exist_ok=True)
     arr = np.clip(np.asarray(rgb) * 255 + 0.5, 0, 255).astype(np.uint8) if np.asarray(rgb).dtype != np.uint8 else rgb
     im = Image.fromarray(arr)
+    if palette:
+        im = im.quantize(colors=palette, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
     path = os.path.join(GALLERY, name)
     im.save(path, optimize=True)
     print("wrote", path, im.size)
@@ -147,3 +151,45 @@ def colorbar(h, w, cm, horizontal=True):
 
 def load(tag):
     return np.load(os.path.join(CACHE, f"mat_{tag}.npz"))
+
+
+# ---------------------------------------------------------------- Sohl-Dickstein "Spectral" (declared)
+def _ranks(x, ref, n_ref=400_000, seed=0):
+    """Empirical CDF of |x| within its sign class, from a (sub-sampled) reference."""
+    r = np.asarray(ref, dtype=np.float64).ravel()
+    if r.size > n_ref:
+        r = np.random.default_rng(seed).choice(r, n_ref, replace=False)
+    pos, neg = np.sort(r[r > 0]), np.sort(-r[r < 0])
+    t = np.zeros(np.shape(x))
+    x = np.asarray(x, dtype=np.float64)
+    m = x > 0
+    t[m] = np.searchsorted(pos, x[m]) / max(len(pos), 1)
+    m = x < 0
+    t[m] = np.searchsorted(neg, -x[m]) / max(len(neg), 1)
+    return t
+
+
+def spectral_seam(x, ref=None):
+    """Split at zero; each sign rank(CDF)-normalized separately onto one half of matplotlib 'Spectral' so the
+    dark ends meet at zero: x>0 runs purple (#5e4fa2, near 0) -> blue -> green -> pale yellow (largest);
+    x<0 runs deep red (#9e0142, near 0) -> orange -> pale yellow. Declared aesthetic mapping."""
+    ref = x if ref is None else ref
+    t = _ranks(x, ref)
+    c = np.where(np.asarray(x) > 0, 1.0 - 0.5 * t, 0.5 * t)
+    return colormaps["Spectral"](c)[..., :3]
+
+
+def spectral_colab(x, ref=None, buffer=0.25):
+    """Exactly the normalization in Sohl-Dickstein's colab (cdf_img, readout='loss'): sorted reference u,
+    targets linspace(-1,-buffer) for negatives and linspace(buffer,1) for non-negatives, y = interp(x,u,v),
+    shown as Spectral(-y) on [-1,1]. Here the dark ends sit at the extremes and zero is a pastel seam with a
+    gap. Declared aesthetic mapping."""
+    ref = x if ref is None else ref
+    r = np.asarray(ref, dtype=np.float64).ravel()
+    if r.size > 400_000:
+        r = np.random.default_rng(0).choice(r, 400_000, replace=False)
+    u = np.sort(r)
+    nn = int((u < 0).sum())
+    v = np.concatenate([np.linspace(-1, -buffer, nn), np.linspace(buffer, 1, len(u) - nn)])
+    y = np.interp(np.asarray(x, dtype=np.float64), u, v)
+    return colormaps["Spectral"]((-y + 1) / 2)[..., :3]

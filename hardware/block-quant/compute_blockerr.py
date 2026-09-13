@@ -17,13 +17,18 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(HERE, "cache")
 
 LAYERS = [0, 13, 27]
-EMBED_CROPS = {"embed_head": (0, 3072), "embed_mid": (60000, 63072), "embed_tail": (148864, 151936)}
+EXTRA = [(16, "k_proj"), (26, "q_proj"), (26, "gate_proj"), (6, "down_proj")]
+EMBED_CROPS = {"embed_head": (0, 3072), "embed_rare": (147456, 150528), "embed_mid": (60000, 63072), "embed_tail": (148864, 151936)}
 
 
 def targets():
     for i in LAYERS:
         for k in KINDS:
             yield f"L{i:02d}_{k}", layer_name(i, k), None
+    # chosen from the 0.6B atlas as the most outlier-structured matrices (row/col max-over-median, kurtosis,
+    # spread of log2 block scale): see README "How the hero matrices were chosen"
+    for i, k in EXTRA:
+        yield f"L{i:02d}_{k}", layer_name(i, k), None
     for tag, (a, b) in EMBED_CROPS.items():
         yield tag, "model.embed_tokens.weight", (a, b)
 
