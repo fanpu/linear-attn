@@ -1,0 +1,5 @@
+cache/
+_preview/
+refs/
+__pycache__/
+*.pyc
