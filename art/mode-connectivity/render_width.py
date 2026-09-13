@@ -124,6 +124,8 @@ if 'planes' in args.pieces and os.path.exists(os.path.join(CACHE, f'planes_width
         x0 = (W - ncol * tile - (ncol - 1) * gap) / 2
         for i, w in enumerate(ws):
             r, c = divmod(i, ncol)
+            nin = min(ncol, len(ws) - r * ncol)
+            x0 = (W - nin * tile - (nin - 1) * gap) / 2
             ax = ax_px(fig, x0 + c * (tile + gap), 300 + r * (tile + gap + 90), tile, tile, W, H)
             Lg = Pd[f'w{w}_train']
             xs, ys, pts = Pd[f'w{w}_xs'], Pd[f'w{w}_ys'], Pd[f'w{w}_pts']

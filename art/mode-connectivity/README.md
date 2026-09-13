@@ -76,7 +76,19 @@ Also: [bezier aurora split](gallery/plane_mnist_bezier_aurora_basin.png), [bezm 
 
 <img src="gallery/width_barrier_mnist.png" width="100%">
 
-WIDTH_PLANES_TBD
+**Planes by width.** Each tile is the plane through A, B and π(B) for pair 0 at that width, with MNIST train loss on 5k fixed images on a 97² grid. Below each tile is the highest loss on the matched segment A–π(B).
+
+<img src="gallery/width_planes_mnist_fixed.png" width="100%">
+
+*Fixed seam, the plate that shows the width story. One absolute level, L = 0.1 nats, is used for every tile (Spectral split; declared aesthetic, each side rank-normalised per tile). At widths 32 and 64, A, B and π(B) are three separate islands: the matched segment climbs to 0.91 and 0.135 nats. From width 128 upward, A and π(B) share one purple region that widens with width, while B stays in its own basin. The loss sets these numbers; the level 0.1 is our declared choice.*
+
+<table><tr>
+<td width="50%"><img src="gallery/width_planes_mnist_spectral.png"><br><i>Per-tile seam at the highest loss on A–π(B), so the segment always lies inside the purple region by construction. What changes with width is how that level compares with the loss elsewhere in the plane. At 1024–2048 the seam (0.011 / 0.009) lies so close to the endpoint loss that B's own island shrinks to a sliver.</i></td>
+<td width="50%"><img src="gallery/width_planes_mnist_topo.png"><br><i>Topographic survey: 32 log-spaced contours per tile, with the per-tile seam in red. At large widths a contour-dense ridge runs parallel to the matched segment.</i></td>
+</tr><tr>
+<td><img src="gallery/width_planes_mnist_aurora.png"><br><i>palettes.py <code>aurora_ember</code> split, per-tile seam.</i></td>
+<td></td>
+</tr></table>
 
 ### 2.4 Emergence: the basin is grown, not found
 
@@ -92,7 +104,9 @@ Fashion-MNIST shows the same story with a slower settling. The naive barrier gro
 
 <table><tr><td><img src="gallery/emergence_fmnist_strata_paper.png"></td><td><img src="gallery/emergence_fmnist_strata_night.png"></td></tr></table>
 
-FMNIST_FILMS_TBD
+<video src="gallery/emergence_fmnist.mp4" autoplay loop muted playsinline width="100%"></video>
+
+*Fashion-MNIST emergence film ([GIF](gallery/emergence_fmnist.gif)): the same construction as the MNIST film. Also: [walk film](gallery/walk_fmnist.mp4) ([GIF](gallery/walk_fmnist.gif)). On Fashion-MNIST the naive line does not collapse to a single wrong class. The whole mosaic dims instead, with shown-image accuracy falling to 82% near t ≈ 0.57, while it stays at 90–91% on the Bézier and matched paths.*
 
 ### 2.5 The permutation itself
 
@@ -152,13 +166,13 @@ PY=/home/fzeng/ml/research/art/.venv/bin/python
 $PY compute_hero.py mnist;  $PY compute_hero.py fmnist
 $PY compute_width.py mnist            # widths 32..2048, 3 pairs (resumable)
 $PY compute_planes.py hero mnist --res 141 --ntrain 10000 --planes perm,bezier,bezm --G 64
-$PY compute_planes.py width mnist --res 97 --ntrain 5000
+$PY compute_planes.py width mnist --res 97 --ntrain 5000 --G 64
 $PY analyze_units.py mnist; $PY analyze_units.py fmnist
 $PY render_triptych.py mnist; $PY render_triptych.py fmnist
-$PY render_planes.py mnist --plane perm; $PY render_planes.py mnist --plane bezier --styles spectral,topo
-$PY render_width.py mnist; $PY render_emergence.py mnist
+$PY render_planes.py mnist --plane perm; $PY render_planes.py mnist --plane bezier --styles spectral,topo,aurora,night; $PY render_planes.py mnist --plane bezm --styles spectral,topo
+$PY render_width.py mnist; $PY render_emergence.py mnist; $PY render_emergence.py fmnist
 $PY render_units.py mnist --pieces perm,similarity,quilt,pairs; $PY render_units.py fmnist --pieces quilt,similarity
-$PY render_walk.py mnist; $PY render_sorting.py mnist
+$PY render_walk.py mnist; $PY render_walk.py fmnist; $PY render_sorting.py mnist
 ```
 
 
