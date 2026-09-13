@@ -159,6 +159,8 @@ def grow():
     outdir.mkdir(exist_ok=True)
     v, h, sub, frac = spiral_data(FP8_E4M3)
     v2, h2, sub2, frac2 = spiral_data(FP16)
+    lev2 = np.log(np.clip((h2 - 0.06) / 0.94, 1e-12, 1)) / np.log(0.55)
+    h2 = 0.35 + 0.65 * 0.6 ** lev2   # longer fine ticks at video resolution (declared)
     L1, L2 = np.log2(v), np.log2(v2)
     frames = 480
     cmap = CYC
@@ -172,7 +174,7 @@ def grow():
         k1 = L1.min() + q * (L1.max() - L1.min())
         k2 = L2.min() + q * (L2.max() - L2.min())
         draw_spiral(a1, v, h, sub, frac, style, lw=2.2, cmap=cmap, vmax_reveal=k1)
-        draw_spiral(a2, v2, h2, sub2, frac2, style, lw=0.35, alpha=0.6, cmap=cmap, vmax_reveal=k2)
+        draw_spiral(a2, v2, h2, sub2, frac2, style, lw=0.9, alpha=1.0, cmap=cmap, vmax_reveal=k2, show_path=False)
         fig.text(0.03, 0.93, "Nautilus: one turn per octave", family=SERIF, fontsize=28, color=st["ink"])
         fig.text(0.25, 0.88, f"FP8 E4M3FN  ·  up to 2^{k1:.2f}", family=MONO, fontsize=14, color=st["ink"], ha="center")
         fig.text(0.75, 0.88, f"float16  ·  up to 2^{k2:.2f}", family=MONO, fontsize=14, color=st["ink"], ha="center")

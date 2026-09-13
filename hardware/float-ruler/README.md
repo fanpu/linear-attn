@@ -46,6 +46,10 @@ angle = 2π·log2 v, radius grows one ring per octave. Because v(e+1, m) = 2·v(
 
 Also available: `nautilus_sheet_observatory.png`, `nautilus_sheet_riso.png`.
 
+<video src="gallery/nautilus_grow.mp4" autoplay loop muted playsinline width="100%"></video>
+
+`nautilus_grow.mp4` / `.gif`: E4M3FN and float16 spirals revealed value by value from the smallest subnormal up to the maximum. The spokes appear as soon as the first normal octave is complete. For float16 the video uses longer fine ticks (declared) so they read at 1080p.
+
 ### Octave zoom and octave stack (the exact proof)
 
 <video src="gallery/octave_zoom_observatory.mp4" autoplay loop muted playsinline width="100%"></video>
@@ -79,7 +83,7 @@ Everything is exact enumeration on CPU. No GPU, no timing.
 | `formats.py` | generic minifloat decoder (E, M, bias, special-value convention) |
 | `verify_formats.py` | decodes every bit pattern; cross-checks against torch/numpy; writes `cache/formats.npz`, `cache/verification.json` |
 | `render_specimen.py [engraved observatory riso]` | specimen sheets (7200×4560) |
-| `render_spiral.py sheet\|hero [styles]` | nautilus sheets (7800×4500) and float16 heroes (5400²) |
+| `render_spiral.py sheet\|hero\|grow [styles]` | nautilus sheets (7800×4500), float16 heroes (5400²), grow animation (480 frames) |
 | `render_zoom.py stills\|video [styles]` | octave stacks (5400×7400), zoom MP4/GIF (1920×1080, 1261 frames) |
 | `compute_blockscale.py` → `render_blockscale.py fan\|video` | MX/NV block-scale sweep (720 frames) and fan plates |
 | `raster.py`, `plate.py` | ink-accumulation tick rasteriser, styles |
@@ -116,7 +120,6 @@ Reproduce: `cd hardware/float-ruler && P=/home/fzeng/ml/research/art/.venv/bin/p
 - bfloat16's full spiral (261 turns) moirés into grey at print size, so the sheet shows a 40-octave window, stated on the plate.
 
 ## Ideas explored / not pursued
-- **Nautilus "grow" animation**: code exists (`render_spiral.py grow`) but was not rendered, for time.
 - **2D representable-pair lattice** (FP8 x × y as a point grid): not rendered. The octave stack and nautilus carried the same message more clearly. It is a natural next plate (log-log it is an exact tiling of identical 8×8 tiles).
 - **FP6 (E2M3/E3M2), MXINT8, NF4**: decodable with `formats.py` but not drawn.
 - **Real LLM-weight blocks** instead of a synthetic Laplace block for the slide: left to §4 *Block Error*.
