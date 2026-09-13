@@ -80,8 +80,8 @@ def sequence():
                      fontsize=12, color=INK, loc='left')
         if i + 1 < len(have):
             _, s2, y2 = data[have[i + 1]]
-            ax.add_patch(Rectangle((s2[0], y2[0]), s2[-1] - s2[0], y2[-1] - y2[0], fill=False, ec='black', lw=1.6))
-            ax.add_patch(Rectangle((s2[0], y2[0]), s2[-1] - s2[0], y2[-1] - y2[0], fill=False, ec='white', lw=0.6))
+            ax.add_patch(Rectangle((s2[0], y2[0]), s2[-1] - s2[0], y2[-1] - y2[0], fill=False, ec='black', lw=3.2))
+            ax.add_patch(Rectangle((s2[0], y2[0]), s2[-1] - s2[0], y2[-1] - y2[0], fill=False, ec='white', lw=1.2))
     fig.text(0.06, 0.955, 'Shrimps inside the chaos of a learning rule: nested zoom into the (s, y*) Lyapunov plane',
              fontsize=17, color=INK, family='DejaVu Serif')
     fig.text(0.06, 0.02, 'MWU in a two-agent, two-link congestion game (symmetric start). Colour: Spectral split of the largest '

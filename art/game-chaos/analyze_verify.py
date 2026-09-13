@@ -93,6 +93,53 @@ def saf():
     fig.tight_layout(); fig.savefig('gallery/verify_lyap_convergence.png'); plt.close(fig)
 
 
+def basins():
+    d = np.load('cache/basin_atlas.npz')
+    res = {}
+    for key in d.files:
+        if not key.endswith('_R1024'):
+            continue
+        base = key[:-6]
+        lab = d[key].astype(int)
+        valid = lab >= 0
+        E = np.zeros_like(valid)
+        for a, b in (((slice(None, -1), slice(None)), (slice(1, None), slice(None))),
+                     ((slice(None), slice(None, -1)), (slice(None), slice(1, None)))):
+            diff = (lab[a] != lab[b]) & valid[a] & valid[b]
+            E[a] |= diff; E[b] |= diff
+        sizes = [1, 2, 4, 8, 16, 32, 64]
+        N = boxcount(E, sizes)
+        fr = {}
+        for R in (256, 512, 1024):
+            L2 = d[f'{base}_R{R}'].astype(int); v2 = L2 >= 0
+            e2 = ((L2[1:, :] != L2[:-1, :]) & v2[1:, :] & v2[:-1, :]).sum() + ((L2[:, 1:] != L2[:, :-1]) & v2[:, 1:] & v2[:, :-1]).sum()
+            fr[R] = float(e2) / float(v2.sum())
+        # boundary-pixel fraction ~ R^(D-2): slope between resolutions
+        Dres = 2 + np.polyfit(np.log([256, 512, 1024]), np.log([fr[256], fr[512], fr[1024]]), 1)[0]
+        res[base] = dict(N=N.tolist(), D=fit(sizes, N, 1024) if N[0] > 0 else None, D_resolution=float(Dres),
+                         edge_frac=fr, labels=np.unique(lab[valid]).tolist())
+    save('basin_boxcount', res)
+
+
+def icmap():
+    import glob
+    thr = 5e-3
+    res = {}
+    for f in sorted(glob.glob('cache/icmap_R400_T2000_eps0.50*.npz')):
+        L = np.load(f)['L'].astype(float)
+        valid = np.isfinite(L); B = (L > thr)
+        E = np.zeros_like(valid)
+        for a, b in (((slice(None, -1), slice(None)), (slice(1, None), slice(None))),
+                     ((slice(None), slice(None, -1)), (slice(None), slice(1, None)))):
+            diff = (B[a] != B[b]) & valid[a] & valid[b]
+            E[a] |= diff; E[b] |= diff
+        sizes = [1, 2, 4, 8, 16, 32]
+        N = boxcount(E, sizes)
+        res[os.path.basename(f)] = dict(N=N.tolist(), D=fit(sizes, N, 400), chaotic_frac=float(B[valid].mean()),
+                                        edge_frac=float(E[valid].mean()))
+    save('icmap_boxcount', res)
+
+
 if __name__ == '__main__':
     for w in sys.argv[1:]:
         globals()[w]()
