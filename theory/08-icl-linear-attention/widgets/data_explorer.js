@@ -1,0 +1,1 @@
+window.EXPLORER_DATA = {"points": [{"kind": "gd", "L": 1, "n": 20, "sigma": 0.0, "risk": 3.51511}, {"kind": "dense", "L": 1, "n": 20, "sigma": 0.0, "risk": 3.55438}, {"kind": "gd", "L": 2, "n": 20, "sigma": 0.0, "risk": 1.69826}, {"kind": "dense", "L": 2, "n": 20, "sigma": 0.0, "risk": 0.52697}, {"kind": "gd", "L": 3, "n": 20, "sigma": 0.0, "risk": 0.91123}]};

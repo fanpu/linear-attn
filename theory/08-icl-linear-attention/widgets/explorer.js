@@ -19,15 +19,15 @@
   const svg = root.querySelector("svg");
   const kIn = root.querySelector("[data-k]"), sIn = root.querySelector("[data-s]");
   const W = 760, H = 420, L = 62, R = 190, T = 18, B = 46, pw = W - L - R, ph = H - T - B;
-  const xlo = Math.log(2), xhi = Math.log(160), ylo = Math.log10(1e-3), yhi = Math.log10(1.2);
+  const xlo = Math.log(2), xhi = Math.log(160), ylo = Math.log10(1e-4), yhi = Math.log10(1.2);
   const X = n => L + (Math.log(n) - xlo) / (xhi - xlo) * pw;
-  const Y = r => T + ph * (1 - (Math.log10(Math.max(1e-3, Math.min(1.2, r))) - ylo) / (yhi - ylo));
+  const Y = r => T + ph * (1 - (Math.log10(Math.max(1e-4, Math.min(1.2, r))) - ylo) / (yhi - ylo));
   const el = (tag, attrs, parent) => { const e = document.createElementNS("http://www.w3.org/2000/svg", tag); for (const k in attrs) e.setAttribute(k, attrs[k]); (parent || svg).appendChild(e); return e; };
   const cache = new Map();
 
   function gdk(n, s, k) {
     const key = `${n}|${s}|${k}`;
-    if (!cache.has(key)) cache.set(key, n <= D ? null : I.gdkOptimal(D, n, s, k, 250).risk);
+    if (!cache.has(key)) cache.set(key, I.gdkOptimal(D, n, s, k, 250).risk);
     return cache.get(key);
   }
 
@@ -36,7 +36,7 @@
     kIn.nextElementSibling.textContent = k; sIn.nextElementSibling.textContent = s.toFixed(2);
     while (svg.firstChild) svg.removeChild(svg.firstChild);
     // axes
-    for (const r of [1e-3, 1e-2, 1e-1, 1]) {
+    for (const r of [1e-4, 1e-3, 1e-2, 1e-1, 1]) {
       el("line", { x1: L, x2: L + pw, y1: Y(r), y2: Y(r), stroke: RULE });
       el("text", { x: L - 8, y: Y(r) + 4, "text-anchor": "end", fill: MUTED, "font-size": 11 }).textContent = r >= 0.1 ? r : r.toExponential(0);
     }
@@ -57,10 +57,10 @@
     const all = NS_UNDER.concat(NS);
     const ridge = all.map(n => [n, I.ridgeRisk(D, n, s)]);
     const gd1 = all.map(n => [n, I.gd1Exact(D, n, s).risk]);
-    const gdK = NS.map(n => [n, gdk(n, s, k)]);
+    const gdK = all.map(n => [n, gdk(n, s, k)]);
     path(gd1, { stroke: GD1, "stroke-width": 2 });
-    path(gdK, { stroke: GD, "stroke-width": 2.5 });
-    path(ridge.filter(p => p[1] > 1.05e-3), { stroke: INK, "stroke-width": 2 });
+    if (k > 1) path(gdK, { stroke: GD, "stroke-width": 2.5 });
+    path(s > 0 ? ridge : ridge.filter(p => p[0] < D).concat([[D, 1e-4]]), { stroke: INK, "stroke-width": 2 });
 
     // trained models (only drawn where they exist for this sigma)
     const pts = DATA.filter(p => Math.abs(p.sigma - s) < 1e-6);
@@ -75,12 +75,13 @@
       }
     }
     // direct labels at the right edge
-    const lab = [[`ridge (Bayes optimal)`, ridge[ridge.length - 1][1], INK], [`GD, 1 step (= 1 LSA layer)`, gd1[gd1.length - 1][1], GD1], [`GD, ${k} tuned steps`, gdK[gdK.length - 1][1], GD]];
-    const ys = lab.map(l => Y(Math.max(l[1], 1.1e-3)));
+    const lab = [[s > 0 ? `ridge (Bayes optimal)` : `ridge: 0 once n ≥ d`, s > 0 ? ridge[ridge.length - 1][1] : 1.2e-4, INK], [`GD, 1 step (= 1 LSA layer)`, gd1[gd1.length - 1][1], GD1]];
+    if (k > 1) lab.push([`GD, ${k} tuned steps`, gdK[gdK.length - 1][1], GD]);
+    const ys = lab.map(l => Y(Math.max(l[1], 1.2e-4)));
     for (let i = 1; i < ys.length; i++) for (let j = 0; j < i; j++) if (Math.abs(ys[i] - ys[j]) < 15) ys[i] = ys[j] + (ys[i] >= ys[j] ? 15 : -15);
     lab.forEach((l, i) => { el("text", { x: L + pw + 8, y: ys[i] + 4, fill: l[2] === GD1 ? "#8f887c" : l[2], "font-size": 12, "font-weight": 600 }).textContent = l[0]; });
     // legend for markers
-    const ly = T + ph - 40;
+    const ly = T + 10;
     el("circle", { cx: L + pw + 14, cy: ly, r: 6, fill: LSA, stroke: "#fcfbf8", "stroke-width": 2 });
     el("text", { x: L + pw + 26, y: ly + 4, fill: INK, "font-size": 12 }).textContent = `trained ${k}-layer lin. attn`;
     el("circle", { cx: L + pw + 14, cy: ly + 20, r: 4.5, fill: "#fcfbf8", stroke: GD, "stroke-width": 2 });

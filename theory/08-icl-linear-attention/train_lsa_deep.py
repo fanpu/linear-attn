@@ -28,6 +28,7 @@ p.add_argument("--ns", default="20")
 p.add_argument("--d", type=int, default=10)
 p.add_argument("--sigmas", default="0.0")
 p.add_argument("--out", default="main")
+p.add_argument("--init", default="random")   # random | struct (dense only)
 a = p.parse_args()
 dev, DT = a.device, torch.float64
 TDT = torch.float32           # training precision (evaluation is float64)
@@ -67,8 +68,13 @@ def train(kind, L, d, n, sigma, cov, steps, B):
     Lam = make_cov(cov, d).to(dev)
     Lc = torch.linalg.cholesky(Lam)
     if kind == "dense":
-        params = {"P": [(0.01 * torch.randn(d + 1, d + 1, device=dev, dtype=TDT)).requires_grad_() for _ in range(L)],
-                  "Q": [(0.01 * torch.randn(d + 1, d + 1, device=dev, dtype=TDT)).requires_grad_() for _ in range(L)]}
+        P0 = [0.01 * torch.randn(d + 1, d + 1, device=dev, dtype=TDT) for _ in range(L)]
+        Q0 = [0.01 * torch.randn(d + 1, d + 1, device=dev, dtype=TDT) for _ in range(L)]
+        if a.init == "struct":   # Ahn eq. (8) sparsity pattern at a small scale, plus dense noise on every entry
+            for l in range(L):
+                P0[l][d, d] += 0.3
+                Q0[l][:d, :d] -= 0.3 * torch.eye(d, device=dev, dtype=TDT)
+        params = {"P": [t.requires_grad_() for t in P0], "Q": [t.requires_grad_() for t in Q0]}
     elif kind == "pgd":
         params = {"Q": [(0.3 * torch.eye(d, device=dev, dtype=TDT) + 0.01 * torch.randn(d, d, device=dev, dtype=TDT)).requires_grad_() for _ in range(L)]}
     else:
@@ -117,7 +123,7 @@ for cfg in configs:
         continue
     t0 = time.time()
     risk, curve, params = train(*cfg, steps=a.steps, B=a.batch)
-    res["runs"].append({"cfg": list(cfg), "risk": risk, "curve": curve, "params": params if cfg[0] != "dense" or cfg[1] <= 4 else None})
+    res["runs"].append({"init": a.init if cfg[0] == "dense" else None, "cfg": list(cfg), "risk": risk, "curve": curve, "params": params if cfg[0] != "dense" or cfg[1] <= 4 else None})
     print(f"{cfg}  risk {risk:.5f}  ridge {res['ridge'][key]:.5f}  ({time.time()-t0:.0f}s)", flush=True)
     json.dump(res, open(out, "w"))
 print("saved", out)
