@@ -202,16 +202,17 @@ def raster_plate(model, tag, sheet, out, kind):
     xs, ys, L, meta = load(model, tag)
     X, Y, Z = upsample(xs, ys, height(L), 1600)
     dx = X[1] - X[0]
-    hs = hillshade(Z, dx, az=300, alt=24, exag=0.12)
+    hs = hillshade(Z, dx, az=300, alt=40, exag=0.35)
+    hs = np.clip(hs / np.percentile(hs, 99.5), 0, 1)
     if kind == "hillshade":
         bg, fg = "#0b0a09", "#d8cdb6"
         rgb = (np.array([0.04, 0.035, 0.03]) + hs[..., None] ** 1.6 * np.array([0.95, 0.88, 0.76]))
     elif kind == "hypsometric":
         bg, fg = PAPER, INK
-        stops = ["#3d6b4f", "#7a9a5a", "#c7c27d", "#d8b77a", "#b98658", "#8c5e4a", "#b9a19a", "#f4efea"]
+        stops = ["#1f5a57", "#4f8c6a", "#9dbb7a", "#e8dc98", "#e2b26f", "#c47d4e", "#9b5a45", "#b99c93", "#e4dcd6", "#fbf8f4"]
         cm = matplotlib.colors.LinearSegmentedColormap.from_list("hyps", stops)
         band = np.floor((Z - np.log10(LO)) / (np.log10(HI / LO)) * 24) / 24      # 24 stepped tints
-        rgb = cm(np.clip(band, 0, 1))[..., :3] * (0.55 + 0.45 * hs[..., None])
+        rgb = cm(np.clip(band, 0, 1))[..., :3] * (0.62 + 0.38 * hs[..., None])
     elif kind in ("spectral", "hubble"):
         bg, fg = "#101014", "#d9d4c8"
         s = np.log(np.clip(ndimage.zoom(L, 1600 / len(xs), order=3, mode="nearest"), 1e-6, None)) - np.log(CHANCE)
@@ -220,11 +221,13 @@ def raster_plate(model, tag, sheet, out, kind):
     fig = plt.figure(figsize=(8.5, 10), facecolor=bg)
     ax = fig.add_axes([0.08, 0.14, 0.84, 0.84 * 8.5 / 10])
     ax.imshow(rgb, origin="lower", extent=[xs[0], xs[-1], ys[0], ys[-1]], interpolation="lanczos")
+    minor, index = loss_levels(10)
     if kind == "hypsometric":
-        minor, index = loss_levels(10)
         ax.contour(X, Y, Z, levels=index, colors=INK, linewidths=0.45, alpha=0.8)
+    if kind == "hillshade":
+        ax.contour(X, Y, Z, levels=minor, colors="#e9dcc0", linewidths=0.25, alpha=0.35)
     frame(ax, xs, ys, fg)
-    cap = {"hillshade": "Raking light from the north-west at 24°, vertical exaggeration 0.12 on log10 loss (declared)",
+    cap = {"hillshade": "Raking light from the north-west at 40°, vertical exaggeration 0.35, normalized to the 99.5th percentile on log10 loss (declared)",
            "hypsometric": "Hypsometric tint: 24 stepped bands of log10 loss (declared palette) × hillshade; index contours",
            "spectral": "Spectral split at chance level ln 10: below (basin) purple→pale, above red→pale; rank-normalized per side",
            "hubble": "palettes.py hubble_sho split at chance level ln 10, rank-normalized per side (declared)"}[kind]

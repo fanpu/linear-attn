@@ -14,6 +14,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from scipy import ndimage
 import torch
+sys.path.insert(0, "/home/fzeng/ml/research/art/color-research")
 from render_maps import (load, height, upsample, hillshade, loss_levels, frame, LO, HI, CHANCE, PRETTY, TRAIN,
                          PAPER, INK, RED, FONT, SURF, GAL, ORDER)
 
@@ -275,6 +276,29 @@ def ckfilm(nf_between=12):
     encode(fd, os.path.join(GAL, "ckpt_slices.mp4"), fps=24, gif_w=720)
 
 
+def curv(tag):
+    import palettes as P
+    ms = [m for m in ORDER if os.path.exists(os.path.join(ROOT, "cache", f"curv_{m}_{tag}.npz"))]
+    fig = plt.figure(figsize=(5.2 * len(ms), 6.4), facecolor="#101014")
+    for i, m in enumerate(ms):
+        c = np.load(os.path.join(ROOT, "cache", f"curv_{m}_{tag}.npz")); L = lsurf(m, tag)["loss"]
+        lm = ndimage.zoom(c["lmin"][1:-1, 1:-1], 16, order=1)
+        rgb = P.render_split(lm, "sd_spectral", near_boundary="small")
+        ax = fig.add_axes([0.02 + i / len(ms), 0.14, 0.96 / len(ms), 0.96 / len(ms) * 5.2 * len(ms) / 6.4 * 0.98])
+        e = [c["xs"][1], c["xs"][-2], c["ys"][1], c["ys"][-2]]
+        ax.imshow(rgb, origin="lower", extent=e, interpolation="lanczos")
+        X, Y, Z = upsample(c["xs"], c["ys"], np.log10(L), 400)
+        ax.contour(X, Y, Z, levels=[np.log10(CHANCE)], colors="#f5f0e6", linewidths=0.8, linestyles=[(0, (3, 2))])
+        ax.set_axis_off(); ax.set_title(PRETTY[m], color="#e6e0d4", fontsize=13, family=FONT)
+    fig.text(0.5, 0.05, "Smaller principal curvature λ_min of the loss on the slice (finite differences on the grid). "
+             "Spectral split at λ_min = 0: red→pale side convex (λ_min>0), purple→pale side non-convex (λ_min<0); rank-normalized per side.",
+             ha="center", color="#b9b2a6", fontsize=9, family=FONT)
+    fig.text(0.5, 0.02, "Dashed: chance-level contour. Non-convexity inside a slice proves non-convexity of the full loss; "
+             "the reverse does not hold.", ha="center", color="#b9b2a6", fontsize=9, family=FONT)
+    out = os.path.join(GAL, f"curvature_split_{tag}.png"); fig.savefig(out, dpi=200, facecolor="#101014"); plt.close(fig)
+    print("wrote", out)
+
+
 def lines():
     fig, ax = plt.subplots(figsize=(10, 6), facecolor=PAPER); ax.set_facecolor(PAPER)
     sty = {"resnet20": ("#6b5d4f", "-"), "resnet20_noshort": ("#6b5d4f", "--"), "resnet56": (INK, "-"), "resnet56_noshort": (RED, "-")}
@@ -300,4 +324,4 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(); ap.add_argument("what"); ap.add_argument("--tag", default="g101")
     a = ap.parse_args()
     {"stl": lambda: stl(a.tag), "ridge": lambda: (ridge(a.tag, True), ridge(a.tag, False)), "sweep": lambda: sweep(a.tag),
-     "zoom": zoom, "pca": pca, "ckfilm": ckfilm, "lines": lines}[a.what]()
+     "zoom": zoom, "curv": lambda: curv(a.tag), "pca": pca, "ckfilm": ckfilm, "lines": lines}[a.what]()
