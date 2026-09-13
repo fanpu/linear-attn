@@ -53,7 +53,7 @@ def diptych(win, style='spectral'):
     if win == 'A':
         names[0] = 'zoomA:0'
     if win == 'OV':   # full overview, tanh vs ReLU at 1024^2 float64
-        names = ['hero_overview_tanh_1024_f64', 'ov_relu_1024_f64']
+        names = ['hero_overview_tanh_1024_f64', 'ov_relu_512_f64']
     ws = [load(n) for n in names if (':' in n) or os.path.exists(f'cache/windows/{n}.npz')]
     if len(ws) < 2:
         print('not enough panels'); return
@@ -74,7 +74,7 @@ def diptych(win, style='spectral'):
         page.paste(Image.fromarray(colf(w['M'])).resize((P, P), Image.NEAREST), (x, top))
         E = edges(w['M'])
         d.text((x, top + P + 24), label_of(w), font=font(SERIF, 38), fill=(235, 228, 215))
-        d.text((x, top + P + 80), f'trainable {100*(w["M"]<0).mean():.1f}%   boundary px {100*E.mean():.2f}%',
+        d.text((x, top + P + 80), f'{w["res"]}^2 nets  trainable {100*(w["M"]<0).mean():.1f}%  boundary px {100*E.mean():.2f}%',
                font=font(MONO, 26), fill=(170, 160, 150))
     page.save(f'gallery/diptych_{win}_{style}.png')
     # --- (2) overlay line drawing: each architecture's boundary in its own ink on paper
@@ -83,8 +83,8 @@ def diptych(win, style='spectral'):
     canvas = np.ones((R * sc, R * sc, 3)) * np.array(PAPER) / 255
     from scipy import ndimage
     for w, ink in zip(ws, inks):
-        E = np.zeros((R, R), bool); E[:-1, :-1] = edges(w['M'])
-        E = S.upscale(E[::-1].astype(float), sc)
+        Rw = w['res']; E = np.zeros((Rw, Rw), bool); E[:-1, :-1] = edges(w['M'])
+        E = S.upscale(E[::-1].astype(float), R * sc // Rw)
         E = np.clip(ndimage.gaussian_filter(E, 0.8) * 2.0, 0, 1)
         canvas = canvas * (1 - 0.85 * E[..., None] * (1 - np.array(ink) / 255))
     img = Image.fromarray((canvas * 255).astype(np.uint8))

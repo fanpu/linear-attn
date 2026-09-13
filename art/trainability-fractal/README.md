@@ -25,7 +25,10 @@ There are no biases. $W_0\in\mathbb R^{16\times16}$ and $W_1\in\mathbb R^{1\time
 
 ### 1. Deep zoom, one plate per half-decade (then per decade)
 
-<!-- ZOOM -->
+<img src="gallery/zoom_zoomAB_spectral_contact_sheet.png" width="100%">
+
+The sequence runs from the $(\eta_0,\eta_1)\in[10^{-3},10^{6}]^2$ overview (plate 1) to a window $4.5\times10^{-6}$ decades wide at magnification $10^{6.5}\approx3\times10^{6}$ (plate 10). Every window lies inside the previous one and is centred on a boundary pixel of it. Each plate is 256² float64 networks. Full-page plates, each with its coordinates, 1-ulp flip fraction and a locator inset: [Spectral](gallery/plates_zoomAB_spectral/), [two-ink riso](gallery/plates_zoomAB_riso/), [plotter isolines](gallery/plates_zoomAB_isolines/) ([sheet](gallery/zoom_zoomAB_isolines_contact_sheet.png)), and [aurora/ember split palette](gallery/plates_zoomAB_aurora_ember/) ([sheet](gallery/zoom_zoomAB_aurora_ember_contact_sheet.png)). The isolines are contours of the within-phase speed rank, pre-smoothed with a Gaussian of σ = 0.8 px (aesthetic), drawn in ink on the converged side and red on the diverged side. The heavier line is the converge/diverge boundary. In the riso style, converged runs print in pink and diverged runs in blue, with halftone density set by the within-phase speed rank. Screens, inks and misregistration are aesthetic.
+<!-- ZOOM-VIDEO: add <video> once fills are merged -->
 
 ### 2. Same window, three architectures
 
@@ -77,15 +80,32 @@ Sanity tests: `test_core.py` (gradients, early exit, checkpoints) and `test_earl
 
 **Did it appear?** Yes. Moving down the zoom, the boundary goes from an almost straight seam (overview) to interleaved filaments of converged and diverged runs. Box-counting on his sign-change edge set, fitted over box sizes 2–32 px of each 256² keyframe (1.2 decades per image, $r^2>0.997$), gives:
 
-<!-- DTABLE -->
+<!-- DTABLE:start (python readme_tables.py) -->
+| plate | magnification | trainable | boundary px | D (network), b=2..32 px | 1-ulp flips (boundary px) | D (quadratic null, same magnification) |
+|---|---|---|---|---|---|---|
+| 1 | 10^0.0 | 58% | 0.7% | 1.20 ± 0.02 | 0.6% | 1.01 |
+| 2 | 10^0.5 | 59% | 0.8% | 1.19 ± 0.04 | 0.0% | 1.65 |
+| 3 | 10^1.0 | 49% | 1.6% | 1.32 ± 0.04 | 0.0% | 1.17 |
+| 4 | 10^1.5 | 49% | 3.2% | 1.50 ± 0.01 | 0.0% | 1.11 |
+| 5 | 10^2.0 | 51% | 8.3% | 1.61 ± 0.03 | 0.0% | 1.10 |
+| 6 | 10^2.5 | 49% | 10.9% | 1.66 ± 0.03 | 0.0% | 1.05 |
+| 7 | 10^3.5 | 46% | 16.7% | 1.61 ± 0.07 | 0.0% | 1.09 |
+| 8 | 10^4.5 | 48% | 5.3% | 1.36 ± 0.04 | 0.0% | 1.10 |
+| 9 | 10^5.5 | 45% | 14.1% | 1.64 ± 0.07 | 0.0% | 1.04 |
+| 10 | 10^6.5 | 50% | 3.6% | 1.37 ± 0.02 | 0.0% | - |
+<!-- DTABLE:end -->
 
 **Across decades.** No single image covers more than 1.2 decades of box size. The multi-decade evidence is that the local slope stays well above 1 at every zoom level from $10^{1.5}$ to $10^{6.5}$ (panel b plots the slopes against absolute box size in decades of learning rate). It is not a single straight line over many decades. The estimate also depends on where the window sits: it rises as the window closes in on the boundary, so this is a *local* dimension of the region we zoomed into. Sohl-Dickstein reports 1.66 for tanh full batch (median over ~50 frames); our deep frames are in the same range.
 
 **Null model (quadratic, same pipeline).** The loss $\ell(a,b)$ of $\hat y = Xa/\sqrt n + \phi(XW_0/\sqrt n)\,b/n$ with $W_0$ frozen is exactly quadratic, so GD is linear. Its stability boundary is the algebraic curve $\rho(I-P\,\nabla^2\ell)=1$. Through the identical zoom, chooser, colour and box counter, it stays a smooth curve and then a straight line. $D$ = 1.01 at the overview and 1.04–1.11 at every level from $10^{1}$ to $10^{6}$ (one outlier, 1.65, at $10^{0.5}$, where the window contains a sharp corner and only ~500 edge pixels). The rendering does not manufacture a fractal.
 
-**Precision floor ("seeing").** At every keyframe a 64² block on the boundary is recomputed with both learning rates multiplied by $(1+2^{-52})$, one ulp. The quoted number is the fraction of boundary pixels whose converge/diverge label flips: <!-- FLIPS -->. For the network, labels are deterministic to one ulp all the way down, so the filaments are resolved structure and not roundoff noise. The learning-rate grid itself stays representable: relative pixel spacing is $2.6\times10^{-8}$ at the deepest plate, far above $2.2\times10^{-16}$, so the float64 floor for this 256² grid would sit around $10^{13}$ magnification. We were limited by GPU time, not precision.
+**Precision floor ("seeing").** At every keyframe a 64² block on the boundary is recomputed with both learning rates multiplied by $(1+2^{-52})$, one ulp. The quoted number is the fraction of boundary pixels whose converge/diverge label flips: 0 of the boundary pixels in the block at every network plate from $10^{0.5}$ to $10^{6.5}$ (0.6 % at the overview). For the network, labels are deterministic to one ulp all the way down, so the filaments are resolved structure and not roundoff noise. The learning-rate grid itself stays representable: relative pixel spacing is $2.6\times10^{-8}$ at the deepest plate, far above $2.2\times10^{-16}$, so the float64 floor for this 256² grid would sit around $10^{13}$ magnification. We were limited by GPU time, not precision.
 
-**Resolution check (2×, 4×).** <!-- RES -->
+**Resolution check (2×, 4×).** The central 32×32 px of plate 6 ($10^{2.5}$) was recomputed over the identical learning-rate window at 2× (64²) and 4× (128²) density.
+
+<img src="gallery/verify_rescheck_spectral.png" width="100%">
+
+The trainable fraction is stable (36.6 %, 36.4 %, 36.5 %), so the phase areas are converged. Boundary-pixel counts go 524 → 1634 → 5034, which scales as $r^{1.63}$ with density $r$. A resolved smooth curve would give $r^{1}$, and pixel-scale noise would give $r^{2}$. The 4× block shows what that exponent means. Some of the texture resolves into coherent swept filaments that were aliased at 1×. Other bands stay salt-and-pepper mixtures of converged and diverged runs even at 4×; box counting on the 128² block alone gives $D=1.94\pm0.10$ over b = 2–32 px. The labels are deterministic (0 flips under a 1-ulp nudge), so these bands are real structure finer than a 4× grid, not roundoff. Only 77–83 % of 1× labels are reproduced by the subsampled 2×/4× grids, which means the pixel-level texture of any single 256² plate is one sampling of an unresolved set. Only its statistics (phase fraction, D) are stable.
 
 **Isolated red specks** (single diverged pixels inside the converged region at $\eta_0\sim10^{5.5}$, visible in early exploration). Recomputing a 64² block at 2× density gave 87 specks against 26 in the same area at 1× (3.3×, against 4× more pixels), and the diverged fraction stayed at 0.55–0.63 %. They are genuine isolated divergent runs, a sparse "dust" that is not resolved at either resolution. They are not a rendering artifact. A 1-ulp nudge flips 6 % of boundary pixels there, against 0 % along the chosen zoom path, so this region is also closer to roundoff sensitivity. Zoom windows were steered away from it.
 

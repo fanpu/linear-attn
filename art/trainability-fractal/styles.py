@@ -159,3 +159,34 @@ def hillshade(M, azdeg=315, altdeg=35, vert_exag=None, tint='copper', paper=None
     else:  # grey engraving
         col = np.repeat((0.08 + 0.9 * shade)[..., None], 3, -1)
     return _to_u8(col)
+
+
+# ---------------------------------------------------------------- 5. plotter isolines
+def isolines(M, px=2048, levels=14, smooth=0.8, ink=INK, ink2=(0.70, 0.16, 0.22), paper=PAPER_W):
+    """Plotter-style survey sheet. Thin isolines of the within-phase speed rank (converged
+    side in ink, diverged side in a second red ink), each phase masked to itself so lines
+    stop at the boundary; the converge/diverge boundary itself (0.5-contour of the phase
+    indicator, marching squares) drawn as a heavier ink line.
+    Measured: phase boundary + rank of the convergence measure. Aesthetic: number of
+    levels, Gaussian pre-smoothing (sigma in px) of the rank field, inks, line weights."""
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    s, conv = speed01(M)
+    R = M.shape[0]
+    fig = plt.figure(figsize=(px / 100, px / 100), dpi=100)
+    ax = fig.add_axes([0, 0, 1, 1]); ax.set_axis_off()
+    fig.patch.set_facecolor(paper); ax.set_facecolor(paper)
+    ax.set_xlim(-0.5, R - 0.5); ax.set_ylim(-0.5, R - 0.5)
+    lw = max(px / R * 0.12, 0.3)
+    lv = np.linspace(0, 1, levels + 2)[1:-1]
+    for mask, col in ((conv, ink), (~conv, ink2)):
+        sm = ndimage.gaussian_filter(np.where(mask, s, 0.0), smooth)
+        wt = ndimage.gaussian_filter(mask.astype(float), smooth)
+        f = np.ma.masked_where(~mask, sm / np.maximum(wt, 1e-9))
+        ax.contour(f, levels=lv, colors=[col], linewidths=lw, antialiased=True)
+    ax.contour(conv.astype(float), levels=[0.5], colors=[ink], linewidths=lw * 2.2, antialiased=True)
+    fig.canvas.draw()
+    img = np.asarray(fig.canvas.buffer_rgba())[..., :3].copy()
+    plt.close(fig)
+    return img        # origin lower -> matplotlib already puts row 0 at the bottom

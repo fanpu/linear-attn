@@ -66,6 +66,8 @@ def colour(M, ref=None):
         return S.riso_two_ink(M, scale=4, period=4.0, misreg=(2, -1))
     if args.style == 'line':
         return S.line_boundary(M, scale=4, weight=1.0)
+    if args.style == 'isolines':
+        return S.isolines(M)
     if args.style == 'relief':
         return S.hillshade(M)
     # boundary-split pairings from color-research/palettes.py (declared aesthetic variants)
