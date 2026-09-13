@@ -35,6 +35,13 @@ def paper_ink(lam, seed=0):
     return ink_multiply(pap, 0.95 * a, (24, 26, 46))
 
 
+def spectral(lam):
+    """Declared: Sohl-Dickstein Spectral split; lambda<0 ranked by |lambda| (purple at lambda=0 -> pale yellow),
+    lambda>0 ranked by lambda (deep red at lambda=0 -> pale yellow)."""
+    fin = np.isfinite(lam)
+    return spectral_split(-np.nan_to_num(lam), np.nan_to_num(lam), fin & (lam < 0), fin & (lam >= 0))
+
+
 def main():
     for pattern in sys.argv[1:] or ["AABAB", "AB"]:
         import glob
@@ -44,24 +51,33 @@ def main():
         lam = d["lam"][::-1]  # row 0 = top = largest B
         va = d["vals_a"] if "vals_a" in d else d["vals"]
         vb = d["vals_b"] if "vals_b" in d else d["vals"]
-        for style, fn in [("dark", dark), ("paper", paper_ink)]:
+        for style, fn in [("dark", dark), ("paper", paper_ink), ("spectral", spectral)]:
             img = fn(lam)
             H, W = lam.shape
             pad = int(0.06 * W)
-            bg = (6, 6, 8) if style == "dark" else (243, 238, 226)
-            fg = (230, 215, 190) if style == "dark" else (24, 26, 46)
+            bg = (243, 238, 226) if style == "paper" else (6, 6, 8)
+            fg = (24, 26, 46) if style == "paper" else (230, 215, 190)
             canvas = np.full((H + 2 * pad + pad // 2, W + 2 * pad, 3), bg, float)
             if style == "paper":
                 canvas = paper(*canvas.shape[:2], base=bg, grain=3, seed=9)
             canvas[pad:pad + H, pad:pad + W] = img
+            # faint hairline on the diagonal eta_A = eta_B where it crosses the frame
+            for col in range(W):
+                a_val = va[col]
+                rowf = (vb[-1] - a_val) / (vb[-1] - vb[0]) * (H - 1)
+                if 0 <= rowf < H:
+                    r_ = int(rowf)
+                    canvas[pad + r_, pad + col] = 0.55 * canvas[pad + r_, pad + col] + 0.45 * np.array(fg, float)
             pil = to_img(canvas)
             dr = ImageDraw.Draw(pil)
-            fs1 = font(int(W / 55), "serif")
-            fs2 = font(int(W / 80), "mono")
-            dr.text((pad, pad // 3), f"cyclic step size  {pattern.split('_')[0]}  ·  GD on ½(x₁x₂x₃x₄−1)²  ·  Lyapunov exponent of the oscillating mode",
+            fs1 = font(int(W / 72), "serif")
+            fs2 = font(int(W / 105), "mono")
+            dr.text((pad, pad // 3), f"EXTRA SYSTEM: cyclic step-size schedule  {pattern.split('_')[0]}  ·  GD on ½(x₁x₂x₃x₄−1)²  ·  Lyapunov exponent of the oscillating mode",
                     fill=fg, font=fs1)
-            dr.text((pad, pad + H + pad // 5), f"η_A → {va[0]:.4f} … {va[-1]:.4f}      ↑ η_B {vb[0]:.4f} … {vb[-1]:.4f}      "
-                    + ("gold λ<0 · black λ=0 · blue λ>0" if style == "dark" else "ink ∝ tanh|λ| for λ<0 · light stipple λ>0") + "      diagonal η_A = η_B is the constant-step cascade",
+            dr.text((pad, pad + H + pad // 8), f"η_A → {va[0]:.5f} … {va[-1]:.5f}      ↑ η_B {vb[0]:.5f} … {vb[-1]:.5f}      zoom ×{0.55 / (va[-1] - va[0]):,.0f}",
+                    fill=fg, font=fs2)
+            dr.text((pad, pad + H + pad // 8 + int(W / 60)), {"dark": "gold λ<0 · black λ=0 · blue λ>0", "paper": "ink ∝ tanh|λ| for λ<0 · light stipple λ>0",
+                       "spectral": "Spectral split (declared): λ<0 purple→yellow by rank of |λ|, λ>0 red→yellow by rank"}[style] + "   ·   hairline: η_A = η_B (constant step)",
                     fill=fg, font=fs2)
             out = f"{GAL}/lyapplane_{tag}_{style}.png"
             pil.save(out, optimize=True)

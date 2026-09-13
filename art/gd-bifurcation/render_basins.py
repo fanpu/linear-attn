@@ -79,11 +79,27 @@ def riso(d, ink1=(0, 95, 160), ink2=(255, 40, 150), offset=(3, -2)):
     return ink_multiply(ink_multiply(pap, a1, ink1), a2, ink2)
 
 
+def spectral(d):
+    """Declared: Sohl-Dickstein Spectral split. Converged side ranked by convergence speed (1/steps), purple at
+    the boundary; diverged side ranked by escape speed (1/nu), deep red at the boundary."""
+    s = d["status"]
+    t = d["tev"].astype(float)
+    nu = d["nu"].astype(float)
+    return spectral_split(1 / np.maximum(t, 1), 1 / np.nan_to_num(nu, nan=1e9), s == 1, s == 2)
+
+
 def main():
-    which = sys.argv[1:] or ["wideT", "z1T", "z2T"]
+    args = sys.argv[1:]
+    only = None
+    if args and args[0].startswith("--only="):
+        only = args[0].split("=")[1]
+        args = args[1:]
+    which = args or ["wideT", "z1T", "z2T"]
     for tag in which:
         d = load(tag)
-        for style, fn in [("dark", dark), ("paper", paper_line), ("riso", riso)]:
+        for style, fn in [("dark", dark), ("paper", paper_line), ("riso", riso), ("spectral", spectral)]:
+            if only and style != only:
+                continue
             img = fn(d)
             save(img[::-1], f"{GAL}/basin_{tag.rstrip('T')}_{style}.png")  # row 0 = top = largest y
 

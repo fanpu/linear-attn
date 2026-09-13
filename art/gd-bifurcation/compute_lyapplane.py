@@ -38,23 +38,36 @@ def rows_job(args):
     return lam.astype(np.float32)
 
 
-def gpu_plane(vals, valsb, pattern, burn, rec, rows_per_chunk=512):
+def _gpu_step(u, lam, e, acc: bool):
     import torch
+    if acc:
+        lam = lam + torch.log(torch.abs(1.0 - e * (7 * u ** 6 - 3 * u ** 2)) + 1e-300)
+    u = u - e * (u ** 4 - 1.0) * u ** 3
+    return u, lam
+
+
+_compiled = None
+
+
+def gpu_plane(vals, valsb, pattern, burn, rec, rows_per_chunk=1024):
+    """Same computation as rows_job on the GPU; the step is fused with torch.compile."""
+    import torch
+    global _compiled
     torch.cuda.set_per_process_memory_fraction(0.10)
+    if _compiled is None:
+        _compiled = torch.compile(_gpu_step)
     dev = "cuda"
-    A = torch.tensor(vals, dtype=torch.float64, device=dev)[None, :]
     out = []
     for i in range(0, len(valsb), rows_per_chunk):
-        B = torch.tensor(valsb[i:i + rows_per_chunk], dtype=torch.float64, device=dev)[:, None]
-        seq = [A if ch == "A" else B for ch in pattern]
-        u = torch.full((B.shape[0], A.shape[1]), 1.0001, dtype=torch.float64, device=dev)
+        B = torch.tensor(valsb[i:i + rows_per_chunk], dtype=torch.float64, device=dev)[:, None].expand(-1, len(vals)).contiguous()
+        A = torch.tensor(vals, dtype=torch.float64, device=dev)[None, :].expand(B.shape[0], -1).contiguous()
+        u = torch.full_like(A, 1.0001)
         lam = torch.zeros_like(u)
         for t in range(burn + rec):
-            e = seq[t % len(seq)]
-            if t >= burn:
-                lam += torch.log(torch.abs(1.0 - e * (7 * u ** 6 - 3 * u ** 2)) + 1e-300)
-            u = u - e * (u ** 4 - 1.0) * u ** 3
-            u = torch.where(torch.abs(u) > 1e6, torch.full_like(u, float("nan")), u)
+            e = A if pattern[t % len(pattern)] == "A" else B
+            u, lam = _compiled(u, lam, e, t >= burn)
+            if t % 256 == 0:
+                u = torch.where(torch.abs(u) > 1e6, torch.full_like(u, float("nan")), u)
         out.append((lam / rec).float().cpu().numpy())
     return np.vstack(out)
 

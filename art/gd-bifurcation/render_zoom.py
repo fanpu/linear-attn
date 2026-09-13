@@ -6,7 +6,7 @@ Aesthetic: tone curve (log, floor/ceiling percentiles smoothed over +-15 frames 
 palette, easing of the camera path, typography.
 
 Outputs: gallery/zoom_tower.mp4 (1920x1080, H.264, yuv420p, 30 fps), gallery/zoom_tower.gif,
-         gallery/tower_plates.png (one plate per level)
+         gallery/zoom_keyframes.png (keyframes)
 """
 import glob
 import json
@@ -75,6 +75,9 @@ def main():
         s[neg] = (80, 80, 105)
         s[int(round(y0))] = (140, 140, 140)
         img[900:1050] = s
+        # translucent dark panels behind the text (declared legibility aid)
+        img[18:150, 20:760] *= 0.35
+        img[18:130, 1100:1900] *= 0.35
         pil = to_img(img)
         dr = ImageDraw.Draw(pil)
         zx = (FULL[1] - FULL[0]) / (hi - lo)
@@ -115,14 +118,17 @@ def main():
     for j, im in enumerate(plates[:6]):
         r, c = divmod(j, 2)
         sheet.paste(im, (60 + c * (Wp + 60), 60 + r * (Hp + 60)))
-    sheet.save(f"{GAL}/tower_plates.png", optimize=True)
-    print("wrote tower_plates.png", sheet.size)
+    sheet.save(f"{GAL}/zoom_keyframes.png", optimize=True)
+    print("wrote zoom_keyframes.png", sheet.size)
     mp4 = f"{GAL}/zoom_tower.mp4"
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(FPS), "-i", f"{tmp}/f%05d.png",
-                    "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18", "-preset", "slow", mp4], check=True)
+    # two-pass, bitrate-capped (the chaotic-band grain is incompressible; crf 18 gives 260 MB)
+    common = ["-framerate", str(FPS), "-i", f"{tmp}/f%05d.png", "-c:v", "libx264", "-pix_fmt", "yuv420p",
+              "-b:v", "4500k", "-maxrate", "5500k", "-bufsize", "11000k", "-preset", "slow"]
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error"] + common + ["-pass", "1", "-an", "-f", "null", "/dev/null"], check=True, cwd="/tmp/gdb")
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error"] + common + ["-pass", "2", mp4], check=True, cwd="/tmp/gdb")
     gif = f"{GAL}/zoom_tower.gif"
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", mp4, "-vf",
-                    "fps=12,scale=720:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse=dither=sierra2_4a",
+                    "fps=10,scale=560:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=96[p];[b][p]paletteuse=dither=bayer:bayer_scale=3",
                     gif], check=True)
     print("wrote", mp4, os.path.getsize(mp4) // 1e6, "MB;", gif, os.path.getsize(gif) // 1e6, "MB")
 

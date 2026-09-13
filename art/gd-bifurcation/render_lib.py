@@ -115,3 +115,24 @@ def lyap_raster(etas, lyap, lo, hi, W, H, vmin=-1.0, vmax=0.8):
     neg = (yy <= np.maximum(bot, y0)) & (yy >= y0) & (lmin[None, :] < 0)
     # thin trace between min and max (for chaotic columns the mean sits inside)
     return pos, neg, y0, lam, lmin
+
+
+def spectral_split(neg_speed, pos_speed, neg_mask, pos_mask):
+    """Sohl-Dickstein 'Spectral' split style (declared).  Each side is rank (CDF) normalised separately.
+    neg side (e.g. converged / lambda<0): Spectral position 1 - 0.5*rank  -> purple at the boundary (rank 0),
+    pos side (e.g. diverged  / lambda>0): Spectral position 0.5*rank      -> deep red at the boundary.
+    `*_speed` must increase away from the boundary.  Returns RGB float array (0..255)."""
+    import matplotlib
+    lut = (matplotlib.colormaps["Spectral"](np.linspace(0, 1, 2048))[:, :3] * 255)
+    pos_arr = np.full(neg_mask.shape, np.nan)
+    for mask, speed, f in [(neg_mask, neg_speed, lambda r: 1 - 0.5 * r), (pos_mask, pos_speed, lambda r: 0.5 * r)]:
+        v = speed[mask]
+        if v.size == 0:
+            continue
+        order = np.argsort(np.argsort(v, kind="stable"), kind="stable")
+        r = (order + 0.5) / v.size
+        pos_arr[mask] = f(r)
+    img = np.zeros(neg_mask.shape + (3,))
+    ok = np.isfinite(pos_arr)
+    img[ok] = lut[np.clip((pos_arr[ok] * 2047).astype(int), 0, 2047)]
+    return img

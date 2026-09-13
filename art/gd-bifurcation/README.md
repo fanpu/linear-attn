@@ -4,14 +4,21 @@
 flips between two values, then four, eight, and so on into chaos. Inside the chaos, every periodic window
 holds a small, complete copy of the whole picture.*
 
-<img src="gallery/hero_dark_fire.png" width="100%">
+<table><tr>
+<td width="50%"><img src="gallery/print_lyapplane_AB_big_spectral.png" width="100%"></td>
+<td width="50%"><img src="gallery/print_lyapplane_AABAB_zoombig_spectral.png" width="100%"></td>
+</tr></table>
 
-<sub>**hero_dark_fire.png** (8000×2000). GD on f(x) = ½(x₁x₂x₃x₄ − 1)² with all four coordinates, float64.
-16 000 step sizes η ∈ [0.48, 0.99], 20 000 burn-in steps, then 8 192 iterates per η. Horizontal: η.
-Vertical: the network output P = x₁x₂x₃x₄. Brightness is the log count of visited iterates per pixel.
-**Declared choices:** the tone ceiling is the 99.7th percentile of the chaotic band, so only caustic folds
-reach white; strokes in periodic columns are widened to 5 px so the period-1/2/4 branches survive at print
-scale; the palette is colorcet `fire`.</sub>
+<sub>**print_lyapplane_AB_big_spectral.png** and **print_lyapplane_AABAB_zoombig_spectral.png** (6144² each,
+axis-free prints). This is an **extra system**: GD on ½(x₁x₂x₃x₄ − 1)² with a *cyclic* learning-rate schedule
+(A, B, A, B, … on the left; A, A, B, A, B, … zoomed ×23 on the right). Each pixel (η_A, η_B) is coloured by the
+Lyapunov exponent of the oscillating mode. **Declared style:** Sohl-Dickstein "Spectral" split. Each side
+is rank-normalised separately: periodic λ < 0 runs purple→yellow, chaotic λ > 0 runs red→yellow, and the
+dark ends meet along λ = 0. The small swallowtail islands in the chaotic sea are **shrimps** (Gallas 1993); see §3.</sub>
+
+<img src="gallery/atlas_dark.png" width="100%">
+
+<sub>**atlas_dark.png**. Every periodic window of the constant-step cascade is a complete miniature of the whole (§2).</sub>
 
 ---
 
@@ -45,7 +52,114 @@ maps undergo the Feigenbaum period-doubling cascade. For a deep linear network w
 each singular mode reduces to the same scalar problem with k = depth. Ghosh et al. (2025) and Liang & Montúfar
 (2025) prove this decoupling.
 
-## 2. Hero images
+## 2. Self-similarity, the centrepiece
+
+### 2a. Window atlas: every window is a copy of the whole
+
+<img src="gallery/atlas_dark.png" width="100%">
+
+<sub>**atlas_dark.png**. An automatic detector scanned 400 000 η values in [η∞, 0.99] (balanced-line map, period
+≤ 256 at tolerance 1e−7). For each base period 3 … 16 it picked the widest window, then **recomputed every
+plate with the full 4-coordinate GD** (4 800 η per plate, 30 000 burn-in, up to 60 000 iterates). Each
+plate zooms into the branch nearest the map's critical point. Zoom factors run from ×21 (p = 3) to ×28 409
+(p = 13) in η. Each plate shows a saddle-node birth, then 2, 4, 8, …, chaos, internal windows, and a crisis.
+Copies on orientation-reversing branches appear upside down (p = 6, 8, 9, 10, 14, 16). Strip: λ of the
+oscillating mode with sign-preserving √ compression (declared). Variants: `atlas_dark_byzoom.png` (ordered by
+zoom factor), `atlas_paper.png` (single ink), `gallery/atlas/pXX.png` (full-resolution individual plates with
+coordinates).</sub>
+
+### 2b. Nested zoom: period 3 → 9 → 27 → 81 → 243
+
+<video src="gallery/zoom_tower.mp4" autoplay loop muted playsinline width="100%"></video>
+
+<sub>**zoom_tower.mp4** (1920×1080, 30 fps, H.264) and **zoom_tower.gif**. A continuous camera path from
+the full cascade into the period-3 window's central branch. Inside that branch it finds the miniature's own
+period-3 window (period 9 overall), then period 27, 81 and 243. **Every frame is an independent full-GD computation**
+(1 920 η per frame, 30 000 burn-in, up to 300 000 iterates), not a magnified image. The on-screen text gives η range,
+P range and cumulative zoom factor; the deepest frame is ≈ ×2·10⁸ in η. Strip: λ of the oscillating mode.
+**Declared:** ease-in/out camera path, log tone with ±15-frame temporally smoothed percentiles, fire palette.</sub>
+
+<img src="gallery/tower_plates.png" width="100%">
+
+<sub>**tower_plates.png** (and `tower_plates_paper.png`). The same tower as stills. Each plate is a fresh full-GD computation (2 400 η, up to 400 000 iterates) of the red rectangle in the previous plate. `zoom_keyframes.png` holds the film's keyframes.</sub>
+
+**The self-similarity is measured, not only seen.** Superstable parameters $s_m$ of the nested period-$3^m$
+windows were computed in IEEE quad precision (Floquet multiplier = 0, found by bisection with Newton continuation).
+The ratios of successive gaps are
+
+| | $(s_2-s_1)/(s_3-s_2)$ | $(s_3-s_2)/(s_4-s_3)$ | $(s_4-s_3)/(s_5-s_4)$ |
+|---|---|---|---|
+| GD, k = 4 (balanced-line map) | 59.50 | 54.99 | **55.265** |
+| logistic map, same code | 55.14 | **55.268** | |
+
+Both converge to the universal period-tripling scaling constant for quadratic maps (≈ 55.25). The nested
+windows really are renormalised copies.
+
+## 3. Shrimps: the two-parameter version (extra system: cyclic step size)
+
+With a two-value cyclic step size, the one-parameter cascade becomes a plane (η_A, η_B). The periodic
+windows turn into **shrimps**: swallow-shaped islands of periodic behaviour in a chaotic sea, each with a head,
+a body carrying its own period-doubling cascade, and long legs that are decorated with smaller shrimps. This is
+the parameter-plane structure named by Gallas (PRL 70, 2714, 1993) for the Hénon map and since found in many
+dissipative maps. It is the Markus–Lyapunov construction applied to a learning-rate schedule. All panels
+use the exact balanced-line sub-dynamics u ← u − η_t (u⁴ − 1) u³, iterated 1 500 burn-in + 3 000 steps in float64 on GPU.
+Each panel re-ran 4 000 random pixels with the full 4-coordinate GD (maximal exponent by tangent propagation):
+
+<table><tr>
+<td><img src="gallery/lyapplane_AB_spectral.png" width="100%"><br><sub>×1, AB. Full-GD check: sign agrees 92.5%.</sub></td>
+<td><img src="gallery/lyapplane_AB_shrimp10_spectral.png" width="100%"><br><sub>×10 on the central shrimp. Sign agrees 99.8%.</sub></td>
+<td><img src="gallery/lyapplane_AB_leg100_spectral.png" width="100%"><br><sub>×100 along its leg: a row of smaller shrimps. 99.2%.</sub></td>
+</tr><tr>
+<td><img src="gallery/lyapplane_AB_leg400_spectral.png" width="100%"><br><sub>×400: shrimps with smaller shrimps on their legs. Sign agrees 98.7%.</sub></td>
+<td><img src="gallery/lyapplane_AB_leg4000_spectral.png" width="100%"><br><sub>×4 000 on a leg shrimp. Sign agrees 96.5%.</sub></td>
+<td><img src="gallery/lyapplane_AB_shrimp100_spectral.png" width="100%"><br><sub>×100 on the crossing of two legs. The diagonal sheets are coexisting attractors picked by the fixed start u₀ = 1.0001. Here the reduction is <b>not</b> faithful: full-GD sign agreement is only 87%.</sub></td>
+</tr></table>
+
+| | |
+|---|---|
+| <img src="gallery/lyapplane_AABAB_spectral.png" width="100%"> | **lyapplane_AABAB_spectral / _dark / _paper**. Schedule A, A, B, A, B over [0.45, 1]², 2048². Full-GD check: sign agrees 98.9%, and |Δλ| < 0.05 on 97.4% of chaotic pixels. `_dark` uses the Markus–Lyapunov gold/black/blue convention; `_paper` is single ink with coverage tanh|λ|, so superstable curves draw themselves. The hairline marks η_A = η_B, where the plane reduces to the constant-step cascade. |
+| <img src="gallery/lyapplane_AABAB_zoom_spectral.png" width="100%"> | **lyapplane_AABAB_zoom_spectral / _dark / _paper**. ×23 zoom, 2048²; full-GD sign agreement 99.4%. `lyapplane_AABAB_bird_spectral.png` zooms a further ×16 into a small swallowtail on its left edge. |
+| <img src="gallery/lyapplane_AB_dark.png" width="100%"> | **lyapplane_AB_dark / _paper**. The AB plane in the gold/blue convention. It is not symmetric under A↔B in the stable region, because the fixed start chooses between coexisting attractors depending on which step comes first. |
+
+I did not measure the scaling ratios of the shrimps. The self-similarity claim here is visual (shrimps on legs
+at ×100, ×400 and ×4 000), unlike the tower in §2b, where it is measured.
+
+## 4. Initialisation basin maps (Zhu et al.'s fractal boundary)
+
+GD on ½(1 − xyzw)² with z = x, w = y, at η = 0.2, which is exactly the reduced map of Zhu et al. eq. (2).
+Each pixel is one initialisation (x₀, y₀), run for 10 000 steps in float64.
+
+| | | |
+|---|---|---|
+| <img src="gallery/basin_wide_dark.png" width="100%"> | <img src="gallery/basin_wide_paper.png" width="100%"> | <img src="gallery/basin_wide_riso.png" width="100%"> |
+| **basin_wide_dark**, (x₀, y₀) ∈ [0, 3.8]², 4096². Blue ramp: log steps to loss < 10⁻¹² (converged). Fire: smooth escape value ν = t_esc − log(log r / log 10³)/log 7 (diverged). | **basin_wide_paper**. Single ink: the converge/diverge boundary only, over a faint tint of the converged set. | **basin_wide_riso**. Two inks, stochastic screens: blue density ∝ convergence time, pink density ∝ escape value. |
+| <img src="gallery/basin_z1_dark.png" width="100%"> | <img src="gallery/basin_z1_paper.png" width="100%"> | <img src="gallery/basin_z2_paper.png" width="100%"> |
+| **basin_z1_dark**, [3.0, 3.4] × [0.1, 0.5] (Zhu et al. Fig. 6a), ×9.5. | **basin_z1_paper**. Boundary line drawing. | **basin_z2_paper**, [3.29375, 3.30] × [0.30625, 0.3125], ×608: the boundary is a stack of parallel stripes, locally a Cantor set × a curve. |
+
+<img src="gallery/plate_basin_verification.png" width="100%">
+
+<sub>**plate_basin_verification.png**. Fractals-doc §11 panel: zoom sequence, box counting, resolution
+check, null model, positive control, and 1-D transects.</sub>
+
+| | | |
+|---|---|---|
+| <img src="gallery/basin_wide_spectral.png" width="100%"> | <img src="gallery/basin_z1_spectral.png" width="100%"> | <img src="gallery/basin_z2_spectral.png" width="100%"> |
+| **basin_wide_spectral**. **Declared style:** Sohl-Dickstein Spectral split. Converged runs are ranked by convergence speed (purple at the boundary → yellow), diverged runs by escape speed (deep red at the boundary → yellow). This is the direct analogue of his trainability plots, with initialisations instead of hyperparameters. | **basin_z1_spectral**, the bottom-right tassel (×9.5), where the fractal fringe lives. | **basin_z2_spectral**, ×608 inside it. Box-counting numbers are on `plate_basin_verification.png` and in §7. |
+
+Riso variants: `basin_wide_riso.png`, `basin_z1_riso.png`, `basin_z2_riso.png` (blue ink density ∝ convergence time, pink ∝ escape value, stochastic screens). In the dark and Spectral versions, the fine contour texture inside the converged region shows level sets of *integer* convergence-step counts. It is real, but quantised.
+
+## 5. The cascade in other styles
+
+<img src="gallery/hero_dark_fire.png" width="100%">
+
+<sub>**hero_dark_fire.png** (8000×2000). GD on f(x) = ½(x₁x₂x₃x₄ − 1)² with all four coordinates, float64.
+16 000 step sizes η ∈ [0.48, 0.99], 20 000 burn-in steps, then 8 192 iterates per η. Horizontal: η.
+Vertical: the network output P = x₁x₂x₃x₄. Brightness is the log count of visited iterates per pixel.
+**Declared choices:** the tone ceiling is the 99.7th percentile of the chaotic band, so only caustic folds
+reach white; strokes in periodic columns are widened to 5 px so the period-1/2/4 branches survive at print
+scale; the palette is colorcet `fire`.</sub>
+
+---
 
 <img src="gallery/hero_riso_lyapunov.png" width="100%">
 
@@ -63,50 +177,16 @@ doubling splits the hue circle in half, the next doubling splits each half again
 tree becomes coloured ribbons. The colour survives into the 4-band and 2-band chaotic regimes (the attractor
 still visits bands in order) and turns grey exactly where the bands merge. Brightness is density.</sub>
 
-## 3. Self-similarity, the centrepiece
+| | |
+|---|---|
+| <img src="gallery/hero_dark_fire_full.png" width="100%"> | **hero_dark_fire_full.png**. Honest full range η ∈ [0.45, 0.99], including the converged regime and the first doubling at η = 0.5. |
+| <img src="gallery/hero_paper_ink.png" width="100%"> | **hero_paper_ink.png**. Single ink on paper: ink coverage is the log density. Plotter/survey-sheet idiom. |
+| <img src="gallery/hero_phase_braid.png" width="100%"> | **hero_phase_braid.png**. Full range with bit-reversed phase hue. Colour is confined to the pre-merging region because phase carries no meaning in fully mixed chaos. |
+| <img src="gallery/plate_scientific_prod4.png" width="100%"> | **plate_scientific_prod4.png**. Scientific plate over the full range η ∈ [0.45, 1.21]. Rule line η* = 2/s_min; dashed line at the *wrong* rule 2/s_GF(x₀); Newton–Floquet η₂, η₃, η∞; window periods; the δ_n table; the Lyapunov strip (grey fill: oscillating mode; red: max exponent of the full 4-D map). Past η ≈ 0.99 the band touches P = 0, the degenerate stationary point x = 0, and the attractor becomes intermittent (sparse bursts). |
 
-### 3a. Window atlas: every window is a copy of the whole
+## 6. Universality, other systems, and the onset rule
 
-<img src="gallery/atlas_dark.png" width="100%">
-
-<sub>**atlas_dark.png**. An automatic detector scanned 400 000 η values in [η∞, 0.99] (balanced-line map, period
-≤ 256 at tolerance 1e−7). For each base period 3 … 16 it picked the widest window, then **recomputed every
-plate with the full 4-coordinate GD** (4 800 η per plate, 30 000 burn-in, up to 60 000 iterates). Each
-plate zooms into the branch nearest the map's critical point. Zoom factors run from ×21 (p = 3) to ×28 409
-(p = 13) in η. Each plate shows a saddle-node birth, then 2, 4, 8, …, chaos, internal windows, and a crisis.
-Copies on orientation-reversing branches appear upside down (p = 6, 8, 9, 10, 14, 16). Strip: λ of the
-oscillating mode with sign-preserving √ compression (declared). Variants: `atlas_dark_byzoom.png` (ordered by
-zoom factor), `atlas_paper.png` (single ink), `gallery/atlas/pXX.png` (full-resolution individual plates with
-coordinates).</sub>
-
-### 3b. Nested zoom: period 3 → 9 → 27 → 81 → 243
-
-<video src="gallery/zoom_tower.mp4" autoplay loop muted playsinline width="100%"></video>
-
-<sub>**zoom_tower.mp4** (1920×1080, 30 fps, H.264) and **zoom_tower.gif**. A continuous camera path from
-the full cascade into the period-3 window's central branch. Inside that branch it finds the miniature's own
-period-3 window (period 9 overall), then period 27, 81 and 243. **Every frame is an independent full-GD computation**
-(1 920 η per frame, 30 000 burn-in, up to 300 000 iterates), not a magnified image. The on-screen text gives η range,
-P range and cumulative zoom factor; the deepest frame is ≈ ×2·10⁸ in η. Strip: λ of the oscillating mode.
-**Declared:** ease-in/out camera path, log tone with ±15-frame temporally smoothed percentiles, fire palette.</sub>
-
-<img src="gallery/tower_plates.png" width="100%">
-
-<sub>**tower_plates.png**. The keyframes of the film as a plate sequence (full → p3 → p9 → p27 → p81 → p243).</sub>
-
-**The self-similarity is measured, not only seen.** Superstable parameters $s_m$ of the nested period-$3^m$
-windows were computed in IEEE quad precision (Floquet multiplier = 0, found by bisection with Newton continuation).
-The ratios of successive gaps are
-
-| | $(s_2-s_1)/(s_3-s_2)$ | $(s_3-s_2)/(s_4-s_3)$ | $(s_4-s_3)/(s_5-s_4)$ |
-|---|---|---|---|
-| GD, k = 4 (balanced-line map) | 59.50 | 54.99 | **55.265** |
-| logistic map, same code | 55.14 | **55.268** | |
-
-Both converge to the universal period-tripling scaling constant for quadratic maps (≈ 55.25). The nested
-windows really are renormalised copies.
-
-### 3c. Universality overprint
+### Universality overprint
 
 <img src="gallery/universality_riso.png" width="100%">
 
@@ -117,17 +197,6 @@ critical point| per column. 8 000 η, 120 000 burn-in, 2 048 iterates per η. Th
 n = 2 on. The branch heights differ at small n and approach each other to the right. **Declared:** both axis
 transforms, 7-px minimum stroke, inks, misregistration.</sub>
 
-## 4. Gallery
-
-### Cascade, other styles
-
-| | |
-|---|---|
-| <img src="gallery/hero_dark_fire_full.png" width="100%"> | **hero_dark_fire_full.png**. Honest full range η ∈ [0.45, 0.99], including the converged regime and the first doubling at η = 0.5. |
-| <img src="gallery/hero_paper_ink.png" width="100%"> | **hero_paper_ink.png**. Single ink on paper: ink coverage is the log density. Plotter/survey-sheet idiom. |
-| <img src="gallery/hero_phase_braid.png" width="100%"> | **hero_phase_braid.png**. Full range with bit-reversed phase hue. Colour is confined to the pre-merging region because phase carries no meaning in fully mixed chaos. |
-| <img src="gallery/plate_scientific_prod4.png" width="100%"> | **plate_scientific_prod4.png**. Scientific plate over the full range η ∈ [0.45, 1.21]. Rule line η* = 2/s_min; dashed line at the *wrong* rule 2/s_GF(x₀); Newton–Floquet η₂, η₃, η∞; window periods; the δ_n table; the Lyapunov strip (grey fill: oscillating mode; red: max exponent of the full 4-D map). Past η ≈ 0.99 the band touches P = 0, the degenerate stationary point x = 0, and the attractor becomes intermittent (sparse bursts). |
-
 ### One pipeline, four systems
 
 <img src="gallery/systems_dark.png" width="100%">
@@ -137,7 +206,7 @@ transforms, 7-px minimum stroke, inks, misregistration.</sub>
 target singular values 10, 6, 3 (Ghosh et al. App. B.1, with the ½). The DLN is shown from their aligned init and
 from a random Gaussian init. DLN vertical: $c_i=u_i^{*\top}W_3W_2W_1v_i^{*}$ (orange: mode 1, the dim line at
 6: mode 2). Red hairlines mark the onset rule. The DLN's black gap from η ≈ 0.0435 to 0.057 is a real
-result, not missing data (see §6).</sub>
+result, not missing data (see §8, surprises).</sub>
 
 <img src="gallery/overlay_inits_dark.png" width="100%">
 
@@ -154,33 +223,8 @@ k = 4), and it converges to 1 for every init as T grows (0.9989 at 10⁵; the re
 Neither alternative rule matches: 2/λ_max(x₀) (grey ticks) and 2/sharpness of the minimum gradient flow would
 reach from x₀ (red ticks).</sub>
 
-### Initialisation basin maps (Zhu et al.'s fractal boundary)
 
-GD on ½(1 − xyzw)² with z = x, w = y, at η = 0.2, which is exactly the reduced map of Zhu et al. eq. (2).
-Each pixel is one initialisation (x₀, y₀), run for 10 000 steps in float64.
-
-| | | |
-|---|---|---|
-| <img src="gallery/basin_wide_dark.png" width="100%"> | <img src="gallery/basin_wide_paper.png" width="100%"> | <img src="gallery/basin_wide_riso.png" width="100%"> |
-| **basin_wide_dark**, (x₀, y₀) ∈ [0, 3.8]², 4096². Blue ramp: log steps to loss < 10⁻¹² (converged). Fire: smooth escape value ν = t_esc − log(log r / log 10³)/log 7 (diverged). | **basin_wide_paper**. Single ink: the converge/diverge boundary only, over a faint tint of the converged set. | **basin_wide_riso**. Two inks, stochastic screens: blue density ∝ convergence time, pink density ∝ escape value. |
-| <img src="gallery/basin_z1_dark.png" width="100%"> | <img src="gallery/basin_z1_paper.png" width="100%"> | <img src="gallery/basin_z2_paper.png" width="100%"> |
-| **basin_z1_dark**, [3.0, 3.4] × [0.1, 0.5] (Zhu et al. Fig. 6a), ×9.5. | **basin_z1_paper**. Boundary line drawing. | **basin_z2_paper**, [3.29375, 3.30] × [0.30625, 0.3125], ×608: the boundary is a stack of parallel stripes, locally a Cantor set × a curve. |
-
-<img src="gallery/plate_basin_verification.png" width="100%">
-
-<sub>**plate_basin_verification.png**. Fractals-doc §11 panel: zoom sequence, box counting, resolution
-check, null model, positive control, and 1-D transects.</sub>
-
-### Extra pieces: cyclic learning-rate Lyapunov planes
-
-| | |
-|---|---|
-| <img src="gallery/lyapplane_AABAB_dark.png" width="100%"> | **lyapplane_AABAB_dark.png**. GD on ½(x₁x₂x₃x₄ − 1)² with the cyclic step-size schedule A, A, B, A, B, … Each pixel (η_A, η_B) ∈ [0.45, 1]² gives λ of the oscillating mode (2048², 1 500 burn-in + 3 000 steps, balanced-line sub-dynamics). A random sample of 4 000 pixels re-run with full 4-D GD: sign of λ agrees on 98.9%, and |Δλ| < 0.05 on 97.4% of chaotic pixels. **Declared:** gold λ<0 / black 0 / blue λ>0 (the Markus–Lyapunov convention). The diagonal η_A = η_B is the constant-step Lyapunov strip. |
-| <img src="gallery/lyapplane_AABAB_paper.png" width="100%"> | **lyapplane_AABAB_paper.png**. Single ink, coverage tanh|λ| for λ<0, so superstable curves (λ → −∞) draw themselves as dark lines. |
-| <img src="gallery/lyapplane_AB_dark.png" width="100%"> | **lyapplane_AB_dark.png**. Schedule A, B, A, B. Full-GD check: sign agrees on 92.5%. Not symmetric under A↔B, because the fixed start u₀ = 1.0001 chooses between coexisting attractors differently depending on which step comes first. |
-| <img src="gallery/lyapplane_AABAB_zoom_dark.png" width="100%"> | **lyapplane_AABAB_zoom_dark.png**. Zoom ×23 on an isolated periodic island inside the chaotic sea: a "swallow/shrimp" with its own satellites. |
-
-## 5. What was computed
+## 7. What was computed
 
 All dynamics are float64 unless marked quad. Scalar systems ran on CPU (numpy); DLN on CPU (torch); basin maps
 and transects on the GPU (torch).
@@ -238,16 +282,16 @@ $PY render_basins.py wideT z1T z2T; $PY render_basin_plate.py; $PY render_lyappl
 
 Shared code lives in `common.py` (torch maps, DLN), `npmaps.py` (numpy maps, analytic Jacobians and tangent maps)
 and `render_lib.py`. Gradients and Hessians were unit-tested against autograd (max error 3e−15).
-Wall time was roughly 3.5 h on a heavily shared machine (load average 30–50 on 20 cores). **GPU: ≈ 1.3 GPU-hours**
-(basin maps 57 min, transects TBD); everything else ran on CPU.
+Wall time was roughly 4.5 h on a heavily shared machine (load average 30–50 on 20 cores). **GPU: ≈ 1.3 GPU-hours**
+(basin maps 74 min, transects 4 min, Lyapunov planes ≈ 20 min); everything else ran on CPU.
 
-## 6. Verification and honesty
+## 8. Verification and honesty
 
 ### Did the cascade appear, and where does it start?
 Yes, in all three systems. **k = 4:** the Floquet multiplier of the balanced fixed point reaches −1 at
 η = 0.5000000000 (bisection on the numerical Jacobian), which is 2/s_min. Simulation bisection from the
 declared init gives 0.49965 after 2·10⁵ steps; the offset is critical slowing down, and it shrinks with T. **k = 2:** 1.0000000000.
-**DLN:** simulation bisection from a random init gives 0.030944 (T = 2·10⁵) against the rule
+**DLN:** simulation bisection from a random init gives 0.030931 (T = 2·10⁵; −4·10⁻⁴ relative, critical slowing) against the rule
 2/(Lσ₁^{2−2/L}) = 0.0309439.
 
 ### Feigenbaum δ (Newton–Floquet bisection; ± is |float64 − quad| propagated)
@@ -261,8 +305,7 @@ declared init gives 0.49965 after 2·10⁵ steps; the offset is critical slowing
 | δ₈ | 4.66920 | 4.66919 | 4.66918 | 4.66918 |
 | δ₁₂ | 4.66920 ± 1e−6 | 4.66921 ± 3e−6 | 4.66920 ± 5e−6 | 4.66921 ± 6e−6 (1-D), 4.66920 ± 7e−8 (δ₁₀, full 4-D) |
 
-- The first ratios are **not** universal. They depend on k and differ from the logistic map's, and δ_n converges from below
-  for GD but from above for the logistic map. By n ≈ 8 all four agree with δ = 4.669201.
+- The first ratios are **not** universal. They depend on k and differ from the logistic map's, and δ₂ starts below 4.669 for GD (4.34–4.54) but above it for the logistic map (4.75). By n ≈ 8 all four agree with δ = 4.669201.
 - The full 2-D/4-D GD bifurcation points match the 1-D balanced-map points to ≤ 6·10⁻¹⁵. This is the test of "effectively 1-D":
   the periodic orbits lie on the balanced line and their transverse multipliers stay inside the unit circle. The
   transverse exponent (exact imbalance multiplier) is ≤ −0.01 throughout η ∈ [0.66, 0.99] for k = 4, and ≤ −0.11 for k = 2.
@@ -289,7 +332,7 @@ declared init gives 0.49965 after 2·10⁵ steps; the offset is critical slowing
 3. **"The onset depends on the init"** holds only at finite time. At T = 10² the measured onset for k = 4 ranges over
    0.31 … 0.91 × (2/k). At T = 10⁵ it is 0.9984 … 0.9989 for all 49 inits. What does depend on the init is *whether* the
    attractor is reached (the overlay's bounded-fraction strip).
-4. Among the other Lyapunov-plane patterns I looked at, AB is less intricate than AABAB.
+4. **The cyclic-schedule planes are not all reduction-faithful.** Where two shrimp legs cross (×100 panel), coexisting attractors produce sheet-like interleaving, and full GD agrees in sign with the reduction on only 87% of pixels.
 
 ### Basin boundary: §11 protocol
 | test | Zhu degree-4, z1 region (×9.5) | Zhu degree-4, z2 region (×608) | null: ½(xy−1)² | analytic ellipse (render null) | positive control: L&M reg. |
@@ -306,7 +349,7 @@ declared init gives 0.49965 after 2·10⁵ steps; the offset is critical slowing
   at every refinement down to 8192² of a 0.00625-wide box (pixel 7.6e−7). Float64 is nowhere near its floor at that scale.
 - **Structure:** at ×608 the boundary is a stack of nearly parallel stripes, locally (Cantor set) × (curve). That is the
   classic geometry of a basin boundary formed by the stable manifold of a chaotic saddle. The 1-D transects measure the
-  Cantor factor directly: TBD.
+  Cantor factor directly: on 2²² points per segment at three nested scales (L = 0.4, 4·10⁻³, 4·10⁻⁵; ε down to 1.9·10⁻¹¹), D₁ = 0.70, 0.68, 0.63, giving 1 + D₁ ≈ 1.63–1.70. **Caveat:** the local slopes are not flat. They rise from ≈ 0.3 at the finest ε to ≈ 0.77 at the coarsest, so this is not a clean single power law. The finest scales are probably limited by the 10⁴-step horizon, since points extremely close to the boundary need longer to declare. I report the 2-D value D ≈ 1.72–1.74 as the headline and the transect as consistent but curved.
 - **Honest caveat:** the fractal fringe occupies only small parts of the plane (the lobes near (3.2, 0.3) and
   (0.3, 3.2)). Most of the converge/diverge boundary in the wide view is smooth. "Fractal" applies to the fringe.
 
@@ -316,7 +359,7 @@ declared init gives 0.49965 after 2·10⁵ steps; the offset is critical slowing
 - Feigenbaum points: float64 and quad differ by ≤ 8·10⁻¹⁵, which caps useful n at about 13 (η₁₃ − η₁₂ ≈ 1e−11).
 - Basins: float64 throughout. The smallest boundary pixel is 7.6·10⁻⁷, and the transects reach 1e−11.
 
-## 7. Caveats
+## 9. Caveats
 - **This is iteration near an instability, not a deep-learning secret.** The cascade here is the Feigenbaum cascade of a
   1-D unimodal map that GD on a product of scalars happens to *be* on its invariant balanced line. That is exactly
   why δ is universal. Blind spot 1 of the fractals doc applies literally: "this is what iteration near an instability
@@ -335,14 +378,14 @@ declared init gives 0.49965 after 2·10⁵ steps; the offset is critical slowing
 - The Lyapunov planes use the balanced-line sub-dynamics (checked against full GD on 4 000 random pixels). They are not
   full-GD rasters.
 
-## 8. Ideas explored / not pursued
+## 10. Ideas explored / not pursued
 Brainstormed (★ = built):
-1. ★ **Window atlas.** Auto-detect windows and plate each one (§3a). This became the centrepiece.
+1. ★ **Window atlas.** Auto-detect windows and plate each one (§2a). This became the centrepiece.
 2. ★ **Cyclic step-size Lyapunov plane** (η_A × η_B, Markus–Lyapunov construction). A learning-rate schedule
-   with two values gives a 2-D parameter plane with swallows and shrimps (§4).
-3. ★ **Universality overprint** of the logistic map and GD in two inks (§3c).
+   with two values gives a 2-D parameter plane with swallows and shrimps (§3), with a shrimp zoom sequence to ×4 000 and 6144² axis-free Spectral prints. A continuous shrimp zoom film was scripted (`compute_shrimpfilm.py`) but not rendered, because the run was stopped to save budget.
+3. ★ **Universality overprint** of the logistic map and GD in two inks (§6).
 4. ★ **Phase braid.** Colour each iterate by its (bit-reversed) phase (orchestrator suggestion).
-5. ★ **Nested tower zoom** with measured tripling constant (§3b).
+5. ★ **Nested tower zoom** with measured tripling constant (§2b).
 6. *Not pursued:* stacked plotter drawing of the attractor in (x₁, x₂) for successive η. On the balanced line
    x₁ = x₂, so every orbit lies on the diagonal and the drawing would be a set of dots on one line.
 7. *Not pursued:* cobweb of an effective return map sharpness_t → sharpness_{t+1}. The exact return map is the
@@ -352,11 +395,11 @@ Brainstormed (★ = built):
 9. *Not pursued:* η × init-imbalance plane. The attractor is init-independent past η*, so the plane would mainly
    show basin holes, which the overlays already show.
 
-## 9. Files over 20 MB (not committed)
-Listed by `commit.sh` at commit time: none of the final gallery files after the grain change (TBD: recheck).
+## 11. Files over 20 MB (not committed)
+These exist locally but are not committed (regenerate with the render commands): `print_lyapplane_AB_big_spectral.png` (39 MB), `print_lyapplane_AABAB_zoombig_spectral.png` (57 MB), `basin_z1_dark.png` (25 MB), `basin_z2_dark.png` (23 MB), `basin_z1_spectral.png` (27 MB), `basin_z2_spectral.png` (24 MB). Grain-like fine structure makes lossless PNGs of these incompressible.
 `cache/` is git-ignored (≈ 5 GB of raw arrays).
 
-## 10. References
+## 12. References
 - X. Zhu, Z. Wang, X. Wang, M. Zhou, R. Ge. *Understanding Edge-of-Stability Training Dynamics with a Minimalist Example.* ICLR 2023, arXiv:2210.03294.
   **Checked:** the objective is ½(1 − xyzw)² with symmetric init z = x, w = y. §5 / Fig. 6a shows a fractal-looking converge/diverge
   boundary at η = 0.2 in [3.0, 3.4] × [0.1, 0.5], and trajectories near it oscillate chaotically before settling onto the two-step
