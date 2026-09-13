@@ -91,7 +91,7 @@ def neighbour_count_curve(X, radii, n_centres=500, device="cuda", seed=0):
     counts = torch.zeros(len(radii), dtype=torch.float64, device=device)
     for s in range(0, len(idx), 64):
         d = torch.cdist(C[s:s + 64], Xt)  # (c, n)
-        counts += (d[:, :, None] <= rr[None, None, :]).sum(1).sum(0).double() - 1.0
+        counts += (d[:, :, None] <= rr[None, None, :]).sum(1).sum(0).double() - d.shape[0]  # remove self per centre
     return (counts / len(idx)).cpu().numpy()
 
 
