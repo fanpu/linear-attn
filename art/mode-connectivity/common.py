@@ -88,13 +88,58 @@ def mlp_forward(p, x, return_pre=False):
 
 
 @torch.no_grad()
-def mlp_eval(p, X, y, bs=20000):
+def mlp_eval_single(p, X, y, bs=20000):
     tot_loss, correct = 0., 0
     for i in range(0, len(X), bs):
         out = mlp_forward(p, X[i:i + bs])
         tot_loss += F.cross_entropy(out.double(), y[i:i + bs], reduction='sum').item()
         correct += (out.argmax(1) == y[i:i + bs]).sum().item()
     return tot_loss / len(X), correct / len(X)
+
+
+def stack_params(plist):
+    return {k: torch.stack([p[k] for p in plist]) for k in plist[0]}
+
+
+@torch.no_grad()
+def eval_stack(Ws, X, y, max_elems=2.4e8, per_class=False):
+    """Evaluate G parameter sets at once (dict of [G,...] tensors) with baddbmm.
+    Returns (mean CE loss [G], accuracy [G]) as float64 numpy; loss summed in float64."""
+    L = len([k for k in Ws if k.startswith('W')]) - 1
+    G = Ws['W0'].shape[0]
+    width = max(Ws['W0'].shape[1], X.shape[1])
+    nb = int(max(500, min(len(X), max_elems // (G * width))))
+    tot = torch.zeros(G, device=X.device, dtype=torch.float64)
+    cor = torch.zeros(G, device=X.device, dtype=torch.float64)
+    cls = torch.zeros(G, 10, device=X.device, dtype=torch.float64)
+    for i in range(0, len(X), nb):
+        h = X[i:i + nb][None].expand(G, -1, -1)
+        for l in range(L + 1):
+            h = torch.baddbmm(Ws[f'b{l}'][:, None, :], h, Ws[f'W{l}'].transpose(1, 2))
+            if l < L:
+                h = F.relu(h)
+        yy = y[i:i + nb]
+        ce = F.cross_entropy(h.transpose(1, 2).double(), yy[None].expand(G, -1), reduction='none')
+        tot += ce.sum(1)
+        cor += (h.argmax(2) == yy[None]).sum(1).double()
+        if per_class:
+            cls.index_add_(1, yy, ce)
+    if per_class:  # per-class loss contribution: sums over classes to the mean loss
+        return (tot / len(X)).cpu().numpy(), (cor / len(X)).cpu().numpy(), (cls / len(X)).cpu().numpy()
+    return (tot / len(X)).cpu().numpy(), (cor / len(X)).cpu().numpy()
+
+
+def eval_list(plist, X, y, G=16, per_class=False):
+    """Evaluate a list of param dicts in groups of G. Returns (loss[n], acc[n]) (+ per-class [n,10])."""
+    R = []
+    for s in range(0, len(plist), G):
+        R.append(eval_stack(stack_params(plist[s:s + G]), X, y, per_class=per_class))
+    return tuple(np.concatenate([r[i] for r in R]) for i in range(len(R[0])))
+
+
+def mlp_eval(p, X, y):
+    l, a = eval_stack({k: v[None] for k, v in p.items()}, X, y)
+    return float(l[0]), float(a[0])
 
 
 def train_mlp(data, width, seed, epochs=30, bs=512, lr=1e-3, ckpt_epochs=None, log=None):
@@ -155,7 +200,7 @@ def mlp_apply_perm(p, perms):
     return q
 
 
-def mlp_weight_matching(pA, pB, max_iter=100, seed=0, verbose=False):
+def mlp_weight_matching(pA, pB, max_iter=100, seed=0, verbose=False, history=None):
     """Git Re-Basin Algorithm 1 (weight matching), coordinate descent over hidden layers.
     Each step solves one linear assignment problem exactly (Hungarian / LAPJV via scipy)."""
     L = mlp_depth(pA)
@@ -164,7 +209,7 @@ def mlp_weight_matching(pA, pB, max_iter=100, seed=0, verbose=False):
     widths = [A[f'b{l}'].shape[0] for l in range(L)]
     perms = [np.arange(w) for w in widths]
     rng = np.random.default_rng(seed)
-    history = []
+    obj_hist = []
     for it in range(max_iter):
         improved = False
         for l in rng.permutation(L):
@@ -183,9 +228,11 @@ def mlp_weight_matching(pA, pB, max_iter=100, seed=0, verbose=False):
             if new > old + 1e-12 * abs(old) + 1e-9:
                 improved = True
                 perms[l] = col
-            history.append(float(max(new, old)))
+            obj_hist.append(float(max(new, old)))
+        if history is not None:
+            history.append(([np.array(q) for q in perms], obj_hist[-1]))
         if verbose:
-            print(f'    WM iter {it}: obj {history[-1]:.4f}')
+            print(f'    WM iter {it}: obj {obj_hist[-1]:.4f}')
         if not improved:
             break
     return perms, it + 1
