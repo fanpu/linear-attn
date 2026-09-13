@@ -61,22 +61,41 @@ meta = json.load(open(meta_path)) if os.path.exists(meta_path) else dict(args=va
 c0, c1, hw = args.c0, args.c1, args.hw
 
 
+def coherent_labels(M, min_size=6):
+    """Phase labels with dust removed (connected components smaller than min_size px of
+    either phase flipped). Used ONLY for choosing zoom targets, never for rendering."""
+    from scipy import ndimage
+    L = M < 0
+    for ph in (True, False):
+        mask = L if ph else ~L
+        lab, nlab = ndimage.label(mask)
+        if nlab == 0:
+            continue
+        sizes = np.bincount(lab.ravel())
+        small = (sizes < min_size); small[0] = False
+        L = L ^ small[lab]
+    return L
+
+
 def choose_next(M, hw, c0, c1):
-    E = edges(M)                              # (R-1, R-1)
-    conv = M < 0
-    s = int(round(R * ratio))                 # sub-window size in px
+    """Greedy target: the next-size sub-window with the most occupied 4-px boxes of
+    *coherent* boundary (dust removed), both phases >= 15% of the sub-window, with a mild
+    preference for staying central. (v1 counted raw edges and walked into a region of
+    isolated diverged 'dust' pixels at eta0 ~ 1e5.5; kept as a documented negative.)"""
+    L = coherent_labels(M)
+    E = edges(np.where(L, -1.0, 1.0))
+    s = int(round(R * ratio))
     ncand = 13
     best = None
     for iy in np.linspace(0, R - s, ncand).astype(int):
         for ix in np.linspace(0, R - s, ncand).astype(int):
             e = E[iy:iy + s - 1, ix:ix + s - 1]
-            fc = conv[iy:iy + s, ix:ix + s].mean()
-            if min(fc, 1 - fc) < 0.10:
+            fc = L[iy:iy + s, ix:ix + s].mean()
+            if min(fc, 1 - fc) < 0.15:
                 continue
             b = 4
             hh = (e.shape[0] // b) * b
             occ = e[:hh, :hh].reshape(hh // b, b, hh // b, b).any(axis=(1, 3)).sum()
-            # mild preference for staying central (smoother camera path)
             dist = math.hypot(ix + s / 2 - R / 2, iy + s / 2 - R / 2) / R
             score = occ * (1.0 - 0.3 * dist)
             if best is None or score > best[0]:
@@ -84,7 +103,6 @@ def choose_next(M, hw, c0, c1):
     if best is None:
         return c0, c1, None
     _, ix, iy = best
-    # pixel-centre coordinates -> log offsets
     px = 2 * hw / R
     nc0 = c0 - hw + (ix + s / 2) * px
     nc1 = c1 - hw + (iy + s / 2) * px
@@ -116,6 +134,7 @@ for k in range(K):
         print(f'[{k}] c=({c0:.15f},{c1:.15f}) hw={hw:.3e} conv={np.mean(M<0):.3f} '
               f'edge_frac={fe:.4f} rel_sp={rel_sp:.2e} {dt:.0f}s ({R*R/dt:.0f} px/s)', flush=True)
     entry = dict(k=k, c0=c0, c1=c1, hw=hw, res=R)
+    nc0 = nc1 = None
     if not path:
         nc0, nc1, score = choose_next(M, hw, c0, c1)
         entry['score'] = score
@@ -124,8 +143,14 @@ for k in range(K):
         B = min(64, R)
         e0, e1 = tf.log_grid(c0, c1, hw, R)
         e0 = e0.view(R, R); e1 = e1.view(R, R)
-        y0 = R // 2 - B // 2
-        sl = (slice(y0, y0 + B), slice(y0, y0 + B))
+        if not path and nc0 is not None:
+            # block centred on the chosen next centre (where the boundary is)
+            px = 2 * hw / R
+            cx = int(round((nc0 - (c0 - hw)) / px)); cy = int(round((nc1 - (c1 - hw)) / px))
+        else:
+            cx = cy = R // 2
+        x0 = min(max(cx - B // 2, 0), R - B); y0 = min(max(cy - B // 2, 0), R - B)
+        sl = (slice(y0, y0 + B), slice(x0, x0 + B))
         ulp = 1.0 + 2.0 ** -52
         Mp = tf.run_grid(prob, (e0[sl] * ulp).reshape(-1), (e1[sl] * ulp).reshape(-1),
                          steps=args.steps, minibatch=args.minibatch, verbose=False).reshape(B, B)
