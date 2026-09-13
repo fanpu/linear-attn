@@ -1,6 +1,6 @@
 # Theory posts: progress log
 
-**Status as of 2026-09-13: resumed.** 02, 03 done. 08, 04, 01 running. Queue 05 → 06 → 07 launches as slots free (max 3 agents).
+**Status as of 2026-09-13: resumed.** Wound down (token budget). 02, 03 done. 08, 04, 01 stopped mid-project with `PAUSED.md`. 05, 06, 07 not started.
 
 Each project becomes a blog post, following `_shared/BRIEF.md`. At most 3 agents run at a time.
 
@@ -9,8 +9,8 @@ Each project becomes a blog post, following `_shared/BRIEF.md`. At most 3 agents
 | 2 | `02-implicit-bias/` | **done** | All 4 reproductions match (≤1e-8 where exact). Build-on: Adam with ε>0 leaves L∞ at t× ∝ ln(1/ε) (rate law within 2–4%); Newton–Schulz Muon plateaus at 0.92–0.93 of spectral max-margin. CPU only. |
 | 3 | `03-saxe-dynamics/` | **done** | "The long wait at the saddle". Saxe closed form matched to 3.5e-4·s; attention head has two plateaus scaling s^-0.86 and s^-1.96. 4 animations, 6 figures, 2 widgets. |
 | 8 | `08-icl-linear-attention/` | paused, early | LSA closed-form match done, 1 animation + 1 widget. Left: relaunch task-diversity sweep (OOM'd, now fixed) and DeltaNet depth-2; hero, post, citations. |
-| 4 | `04-lazy-rich-mup/` | running | |
-| 1 | `01-double-descent/` | running | |
+| 4 | `04-lazy-rich-mup/` | paused, early | See `PAUSED.md`. |
+| 1 | `01-double-descent/` | paused, early | See `PAUSED.md`. |
 | 5 | `05-parities-single-index/` | queued | Prompt in `_shared/prompts/`. |
 | 6 | `06-plrf-scaling/` | queued | Prompt in `_shared/prompts/`. |
 | 7 | `07-generalization-bounds/` | queued | Prompt in `_shared/prompts/`. |
