@@ -29,6 +29,11 @@ p.add_argument("--float64", action="store_true")
 p.add_argument("--batch", type=int, default=2500)
 p.add_argument("--tag", required=True)
 p.add_argument("--memfrac", type=float, default=0.10)
+p.add_argument("--shard", type=int, nargs=2, default=[0, 1], metavar=("K", "N"),
+               help="evaluate only points with index %% N == K (output gets a .shardKofN suffix)")
+p.add_argument("--reuse", nargs="*", default=[], help="npz files whose coincident grid points prefill this run")
+p.add_argument("--dirs", default=None, help="torch file with {'dx','dy'} (e.g. PCA directions) instead of random")
+p.add_argument("--center", type=float, nargs=2, default=None, help="for --line: (a,b) offset added to all points")
 args = p.parse_args()
 
 torch.cuda.set_per_process_memory_fraction(args.memfrac)
@@ -36,9 +41,17 @@ dtype = torch.float64 if args.float64 else torch.float32
 os.makedirs(os.path.join(CACHE, "surf"), exist_ok=True)
 ep = "final" if args.epoch is None else f"ep{args.epoch:03d}"
 out = os.path.join(CACHE, "surf", f"{args.model}_{ep}_{args.tag}.npz")
+K, N = args.shard
+if N > 1:
+    out = out.replace(".npz", f".shard{K}of{N}.npz")
+torch.backends.cudnn.benchmark = True
 
 net = load_model(args.model, args.epoch)
-dx, dy = get_directions(net, args.seedx, args.seedy)
+if args.dirs:
+    _d = torch.load(args.dirs)
+    dx = [t.cuda() for t in _d["dx"]]; dy = [t.cuda() for t in _d["dy"]]
+else:
+    dx, dy = get_directions(net, args.seedx, args.seedy)
 xtr, ytr = load_cifar(True, dtype=dtype)
 idx = torch.tensor(fixed_subset(args.n), device="cuda")
 ev = LossEvaluator(net, xtr[idx], ytr[idx], dx, dy, batch=args.batch, dtype=dtype)
@@ -58,6 +71,24 @@ else:
     shape = (ry, args.res)
 
 loss = np.full(len(pts), np.nan); acc = np.full(len(pts), np.nan)
+if args.center:
+    pts = [(a + args.center[0], b + args.center[1]) for a, b in pts]
+    xs, ys = np.array([q[0] for q in pts]), np.array([q[1] for q in pts])
+for rf in args.reuse:  # prefill from coarser grids that share grid points (2D only)
+    if not os.path.exists(rf) or args.line:
+        continue
+    r = np.load(rf); lk = {}
+    for j, bb in enumerate(r["ys"]):
+        for i, aa in enumerate(r["xs"]):
+            if np.isfinite(r["loss"][j, i]):
+                lk[(round(float(aa), 6), round(float(bb), 6))] = (r["loss"][j, i], r["acc"][j, i])
+    hit = 0
+    for k, (a, b) in enumerate(pts):
+        v = lk.get((round(float(a), 6), round(float(b), 6)))
+        if v is not None:
+            loss[k], acc[k] = v; hit += 1
+    print(f"reused {hit} points from {rf}", flush=True)
+todo = np.zeros(len(pts), bool); todo[K::N] = True
 if os.path.exists(out + ".partial.npz"):
     old = np.load(out + ".partial.npz")
     if old["loss"].size == loss.size:
@@ -75,17 +106,17 @@ def dump(path):
 
 
 for k, (a, b) in enumerate(pts):
-    if np.isfinite(loss[k]):
+    if np.isfinite(loss[k]) or not todo[k]:
         continue
     loss[k], acc[k] = ev(a, b)
     if time.time() - last > 60:
         dump(out + ".partial.npz"); last = time.time()
         d = np.isfinite(loss).sum()
         rate = (d - done0) / (time.time() - t0)
-        print(f"{d}/{loss.size}  {rate:.2f} pts/s  eta {(loss.size - d) / max(rate, 1e-9) / 60:.1f} min", flush=True)
+        print(f"{d}/{loss.size} (shard {K}/{N})  {rate:.2f} pts/s  eta {(loss.size - d) / max(rate, 1e-9) / 60:.1f} min", flush=True)
 
 meta["wall_s"] = time.time() - t0
-meta["pts_per_s"] = (loss.size - done0) / max(meta["wall_s"], 1e-9)
+meta["pts_per_s"] = (np.isfinite(loss).sum() - done0) / max(meta["wall_s"], 1e-9)
 dump(out)
 if os.path.exists(out + ".partial.npz"):
     os.remove(out + ".partial.npz")
