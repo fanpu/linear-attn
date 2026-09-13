@@ -21,7 +21,10 @@ for f in glob.glob(os.path.join(CACHE, f"widthmap_widths_N*_s*_D{D}_f32_r{args.r
     m = re.search(r"_N(\d+)_s(\d+)_", f)
     files[(int(m.group(1)), int(m.group(2)))] = f
 Ns = sorted(n for n, s in files if s == 0)
-MF = np.load(os.path.join(CACHE, f"widthmap_mf_D{D}_r{args.res}.npz"))
+MF = dict(np.load(os.path.join(CACHE, f"widthmap_mf_D{D}_r{args.res}.npz")))
+_mft = os.path.join(CACHE, f"widthmap_mf_thit_D{D}_r{args.res}.npz")  # compute_mf_thit.py
+if os.path.exists(_mft):
+    MF["t_hit"] = np.load(_mft)["t_hit"]
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf"
 MONO = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
 
@@ -31,7 +34,7 @@ def fields(Z):
     if "t_hit" in Z:
         mag = np.where(ch, np.log10(np.maximum(L, 1e-300) / args.tau), (D + 1) - Z["t_hit"].astype(float))
     else:
-        mag = np.where(ch, np.log10(np.maximum(L, 1e-300) / args.tau), np.log10(args.tau / np.maximum(L, 1e-300)))
+        mag = np.where(ch, np.log10(np.maximum(L, 1e-300) / args.tau), np.log10(args.tau / np.maximum(L, 1e-16)))  # mean field: saturate at double-precision roundoff
     return L, ch, mag
 
 
@@ -105,17 +108,17 @@ if seed_ns:
     Wf, Hf = 3000, 2600
     fig = fig_px(Wf, Hf, bg="#111014")
     fg = "#e9e4da"
-    fig.text(0.04, 0.975, "Finite Width: three seeds x three widths (Spectral split), and the infinite-width limit", fontsize=24, color=fg, va="top")
+    fig.text(0.04, 0.99, "Finite Width: three seeds x three widths (Spectral split), and the infinite-width limit", fontsize=24, color=fg, va="top")
     for r, s in enumerate((0, 1, 2)):
         for c, n in enumerate(seed_ns):
-            ax = fig.add_axes([0.04 + c * 0.235, 0.70 - r * 0.29, 0.22, 0.25])
+            ax = fig.add_axes([0.04 + c * 0.235, 0.67 - r * 0.29, 0.22, 0.25])
             ax.imshow(rgb_of(np.load(files[(n, s)]), "spectral"), origin="lower", extent=[0, 4, 0, 4], interpolation="nearest")
             ax.set_xticks([]); ax.set_yticks([])
             ax.set_title(f"width N = {n}, seed {s}", color=fg, fontsize=13)
-    ax = fig.add_axes([0.04 + 3 * 0.235, 0.41, 0.22, 0.25])
+    ax = fig.add_axes([0.04 + 3 * 0.235, 0.38, 0.22, 0.25])
     ax.imshow(rgb_of(MF, "spectral"), origin="lower", extent=[0, 4, 0, 4], interpolation="nearest")
     ax.set_xticks([]); ax.set_yticks([]); ax.set_title("N = infinity (mean field)", color=fg, fontsize=13)
-    fig.text(0.04, 0.05, f"Each tile: sigma_w (horizontal) and sigma_b (vertical) in [0, 4], erf MLP depth {D}, L = |x1 - x2|^2 averaged over the last 20 layers, "
-             f"frontier at L = {args.tau:g}; {args.res} x {args.res}, float32.\nSeeds change the frontier's fine texture; width changes its roughness "
+    fig.text(0.04, 0.065, f"Each tile: sigma_w (horizontal) and sigma_b (vertical) in [0, 4], erf MLP depth {D}, L = |x1 - x2|^2 averaged over the last 20 layers, "
+             f"frontier at L = {args.tau:g};\n{args.res} x {args.res}, float32. Seeds change the frontier's fine texture; width changes its roughness "
              "and location. Declared Spectral split colouring, rank-normalised per tile.", fontsize=12, color=fg, va="top", linespacing=1.6)
     savefig(fig, "width_seeds_grid_spectral.png")

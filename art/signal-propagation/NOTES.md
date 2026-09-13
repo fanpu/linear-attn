@@ -1,6 +1,12 @@
-# PAUSED: signal-propagation (Order and Chaos + Finite Width)
+# NOTES: signal-propagation (Order and Chaos + Finite Width)
 
-Paused on the coordinator's request (tokens). No background jobs are running. Every script is committed. `cache/` is gitignored; it survives locally but is not in git.
+Living handoff (replaces PAUSED.md). `cache/` is gitignored; it survives locally but is not in git.
+
+## Session 2 (agent 2) progress
+- Flow videos: colour now log10(1 - c) (was linear c, saturated); Spectral = per-side rank split; fixed a bug where the chi_1 phase mask was not flipped with the image. Small multiples use log10(1-c).
+- Width: `compute_mf_thit.py` (CPU, mean-field t_hit) removes cancellation noise in the N = infinity tile; `width_as_time_{spectral,magma,ink}` + `width_seeds_grid_spectral` rendered and viewed. N = 640/1024 skipped (GPU budget).
+- `render_zoom_plates.py` generalised: `--chain path:level ...` mixes chains/resolutions; sync label handled.
+- GPU jobs launched 12:1x (logs/): `batch2` (Bpert 256 f64 + Bres3 512 f64), `bplate2a` (1024 f64, x1024), `bplate2b` (1024 f64, x65536), `bvideo2` (1280 f32, video levels 5..12 -> merge with zoom_Bvideo levels 0..4).
 
 ## Done (the results)
 
