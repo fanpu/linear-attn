@@ -29,8 +29,9 @@ def load(name):
     d = dict(np.load(os.path.join(CACHE, name), allow_pickle=False))
     d["meta"] = json.loads(str(d["meta"]))
     T = int(d["steps_done"])
+    N0 = d["loss"].shape[0]
     for key, v in list(d.items()):
-        if isinstance(v, np.ndarray) and v.ndim >= 1 and v.shape[0] == d["loss"].shape[0] and key != "invs":
+        if isinstance(v, np.ndarray) and v.ndim >= 1 and v.shape[0] == N0 and key != "invs":
             d[key] = v[:T]
     return d
 
