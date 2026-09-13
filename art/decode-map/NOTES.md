@@ -30,6 +30,8 @@
   (Fb=128) = 0/4096 only because they used identical kernels. So: cell geometry at small L is robust, fine
   structure past ~16 tokens is precision/kernel dependent. Quantify with c3 results (eager vs slow_eager
   should be ~0 = sampler exact on bf16; fp32 vs graph = precision effect; shuffle = placement effect).
+- Placement test (new engine, same kernels): toy fast vs shuffled pixel order with Ncap=32, Fb=16 gives
+  1.95% of pixels differing (80/4096) at L=32. Changing the window size Fb changes the batched kernel.
 - `StepGraphs(attn_fp32=True)` option exists but is NOT used by running jobs (keep maps consistent).
 
 ## Running (launched ~16:20 via gpu_run, logs in logs/c*.log)
