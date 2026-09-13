@@ -5,9 +5,12 @@
 **No project has a `gallery/` or `README.md` yet.** What exists is compute code (often tested), paper reads, and a few toy runs.
 
 **Update:** resumed with at most 5 agents at a time; the other agents keep their context and continue where they stopped.
-- Running: attention-textile, trainability-fractal, depth-roughness, gd-bifurcation, grokking. Each has an added brainstorm + self-critique step (≥5 ideas, iterate 2 rounds on the top pieces, "Ideas explored" README section).
-- Stopped by user interrupt (cancelled; needs a fresh launch if wanted): loss-landscape, mode-connectivity.
-- Queue: game-chaos → decode-map → signal-propagation → outcome-basins → diffusion-basins → edge-of-stability → neural-collapse → hessian-spectrum → weight-spectrum → scaling-dimension → ouroboros.
+- **Done:** attention-textile (committed; README complete).
+- Running (art): gd-bifurcation, depth-roughness, trainability-fractal, grokking, game-chaos (resumed), color-research (new: palette catalogue + palettes.py).
+- Running (hardware Part I): dither → posterize, float-ruler → precision-divergence, block-quant.
+- Stopped by user interrupt (need fresh launch if wanted): loss-landscape, mode-connectivity.
+- Queue: decode-map → signal-propagation → outcome-basins → diffusion-basins → edge-of-stability → neural-collapse → hessian-spectrum → weight-spectrum → scaling-dimension → ouroboros.
+- Conventions added since launch: commit via `_shared/commit.sh`; Sohl-Dickstein Spectral split style required for two-sided data; brainstorm + self-critique loop; README link check.
 
 ## Shared setup (done, reusable)
 
