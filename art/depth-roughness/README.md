@@ -59,7 +59,7 @@ Reading down the Heaviside column: D = 1.41, 1.62, 1.77, 1.85, 1.88, 1.89, 1.90,
 </tr><tr>
 <td><a href="gallery/zoom_plates_heaviside_L1_plotter.png"><img src="gallery/zoom_plates_heaviside_L1_plotter.png"></a><br>L = 1 (dim 1.5): a different seed, a sparser coastline.</td>
 <td><a href="gallery/zoom_plates_heaviside_L6_plotter.png"><img src="gallery/zoom_plates_heaviside_L6_plotter.png"></a><br>L = 6 (dim 1.984): the coastline is nearly area-filling at <i>every</i> scale. Zooming never resolves it into a line.</td>
-<td><video src="gallery/zoom_heaviside_L2_plotter.mp4" autoplay loop muted playsinline width="100%"></video><img src="gallery/zoom_heaviside_L2_plotter.gif" width="100%"><br>Continuous zoom through the same twelve windows (plotter). Dark version: <a href="gallery/zoom_heaviside_L2_dark.mp4">mp4</a> / <a href="gallery/zoom_heaviside_L2_dark.gif">gif</a>.</td>
+<td><video src="gallery/zoom_heaviside_L2_plotter_720.mp4" autoplay loop muted playsinline width="100%"></video><img src="gallery/zoom_heaviside_L2_plotter.gif" width="100%"><br>Continuous zoom through the same twelve windows (plotter). Dark version: <a href="gallery/zoom_heaviside_L2_dark_720.mp4">mp4</a> / <a href="gallery/zoom_heaviside_L2_dark.gif">gif</a>.</td>
 </tr></table>
 
 ### 2.3 Width as a zoom limit
@@ -80,7 +80,7 @@ Reading down the Heaviside column: D = 1.41, 1.62, 1.77, 1.85, 1.88, 1.89, 1.90,
 <td><a href="gallery/globe_hero_heaviside_L2_plotter.png"><img src="gallery/globe_hero_heaviside_L2_plotter.png"></a><br>Plotter globe, L=2 (2400 px, l ≤ 4096).</td>
 <td><a href="gallery/globe_hero_heaviside_L2_dark.png"><img src="gallery/globe_hero_heaviside_L2_dark.png"></a><br>The glossy alternate. The "highlight" is the high end of the colormap plus declared limb shading, not lighting data. The flat-lit version is the hero above.</td>
 </tr><tr>
-<td colspan="2"><video src="gallery/globe_spin_heaviside_L3_plotter.mp4" autoplay loop muted playsinline width="49%"></video> <img src="gallery/globe_spin_heaviside_L3_plotter.gif" width="49%"><br>Rotating plotter globe, L=3.</td>
+<td colspan="2"><video src="gallery/globe_spin_heaviside_L3_plotter_720.mp4" autoplay loop muted playsinline width="49%"></video> <img src="gallery/globe_spin_heaviside_L3_plotter.gif" width="49%"><br>Rotating plotter globe, L=3.</td>
 </tr></table>
 
 ### 2.5 Whole-sphere posters (Hammer equal-area)
@@ -260,7 +260,15 @@ Brainstormed, with the two picks marked ★:
 
 ## 7. Files over 20 MB (not committed)
 
-FILES_OVER_20MB
+These masters are kept locally in `gallery/` and are skipped by the commit script. The README embeds committed smaller versions.
+
+- `gallery/zoom_heaviside_L2_plotter.mp4` (100 MB, 1080², crf 16) → committed `zoom_heaviside_L2_plotter_720.mp4`
+- `gallery/zoom_heaviside_L2_dark.mp4` (123 MB, 1080²) → committed `zoom_heaviside_L2_dark_720.mp4`
+- `gallery/globe_spin_heaviside_L3_plotter.mp4` (110 MB, 1080²) → committed `globe_spin_heaviside_L3_plotter_720.mp4`
+- `gallery/poster_hammer_heaviside_L2_spectral.png` (28 MB, 6000×3000) → committed `_3000px` version
+- `gallery/poster_hammer_heaviside_L2_spectral_colab.png` (26 MB, 6000×3000) → committed `_3000px` version
+
+GPU use (shared GB10, all through `gpu_run.sh`): about 4 slot-hours of wall time (multi-scale windows ~35 min, finite networks ~2 h including n = 65,536, zoom videos ~1.5 h), at low utilisation because the GPU was shared.
 
 ---
 
