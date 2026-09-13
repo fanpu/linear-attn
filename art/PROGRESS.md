@@ -5,12 +5,10 @@
 **No project has a `gallery/` or `README.md` yet.** What exists is compute code (often tested), paper reads, and a few toy runs.
 
 **Update:** resumed with at most 5 agents at a time; the other agents keep their context and continue where they stopped.
-- **Done:** attention-textile (committed; README complete).
-- Running (art): gd-bifurcation, depth-roughness, trainability-fractal, grokking, game-chaos (resumed), color-research (new: palette catalogue + palettes.py).
-- Running (hardware Part I): dither → posterize, float-ruler → precision-divergence, block-quant.
-- Stopped by user interrupt (need fresh launch if wanted): loss-landscape, mode-connectivity.
-- Queue: decode-map → signal-propagation → outcome-basins → diffusion-basins → edge-of-stability → neural-collapse → hessian-spectrum → weight-spectrum → scaling-dimension → ouroboros.
-- Conventions added since launch: commit via `_shared/commit.sh`; Sohl-Dickstein Spectral split style required for two-sided data; brainstorm + self-critique loop; README link check.
+- **Done:** attention-textile, gd-bifurcation, depth-roughness, grokking, game-chaos, color-research; hardware: dither, posterize, float-ruler, precision-divergence, block-quant.
+- **Wave (Opus, fresh agents from TASKS.md + PAUSED/NOTES handoffs):** trainability-fractal, outcome-basins, signal-propagation, edge-of-stability, neural-collapse.
+- **Queue (≤5 concurrent):** decode-map → diffusion-basins → loss-landscape → mode-connectivity → hessian-spectrum → weight-spectrum → scaling-dimension → ouroboros.
+- **Orchestration protocol:** per-project specs in `_shared/TASKS.md`; each agent keeps `NOTES.md` as handoff and commits via `_shared/commit.sh`; the orchestrator reviews heroes at completion and starts the next queued project.
 
 ## Shared setup (done, reusable)
 
