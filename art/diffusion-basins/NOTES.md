@@ -18,6 +18,23 @@
 - zooms: iter_ring8 centre (2.83511,2.83511), level 32 (hw 9.3e-10) still 19.5k boundary px at 768^2; iter_ring6 centre found at the origin (6-fold junction).
 - Rendered so far: gallery/iterated/*, gallery/toy/atlas_analytic_*, hero_*, stretch_*, gallery/diptych/*. Viewed: iter ring8 confidence+spectral (strong), atlas confidence (DDPM column trivial -> replace by noise-slice), stretch fire (good), diptych spectral (good).
 
+### Session 2 verdicts (for README section 6)
+- uncertainty exponent (M=2^18, eps 1e-1..1e-5, D=2-alpha): DDIM50 scatter12 D=0.983, PF-ODE scatter12 D=0.995 (SMOOTH); iter ring8 g=2.12 D=1.270; iter ring6 D=1.177; Newton z^3-1 control D=1.441.
+- ODE zoom (ode_scatter12, centre (0.40653,-0.41867)): by level 16 (hw 4.6e-5) boundary = 1536 px = one straight line across 768^2, 2 labels -> smooth.
+- iter_ring8 zoom (36 levels x2, hw 4 -> 5.8e-11, float64): windowed box-count D (2-128 px) repeats with PERIOD 9 LEVELS (scale 512): 1.56 1.59 1.35 1.34 1.49 1.60 1.50 1.25 1.42 | same...; period mean D=1.46; boundary px per 768^2 window 16k-81k, never decays to 2R=1536 -> genuine discrete self-similarity (nested flowers), not resolution artefact. Global 2048^2 resolution window (2.2,1.1) locally smooth: fractal set is concentrated on the flower accumulation, not everywhere.
+- DDPM noise-slice (512^2): 30 steps D[2,128]=1.22, 1000 steps 1.19 at 512 px = finite-res smooth curves; images viewed, smooth organic lobes. gallery/toy/ddpm_noise_slices.png.
+
+### Running at handoff (all logged; OK to leave)
+- CPU: toyA -> `iter gamma` (cache/iter_ring8_gamma.npz; then render `render_toy.py gamma`); toyB -> `zoom ode_scatter12` (then `render_toy.py zoom:ode_scatter12`); toyC -> zoom iter_ring6 (then `zoom:iter_ring6`); render_zoom8.log (zoom:iter_ring8 video+plate, not yet viewed); render_steps_verify.log (steps anim + gallery/verify/toy_dimension.png, not yet viewed).
+- GPU: mnist memo + clf+ddpm training (logs/mnist_memo.log, mnist_ddpm.log), then run_mnist_chain.sh auto-runs all mnist_compute tasks (logs/mnist_compute.log). scatter12 net trained? check logs/toy_train_scatter12.log -> then `DB_DEVICE=cpu python toy_compute.py maps learned` (or on GPU), `steps learned`, `iter learned`, render `atlas`.
+- render_mnist.py written (basin, mosaic, memo, steps, zoom) but UNTESTED.
+
+### Next
+1. View: zoom_iter_ring8 plate/gif, steps anim, toy_dimension.png; fix weaknesses (captions clip if long: caption_strip does not wrap).
+2. gamma anim, ode zoom, ring6 zoom renders; learned-score maps.
+3. MNIST renders when cache/mnist_hero.npz etc. exist; thumbnail mosaic.
+4. README.md (brief format) with the numbers above; commit.
+
 ## Session 1 (previous handoff)
 
 Stopped on coordinator request (token budget). All background jobs were killed. The GPU slots were full for most of the session, so almost nothing heavy has run yet.

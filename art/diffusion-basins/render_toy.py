@@ -316,9 +316,25 @@ def verify_plots():
     print(json.dumps(res, indent=0)[:3000])
 
 
+def ddpm_pieces():
+    z = np.load(f"{CACHE}/ddpm_scatter12.npz")
+    pal, mu = layout_palette("scatter12"), mixture("scatter12")[0]
+    tiles = []
+    for n in [30, 1000]:
+        lab, x0 = flipud(z[f"noise_ddpm{n}_lab"]), flipud(z[f"noise_ddpm{n}_x0"])
+        img = colorize(lab, pal, confidence_shade(margin_confidence(x0, mu)))
+        save(img, f"ddpm{n}_noise_slice_confidence.png", "toy")
+        save(line_art(lab, pal=pal, tint_strength=0.5, width=0.9), f"ddpm{n}_noise_slice_paper.png", "toy")
+        tiles.append(img)
+    cap = ["DDPM, fixed start z; plane = great-sphere slice of the injected noise",
+           "(30 steps left, 1000 right). Over z itself: ONE mode everywhere.",
+           "Brightness = sample margin 1-d1/d2 (measured)."]
+    save(caption_strip(grid_images(tiles, 2, 14, NIGHT), cap, ground=NIGHT, ink="#d8d4c8", size=20), "ddpm_noise_slices.png", "toy")
+
+
 if __name__ == "__main__":
     fns = dict(atlas=atlas, hero=hero, iter=iter_pieces, diptych=diptych, steps=steps_anim, gamma=gamma_anim,
-               verify=verify_plots)
+               verify=verify_plots, ddpm=ddpm_pieces)
     for a in sys.argv[1:]:
         if a.startswith("zoom:"):
             zoom_anim(a[5:])
