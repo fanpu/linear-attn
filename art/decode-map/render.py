@@ -241,7 +241,7 @@ def coherence_split(d, thr=None):
     return Hm - thr, thr
 
 
-def style_riso(d, s, ink_a="#3255a4", ink_b="#ff48b0", paper="#f4efe3", shift=2, w=None):
+def style_riso(d, s, ink_a="#3255a4", ink_b="#ff48b0", paper="#f4efe3", shift=2, w=None, fill=None):
     """Two-ink riso: ink A = cell boundaries born within the first half of the horizon (full
     coverage) and later ones (40 %); ink B = contone fill, coverage = 1 - first-divergence/L
     (texts that leave greedy decoding early are inked heavily). Ink B misregistered by
@@ -255,7 +255,7 @@ def style_riso(d, s, ink_a="#3255a4", ink_b="#ff48b0", paper="#f4efe3", shift=2,
     fn = lambda v: (np.ones(v.shape + (3,)), np.where(v < L, np.where(v < L / 2, 1.0, 0.4), 0.0))
     cov_a = paint_edges(cov_a, bv.astype(float), bh.astype(float), s, w, fn)[..., 0]
     fd = A.first_divergence(tk)
-    cov_b = tiles(0.55 * (1 - fd / L), s)
+    cov_b = tiles(0.55 * (1 - fd / L) if fill is None else 0.08 + 0.62 * fill, s)
     cov_b = np.roll(cov_b, (shift, shift), (0, 1))
     return PAL.overprint([cov_b, cov_a], [ink_b, ink_a], paper=paper)
 

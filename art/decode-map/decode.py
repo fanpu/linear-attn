@@ -211,6 +211,7 @@ class Engine:
         tiers = ((K // 8, K, 1024, 4096, 1 << 16), (K, K, 256, 1024, 16384), (16 * K, 16 * K, 8, 64, 512),
                  (None, None, 8, 8, 128))
         for Kp, Ks, UB, KB, PB in tiers:
+            UB = min(UB, 192) if self.use_pen else UB   # fp64 penalised logits: UB*V*8B per chunk
             if len(todo) == 0:
                 break
             if self.timing:

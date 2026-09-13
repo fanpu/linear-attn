@@ -148,6 +148,38 @@ def zoom(name):
         print(r)
 
 
+def horizon():
+    """Fraction of pixels whose first l tokens agree between two runs that differ only in kernels or
+    precision, vs l. Defines the token range over which the map geometry is reproducible."""
+    pairs = [("place_story64_eager.npz", "place_story64_slow_eager.npz", "sampler: certified vs V-wide (same kernels)"),
+             ("toy_story_tp64_fast.npz", "place_story64_shuffle.npz", "pixel order + window Fb 128→16"),
+             ("place_story64_eager.npz", "toy_story_tp64_fast.npz", "eager vs CUDA-graph forward"),
+             ("toy_story_tp64_fast.npz", "place_story64_fp32.npz", "bf16 body vs fp32 body"),
+             ("story_tp128.npz", "place_story128_shuffle.npz", "128²: pixel order + window Fb 128→32")]
+    fig, ax = plt.subplots(figsize=(7.5, 4.6))
+    res = {}
+    for (a, b, desc), col in zip(pairs, ["k", "tab:blue", "tab:orange", "tab:red", "tab:purple"]):
+        ta, tb = A.load(C + a)["tokens"], A.load(C + b)["tokens"]
+        L = ta.shape[2]
+        fd = np.where((ta != tb).any(-1), (ta != tb).argmax(-1), L)
+        agree = np.array([(fd >= l).mean() for l in range(1, L + 1)])
+        # cell-geometry agreement: fraction of 4-neighbour edges whose boundary status (differ within l) matches
+        eg = []
+        for l in range(1, L + 1):
+            ba = np.concatenate([(ta[:, 1:, :l] != ta[:, :-1, :l]).any(-1).ravel(), (ta[1:, :, :l] != ta[:-1, :, :l]).any(-1).ravel()])
+            bb = np.concatenate([(tb[:, 1:, :l] != tb[:, :-1, :l]).any(-1).ravel(), (tb[1:, :, :l] != tb[:-1, :, :l]).any(-1).ravel()])
+            eg.append(float((ba & bb).sum() / max(1, (ba | bb).sum())))
+        res[desc] = dict(pair=[a, b], agree_prefix=agree.tolist(), boundary_jaccard=eg)
+        ax.plot(range(1, L + 1), agree, color=col, label=desc)
+        ax.plot(range(1, L + 1), eg, color=col, ls=":", lw=1)
+        print(desc, "prefix agreement at l=8,16,24,32:", agree[[7, 15, 23, 31]].round(3), "boundary Jaccard:", np.round([eg[7], eg[15], eg[23], eg[31]], 3))
+    ax.set_xlabel("token l"); ax.set_ylabel("solid: pixels with identical first l tokens\ndotted: boundary-set Jaccard")
+    ax.axvline(16, color="grey", lw=0.5)
+    ax.legend(fontsize=7); ax.set_title("Reproducibility horizon of the decode map (story prompt)")
+    fig.tight_layout(); fig.savefig("gallery/verify_horizon.png", dpi=150)
+    OUT["horizon"] = res
+
+
 if __name__ == "__main__":
     what = sys.argv[1:] or ["placement", "cells", "box", "zoom"]
     if os.path.exists(C + "verify.json"):
@@ -156,6 +188,8 @@ if __name__ == "__main__":
         placement()
     if "cells" in what:
         cells_vs_resolution()
+    if "horizon" in what:
+        horizon()
     if "box" in what:
         boxcount_global()
     if "zoom" in what:
