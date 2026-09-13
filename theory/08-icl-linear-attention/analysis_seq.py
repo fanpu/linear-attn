@@ -86,42 +86,49 @@ def model_preds(model, X, y):
     return torch.cat(preds)
 
 
-res = {"t": list(range(1, N + 1)), "scales": SCALES, "noises": NOISES, "models": {}, "algs": {}}
-tuned = {}
-for sig in (0.0, 0.5):
-    t0 = time.time()
-    tuned[sig] = tune(sig)
-    res["algs"][str(sig)] = {"betas": {"nlms": tuned[sig][1][True], "lms": tuned[sig][1][False]},
-                             "gd_lrs": {k: [None] + [v.tolist() for v in tuned[sig][0][k][1:]] for k in tuned[sig][0]}}
-    print(f"tuned baselines for sigma={sig} in {time.time()-t0:.0f}s  betas={tuned[sig][1]}", flush=True)
+BASE = HERE / "cache" / "seq_baselines.pt"
+if BASE.exists():
+    res, EV = torch.load(BASE, weights_only=False)
+    res["models"] = {}
+    print("loaded cached baselines", flush=True)
+else:
+    res = {"t": list(range(1, N + 1)), "scales": SCALES, "noises": NOISES, "models": {}, "algs": {}}
+    tuned = {}
+    for sig in (0.0, 0.5):
+        t0 = time.time()
+        tuned[sig] = tune(sig)
+        res["algs"][str(sig)] = {"betas": {"nlms": tuned[sig][1][True], "lms": tuned[sig][1][False]},
+                                 "gd_lrs": {k: [None] + [v.tolist() for v in tuned[sig][0][k][1:]] for k in tuned[sig][0]}}
+        print(f"tuned baselines for sigma={sig} in {time.time()-t0:.0f}s  betas={tuned[sig][1]}", flush=True)
 
-# shared evaluation prompts
-EV = {}
-for sig in (0.0, 0.5):
-    X, y, f = prompts(4096, sig)
-    EV[("in", sig)] = (X, y, f)
-    EV[("algs", sig)] = algorithms(X, y, sig, *tuned[sig])
-    res["algs"][str(sig)]["risk"] = {k: ((v - f) ** 2).mean(0).tolist() for k, v in EV[("algs", sig)].items()}
-    shift = {}
-    for c in SCALES:
-        Xc, yc, fc = prompts(1024, sig, c)
-        A = algorithms(Xc, yc, sig, *tuned[sig])
-        shift[c] = (Xc, yc, fc)
-        res["algs"][str(sig)].setdefault("scale", {})[str(c)] = {k: (((v - fc) ** 2).mean(0) / c**2).tolist() for k, v in A.items()}
-    EV[("scale", sig)] = shift
-    noise = {}
-    for s2 in NOISES:
-        Xn, yn, fn = prompts(1024, s2)
-        A = algorithms(Xn, yn, sig, *tuned[sig])
-        noise[s2] = (Xn, yn, fn)
-        res["algs"][str(sig)].setdefault("noise", {})[str(s2)] = {k: ((v - fn) ** 2).mean(0).tolist() for k, v in A.items()}
-    EV[("noise", sig)] = noise
-    print(f"baselines evaluated for sigma={sig}", flush=True)
+    # shared evaluation prompts
+    EV = {}
+    for sig in (0.0, 0.5):
+        X, y, f = prompts(4096, sig)
+        EV[("in", sig)] = (X, y, f)
+        EV[("algs", sig)] = algorithms(X, y, sig, *tuned[sig])
+        res["algs"][str(sig)]["risk"] = {k: ((v - f) ** 2).mean(0).tolist() for k, v in EV[("algs", sig)].items()}
+        shift = {}
+        for c in SCALES:
+            Xc, yc, fc = prompts(1024, sig, c)
+            A = algorithms(Xc, yc, sig, *tuned[sig])
+            shift[c] = (Xc, yc, fc)
+            res["algs"][str(sig)].setdefault("scale", {})[str(c)] = {k: (((v - fc) ** 2).mean(0) / c**2).tolist() for k, v in A.items()}
+        EV[("scale", sig)] = shift
+        noise = {}
+        for s2 in NOISES:
+            Xn, yn, fn = prompts(1024, s2)
+            A = algorithms(Xn, yn, sig, *tuned[sig])
+            noise[s2] = (Xn, yn, fn)
+            res["algs"][str(sig)].setdefault("noise", {})[str(s2)] = {k: ((v - fn) ** 2).mean(0).tolist() for k, v in A.items()}
+        EV[("noise", sig)] = noise
+        print(f"baselines evaluated for sigma={sig}", flush=True)
+    torch.save((res, EV), BASE)
 
 OUT = HERE / "cache" / "seq_eval.json"
 if OUT.exists():
     res["models"] = json.load(open(OUT))["models"]
-for path in sorted(glob.glob(str(HERE / "cache" / "seq_*.pt"))):
+for path in sorted(glob.glob(str(HERE / "cache" / "seq_*_seed*.pt"))):
     if pathlib.Path(path).stem in res["models"]:
         continue
     ck = torch.load(path, map_location="cpu")

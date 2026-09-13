@@ -151,7 +151,4 @@ if ONLY:
 out = HERE / "figures"
 subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(FPS), "-i", str(FR / "f%04d.png"), "-c:v", "libx264", "-pix_fmt", "yuv420p",
                 "-crf", "20", "-vf", "scale=1600:-2", str(out / "think.mp4")], check=True)
-subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(FPS), "-i", str(FR / "f%04d.png"), "-vf",
-                "fps=15,scale=960:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=160[p];[s1][p]paletteuse=dither=bayer:bayer_scale=4",
-                str(out / "think.gif")], check=True)
-print("wrote think.mp4 / think.gif")
+print("wrote think.mp4")

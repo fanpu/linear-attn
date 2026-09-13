@@ -80,7 +80,7 @@ for j, (ax, L) in enumerate(zip(np.atleast_1d(axs), Ls)):
     ax.set_xlabel("context examples seen  $t$")
     if j == 0:
         ax.set_ylabel("excess risk / d   (d = 10, noiseless)")
-        ax.text(D + 0.6, 1.5e-4, "t = d: ridge\nbecomes exact", color=style.MUTED, fontsize=9)
+        ax.text(D + 1.2, 1.5e-4, "t = d: ridge\nbecomes exact", color=style.MUTED, fontsize=9)
 fig.legend(handles=handles, loc="upper center", ncol=4, bbox_to_anchor=(0.45, 1.06), fontsize=10, handlelength=2.4)
 for a in ALG_STYLE:
     summary[f"alg_t40_{a}"] = float(np.array(algs[a])[-1] / D); summary[f"alg_t20_{a}"] = float(np.array(algs[a])[19] / D)
@@ -123,39 +123,39 @@ fig.savefig(HERE / "figures" / "fingerprint.png")
 plt.close(fig)
 
 # ------------------------------------------------------------------------------------------ shift
-Lsh = 2 if 2 in Ls else Ls[0]
-fig, axs = plt.subplots(1, 2, figsize=(13.5, 4.8), gridspec_kw=dict(wspace=0.42))
+fig, axs = plt.subplots(1, 3, figsize=(17.5, 4.9), gridspec_kw=dict(wspace=0.62))
 cs = np.array(R["scales"])
 late = t >= 30
 handles = []
-ax = axs[0]
 sc_alg = R["algs"]["0.0"]["scale"]
-for a, (name, col, lw, ls) in ALG_STYLE.items():
-    if a == "ridge":
-        continue
-    y = [np.mean(np.array(sc_alg[str(c)][a])[late]) / D for c in cs]
-    h_, = ax.plot(cs, y, color=col, lw=lw, ls=ls, label=name)
-    handles.append(h_)
-labs = []
-for k in KINDS:
-    v = get(k, Lsh)
-    if v is None:
-        continue
-    y = [np.mean(np.array(v["scale"][str(c)])[late]) / D for c in cs]
-    ax.plot(cs, y, color=style.C[k], lw=2.6, marker="o", ms=5, mec=style.PAPER)
-    labs.append((k, np.log10(y[-1])))
-    summary[f"scale_{k}_L{Lsh}"] = dict(zip(map(str, cs), y))
-for (k, _), yv in zip(labs, declutter([l[1] for l in labs], 0.22)):
-    ax.annotate(style.NAMES[k], (cs[-1], 10**yv), xytext=(6, 0), textcoords="offset points", color=style.C[k], fontsize=9.5, fontweight="bold",
-                va="center", annotation_clip=False)
-ax.axvline(1, color="#c9c4ba", lw=1)
-ax.set_xscale("log", base=2); ax.set_yscale("log"); ax.set_ylim(2e-4, 5)
-ax.set_xticks(cs); ax.set_xticklabels([f"{c:g}" for c in cs])
-ax.set_xlabel("test inputs rescaled  $x \\to c\\,x$   (trained at c = 1)")
-ax.set_ylabel("excess risk / ($c^2 d$),  t = 30…40")
-ax.set_title(f"a  change the input scale ({Lsh}-layer models)")
-ax.text(0.03, 0.04, "ridge / least squares: exactly 0 at every scale", transform=ax.transAxes, fontsize=9, color=style.INK)
-ax = axs[1]
+for pi, Lsh in enumerate([1, 4]):
+    ax = axs[pi]
+    for a, (name, col, lw, ls) in ALG_STYLE.items():
+        if a == "ridge":
+            continue
+        y = [np.mean(np.array(sc_alg[str(c)][a])[late]) / D for c in cs]
+        h_, = ax.plot(cs, y, color=col, lw=lw, ls=ls, label=name)
+        if pi == 0:
+            handles.append(h_)
+    labs = []
+    for k in KINDS:
+        v = get(k, Lsh)
+        if v is None:
+            continue
+        y = [np.mean(np.array(v["scale"][str(c)])[late]) / D for c in cs]
+        ax.plot(cs, y, color=style.C[k], lw=2.6, marker="o", ms=5, mec=style.PAPER)
+        labs.append((k, np.log10(y[-1])))
+        summary[f"scale_{k}_L{Lsh}"] = dict(zip(map(str, cs), y))
+    for (k, _), yv in zip(labs, declutter([l[1] for l in labs], 0.2)):
+        ax.annotate(style.NAMES[k], (cs[-1], 10**yv), xytext=(6, 0), textcoords="offset points", color=style.C[k], fontsize=9.5, fontweight="bold",
+                    va="center", annotation_clip=False)
+    ax.axvline(1, color="#c9c4ba", lw=1)
+    ax.set_xscale("log", base=2); ax.set_yscale("log"); ax.set_ylim(4e-5, 5)
+    ax.set_xticks(cs); ax.set_xticklabels([f"{c:g}" for c in cs])
+    ax.set_xlabel("test inputs rescaled  $x \\to c\\,x$   (trained at c = 1)")
+    ax.set_ylabel("excess risk / ($c^2 d$),  t = 30…40")
+    ax.set_title(f"{'ab'[pi]}  change the input scale: {Lsh} layer{'s' if Lsh > 1 else ''}")
+ax = axs[2]
 ns = np.array(R["noises"])
 nz_alg = R["algs"]["0.5"]["noise"]
 for a, (name, col, lw, ls) in ALG_STYLE.items():
@@ -179,8 +179,8 @@ ax.axvline(0.5, color="#c9c4ba", lw=1)
 ax.set_yscale("log")
 ax.set_xlabel("test label noise  $\\sigma$   (trained at σ = 0.5)")
 ax.set_ylabel("excess risk / d,  t = 30…40")
-ax.set_title("b  change the noise level (2-layer models)")
-fig.legend(handles=handles, loc="upper center", ncol=4, bbox_to_anchor=(0.47, 1.07), fontsize=10, handlelength=2.4)
+ax.set_title("c  change the noise level: 2 layers")
+fig.legend(handles=handles, loc="upper center", ncol=4, bbox_to_anchor=(0.45, 1.08), fontsize=10, handlelength=2.4)
 fig.savefig(HERE / "figures" / "shift.png")
 plt.close(fig)
 json.dump(summary, open(HERE / "cache" / "seq_summary.json", "w"), indent=1)

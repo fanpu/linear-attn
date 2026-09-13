@@ -81,7 +81,7 @@ Since the task is regression, we know what the good algorithms are, and we can c
 Here is what those algorithms look like when they run on a prompt in two dimensions. The trained model (blue) is not a black box here: §2 shows it computes exactly this trajectory.
 
 <figure class="wide dark">
-<video autoplay loop muted playsinline src="figures/think.mp4"></video>
+<video autoplay loop muted playsinline poster="figures/think_poster.jpg" src="figures/think.mp4"></video>
 <figcaption>Context pairs arrive one at a time ($d = 2$, correlated inputs, noise $\sigma = 0.35$). Right: each algorithm's current estimate $\hat w$ in weight space. Ellipses are level sets of the least-squares loss on the examples seen so far. Bottom: expected error over many prompts. <b style="color:#ece8df">Ridge/RLS</b> heads straight for the answer. The <b style="color:#4f9bf0">trained one-layer linear attention</b> takes one preconditioned gradient step from zero, so its estimate is a rescaled data average and stays biased while the examples are few. The <b style="color:#2fcf94">delta rule</b> (online SGD, step 0.15) zig-zags. The trajectories are exact closed forms; the risk curves are Monte Carlo over $2\times10^5$ prompts (LMS, ridge) or closed form (linear attention).</figcaption>
 </figure>
 
@@ -129,10 +129,12 @@ Real training uses minibatches, not the population loss. So I also trained every
 
 <figure class="wide">
 <img src="figures/lsa1_plate.png" alt="Convergence to Gamma inverse, risk vs context length, and covariate scaling">
-<figcaption>«CAPTION_LSA1»</figcaption>
+<figcaption>One-layer linear self-attention ($d=20$, $N=40$). <b>(a)</b> Gradient flow on the exact population loss, started from ZFB's initialization, reaches the Theorem 4.1 weights to machine precision: $4\times10^{-11}$ for correlated inputs and $3\times10^{-12}$ for isotropic ones. <b>(b)</b> Adam on minibatches of fresh prompts, with all $2\times21^2 = 882$ entries free, measured by the distance of the effective preconditioner $A = w^{PV}_{22} W^{KQ}_{11}$ to $\Gamma^{-1}$. Isotropic inputs converge to 0.8%. Correlated inputs are still 39% away after 16,000 steps (§8). <b>(c)</b> In-context risk versus test prompt length. Lines are the closed form at $W_*$; dots are the trained layers on $2^{18}$ fresh prompts each. The dashed line is the best *plain* (scalar-step) GD step on correlated inputs: preconditioning is worth a factor 1.6 at $M=40$. <b>(d)</b> Test inputs multiplied by $c$. The error, normalized by $c^2$, explodes away from $c=1$, and again the trained layers sit on the closed form. Least squares has zero error at every $c$.</figcaption>
 </figure>
 
-«TEXT_LSA1»
+The trained layers match the theory closely. At the training length $M = 40$ the isotropic layer's measured risk is 6.85 against a closed-form 6.89, a difference within Monte Carlo error. The correlated layer is at 4.65 against 4.59: it is 1.2% worse, because it has not finished converging. Across test lengths from 5 to 320 and input scales from ½ to 2, every measured point sits on its closed-form curve.
+
+Notice two details of the theory in panel (c). First, the risk keeps falling past the training length $N = 40$ but never reaches zero. A fixed preconditioner is a one-shot estimator, so it can't converge to the truth; ZFB show the excess error has an $O(1/M)$ part and a floor of order $1/N^2$ that only more training *length* removes. Second, the trained layer is far better than a well-tuned plain GD step when inputs are correlated. Everything the layer knows about the input distribution lives in $\Gamma^{-1}$.
 
 ## 3. Where one layer breaks
 
@@ -144,7 +146,7 @@ Real training uses minibatches, not the population loss. So I also trained every
 
 <figure>
 <img src="figures/randcov.png" alt="random covariance training plateau">
-<figcaption>«CAPTION_RANDCOV»</figcaption>
+<figcaption>A layer trained on prompts whose diagonal covariance is redrawn per prompt (Exponential(1) entries, $d=20$, $N=40$). Weights from exact gradient flow, which lands on ZFB's Theorem 4.5 solution to $10^{-11}$. <b>Left:</b> more test examples do not drive the error to zero. It plateaus at $d\,(6b^2-4b+1) = 7.06$, where $b = 0.276$ is the diagonal of the learned preconditioner (1/3 in the $N\to\infty$ limit). <b>Right:</b> predictions versus the truth at $M=2560$. The least-squares slope is 0.556, against a predicted $2b = 0.552$. ZFB's "$\tfrac13$" is the average gain $\mathbb E[b\,\lambda_{\text{new}}]$; the regression slope is larger because prompts with large variance count more.</figcaption>
 </figure>
 
 A single layer can only apply one preconditioner. To adapt to each prompt's own geometry, like RLS or Newton's method do, it needs a *data-dependent* preconditioner. That takes depth, or a different recurrence.
@@ -168,11 +170,15 @@ The widget runs these formulas live (ridge and $k$-step GD, with the step sizes 
 <script src="widgets/data_explorer.js"></script>
 <script src="widgets/explorer.js"></script>
 
-«TEXT_DEPTH»
+Three things show up in the depth figure below.
+
+1. **Layers really are steps, and depth pays off geometrically.** GD with learned step sizes (gray) improves by roughly 2× per step, close to the $\gamma=\tfrac12$ formula and a little worse at finite $d=10$. So does GD with learned preconditioners on correlated inputs (black). One layer of trained linear attention lands on the one-step optimum: 0.357 against a closed-form 0.355 (isotropic), and 0.252 against 0.250 (correlated, ZFB's $\Gamma^{-1}$).
+2. **Trained linear attention beats every GD variant at depth ≥ 2.** At two layers its error is 3× lower than two tuned GD steps on isotropic data, and 2.3× lower than two *preconditioned* steps on correlated data. The dense weights let each layer rewrite the $x$ tokens too, so later layers precondition with statistics of *this* prompt. This is von Oswald's GD++, a cheap relative of Newton's method. Fu et al. (2024) push this further and argue that deep transformers track iterative Newton.
+3. **The mean error of deep linear attention is heavy-tailed.** A depth-$L$ network is a polynomial of degree about $3^L$ in the prompt, so a rare prompt with a few large inputs can produce an enormous error. For the 3-layer isotropic model, the mean over $2.6\times10^5$ prompts is $0.071 \pm 0.03$, while dropping the worst 0.1% gives 0.029. The 4-layer model on correlated inputs has a typical error of 0.005 but a mean dominated by a handful of prompts. GD with few steps is a polynomial too, but of lower degree, and its mean and trimmed mean differ by under 10%.
 
 <figure class="wide">
 <img src="figures/depth.png" alt="depth vs risk">
-<figcaption>«CAPTION_DEPTH»</figcaption>
+<figcaption>Trained models at $d=10$, $n=20$, noiseless, evaluated on $2^{18}$ fresh prompts (error bars ±2 s.e.). Gray: $k$ steps of GD with learned step sizes. Black: $k$ steps with learned matrix preconditioners (Ahn et al.'s sparse parameterization, identical to their Lemma 1). Blue: linear attention with every entry of $P_\ell, Q_\ell$ trained. The solid line is the mean error; the dashed line drops the worst 0.1% of prompts. Dotted line (left): proportional-limit optimum for tuned GD; finite $d = 10$ sits slightly above it. On correlated inputs the dense models start from Ahn's sparsity pattern plus noise, because from a purely random start the one-layer model stalled at twice the optimal error (§8).</figcaption>
 </figure>
 
 ## 5. How many tasks does it need?
@@ -237,21 +243,27 @@ The baselines on the same prompts are ridge (= RLS); GD with 1–4 steps, step s
 
 <figure class="wide">
 <img src="figures/race.png" alt="algorithm race">
-<figcaption>«CAPTION_RACE»</figcaption>
+<figcaption>Excess risk (per dimension) after seeing $t$ examples, for $d=10$ and noiseless prompts. One model per curve, averaged over 4,096 fresh prompts. Neutral lines are the classical algorithms on the same prompts. GD is re-tuned separately for every $t$, which is an advantage no fixed network has. Ridge is exactly zero once $t \ge d$. The spikes in the 4-layer DeltaNet curves come from a few hard prompts in the shared evaluation set.</figcaption>
 </figure>
 
-«TEXT_RACE»
+**Result 1: at matched depth, the delta rule wins by one to two orders of magnitude.** With one layer, softmax and linear attention reach an error of 0.15 at $t = 40$. That is better than a single tuned GD step (0.22) but nowhere near least squares. DeltaNet reaches 0.016 and Gated DeltaNet 0.004. With two layers, the attention models reach 0.011–0.016, about as good as four *oracle-tuned* GD steps (0.007). Both delta-rule models reach $3$–$4\times10^{-4}$, 30–50× lower. With four layers, attention gets to $1.2\times10^{-3}$ and the delta-rule models to $5$–$8\times10^{-5}$.
+
+Softmax and linear attention are nearly indistinguishable at every depth, even though only one of them has a clean GD interpretation. Softmax normalization turns out not to matter much here; the error-correcting write in DeltaNet does.
 
 <figure class="wide">
 <img src="figures/fingerprint.png" alt="algorithm fingerprint">
-<figcaption>«CAPTION_FP»</figcaption>
+<figcaption>How close is each trained model's prediction to each algorithm's prediction on the same prompts? Each cell is the mean squared difference per dimension, averaged over $t = 11\dots40$; the box marks the closest algorithm. Caveat: a model that is simply very good sits close to ridge by default, so read the ridge column as "good", and the other columns as "specifically like this algorithm".</figcaption>
 </figure>
 
-«TEXT_FP»
+**Result 2: one layer of DeltaNet has learned exactly online SGD.** Its predictions differ from normalized LMS, run with a step size I tuned independently ($\beta^\star = 0.96$), by only 0.002 per dimension, and its risk curve lies on top of LMS's (0.0161 vs 0.0161 at $t=40$). Opening the model up confirms it. One head writes with $\beta \approx 0.95$ on example tokens and a much smaller $\beta \approx 0.2$ on query tokens, which contain no label and would only pollute the memory. The trained network rediscovered the Kaczmarz/NLMS algorithm, step size included.
+
+One-layer attention models sit closest to one GD step, as the theory says, though the MLP and second head make them better than a single step. Gated DeltaNet at one layer is not LMS: it is closer to 4 GD steps and better than both. With two or more layers every delta-rule model is closest to ridge, and far closer to it than attention is.
+
+Gates also turn out to be used, but not for forgetting examples. In the deeper Gated DeltaNets, one head in the first layers learns a decay $\alpha \approx 0.01$–$0.4$, a memory that lasts only a token or two, while the other head keeps $\alpha \approx 1$. It looks like the network builds itself a local "previous token" channel next to the long-term regression memory.
 
 <figure class="wide">
 <img src="figures/shift.png" alt="shift tests">
-<figcaption>«CAPTION_SHIFT»</figcaption>
+<figcaption>Changing the test distribution. <b>(a, b)</b> Inputs multiplied by $c$ (noiseless; error normalized by $c^2$ and averaged over $t=30\dots40$). Ridge/least squares is exactly 0 at every scale (not shown). Normalized LMS (dashed) is scale-invariant by construction. GD with fixed tuned steps diverges for $c > 1$. <b>(c)</b> Models trained with label noise $\sigma = 0.5$, tested at other noise levels; neutral lines are the algorithms tuned for $\sigma = 0.5$.</figcaption>
 </figure>
 
 «TEXT_SHIFT»
@@ -262,7 +274,19 @@ The baselines on the same prompts are ridge (= RLS); GD with 1–4 steps, step s
 
 ## 8. What didn't match
 
-«TEXT_BREAKS»
+Honest accounting of where measurement and theory parted ways, or where I had to change the setup to get a clean result.
+
+**Minibatch training is much slower than the theorem suggests on correlated inputs.** Gradient flow on the exact population loss converges for both covariances, but look at the time axis of panel (a) in §2: isotropic inputs converge by $t\approx 7$, correlated ones only by $t \approx 500$. The directions of $\Gamma^{-1}$ tied to small eigenvalues of $\Lambda$ (down to 0.11 here) are learned last; the hero animation shows the smooth, large-eigenvalue part of the matrix appearing first. With Adam at batch 4096, the correlated layer is still 39% from $\Gamma^{-1}$ after 16,000 steps, even though its risk is within 1.2% of the optimum. The loss is flat in exactly the directions that are slow. Plain SGD at learning rates that finish in reasonable time diverged outright, because the loss is quartic in the inputs and minibatch gradients are heavy-tailed. All the matrix-level matches in §2 therefore come from the exact flow, and the risk-level matches come from Adam.
+
+**The theorem needs its initialization.** ZFB's convergence proof assumes a specific balanced initialization. With deep linear attention on correlated inputs and a generic small random initialization, the one-layer model stalled at an error of 0.50 per dimension, twice the optimum of 0.25, after 6,000 steps. I switched to Ahn et al.'s sparsity pattern plus noise on every entry, which then trained cleanly.
+
+**Averages hide heavy tails.** Deep linear attention is a high-degree polynomial of its input. The mean error of the 4-layer correlated model is about 100× its error with the worst 0.1% of prompts removed, and its standard error is as large as the mean. Training on minibatches never sees those prompts, so the training loss looked fine. Any claim of the form "depth-$L$ attention reaches error $\epsilon$" should say which average it means.
+
+**The proportional limit is only approximate at $d = 10$.** Two tuned GD steps measured 0.169 per dimension against a limit of 0.143 at $\gamma = \tfrac12$. The formula gets the trend right, and finite dimension adds roughly 20% at these sizes.
+
+«BREAK_TD»
+
+**The build-on experiment is small.** It uses one seed per configuration, 8,000 training steps, width 64, and $d=10$. Differences within a factor of 1.5 (for example DeltaNet vs Gated DeltaNet at 2 and 4 layers) should not be read as real. The prompt format also matters: I give each architecture the pair $(x_t, y_t)$ in a single token, so no model has to learn to bind $x$ to $y$ across tokens. Garg et al. and Raventós et al. interleave $x$ and $y$ tokens, which favours architectures that can move information between neighbouring positions. DeltaNet's L2-normalized keys make it natively NLMS rather than LMS. That probably helps it here and is part of what is being compared, not a neutral detail.
 
 ## Reproduce it
 

@@ -24,7 +24,8 @@ ev = json.load(open(HERE / "cache" / "lsa1_eval.json"))
 summary = {}
 
 # ------------------------------------------------------------------------------------------ lsa1 plate
-fig, axs = plt.subplots(1, 4, figsize=(18, 4.4), gridspec_kw=dict(wspace=0.34))
+fig, axs = plt.subplots(2, 2, figsize=(12.5, 9.6), gridspec_kw=dict(wspace=0.32, hspace=0.42))
+axs = axs.flatten()
 ax = axs[0]
 for cov, col, name in [("ar1", COR, "correlated"), ("iso", ISO, "isotropic")]:
     z = np.load(HERE / "cache" / f"gradflow_{cov}_d20_N40_s0.npz")
@@ -42,7 +43,7 @@ for cov, col, name in [("ar1", COR, "correlated"), ("iso", ISO, "isotropic")]:
     B = np.array([effective_preconditioner(torch.tensor(pv), torch.tensor(kq), 20).numpy() for pv, kq in zip(z["Wpv"], z["Wkq"])])
     e = np.linalg.norm(B - Gi, axis=(1, 2)) / np.linalg.norm(Gi)
     ax.plot(z["steps"][1:], e[1:], color=col, lw=2.2)
-    style.label_end(ax, z["steps"][-1], e[-1], f"{name}: {e[-1]:.0%}", col, dx=-4, dy=-11, ha="right")
+    style.label_end(ax, z["steps"][-1], e[-1], f"{name}: {e[-1]:.1%}", col, dx=-4, dy=-11, ha="right")
     summary[f"adam_{cov}_relerr_B"] = float(e[-1])
 ax.set_xscale("log"); ax.set_yscale("log"); ax.set_ylim(3e-3, 3)
 ax.set_xlabel("Adam steps (batch 4096, all 882 entries free)"); ax.set_ylabel("$\\|A - \\Gamma^{-1}\\| / \\|\\Gamma^{-1}\\|$")
@@ -71,7 +72,7 @@ for cov, col in [("ar1", COR), ("iso", ISO)]:
     r = ev[cov]["risk_scale"]
     ax.plot(Cs, r["theory_star"], color=style.INK, lw=1.2)
     ax.scatter(Cs, r["trained_mc"], color=col, s=34, zorder=4, edgecolor=style.PAPER, lw=1.2)
-ax.axhline(0, color=style.INK, lw=0)
+ax.set_ylim(4, 180)
 ax.set_xscale("log", base=2); ax.set_yscale("log")
 ax.set_xticks([0.5, 0.71, 1, 1.41, 2]); ax.set_xticklabels(["½", "", "1", "", "2"])
 ax.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: f"{v:g}")); ax.yaxis.set_minor_formatter(matplotlib.ticker.NullFormatter())
@@ -120,7 +121,7 @@ summary["randexp"] = {k: rc[k] for k in ["M", "slope", "risk", "b_finiteN", "slo
 
 # ------------------------------------------------------------------------------------------ depth
 de = json.load(open(HERE / "cache" / "deep_eval.json"))
-fig, axs = plt.subplots(1, 2, figsize=(14, 4.8), gridspec_kw=dict(wspace=0.62))
+fig, axs = plt.subplots(1, 2, figsize=(11.5, 4.7), gridspec_kw=dict(wspace=0.75))
 for ax, tag, ttl in [(axs[0], "iso", "isotropic inputs"), (axs[1], "ar1", "correlated inputs ($\\Lambda_{ij} = 0.8^{|i-j|}$)")]:
     rows = [v for k, v in de.items() if k.startswith(f"lsa_deep_{tag}|")]
     d, n = rows[0]["d"], rows[0]["n"]
@@ -134,13 +135,13 @@ for ax, tag, ttl in [(axs[0], "iso", "isotropic inputs"), (axs[1], "ar1", "corre
         if kind == "dense":
             ax.plot(L_, tr, color=col, lw=1.4, ls=(0, (3, 2)), marker="o", ms=5, mfc=style.PAPER, mec=col, zorder=3)
             ax.errorbar(L_, mu, yerr=np.minimum(2 * se, mu * 0.95), color=col, lw=2.4, marker=mk, ms=8, mec=style.PAPER, mew=1.5, zorder=4, capsize=0)
-            style.label_end(ax, L_[-1], mu[-1], "linear attention", col, dx=10, dy=6 if tag == "iso" else -8, fontsize=10)
-            style.label_end(ax, L_[-1], tr[-1], "same, dropping worst 0.1%\nof prompts", col, dx=10, fontsize=8.5, fontweight="normal")
+            style.label_end(ax, L_[-1], mu[-1], "linear attention", col, dx=8, dy=7 if tag == "iso" else -8, fontsize=11)
+            style.label_end(ax, L_[-1], tr[-1], "dashed: dropping the\nworst 0.1% of prompts", col, dx=8, dy=-6, fontsize=10, fontweight="normal")
             summary[f"depth_{tag}_dense_trim"] = dict(zip(map(int, L_), tr)); summary[f"depth_{tag}_dense_mean"] = dict(zip(map(int, L_), mu))
             summary[f"depth_{tag}_dense_sem"] = dict(zip(map(int, L_), se))
         else:
             ax.errorbar(L_, mu, yerr=2 * se, color=col, lw=2.2, marker=mk, ms=7, mec=style.PAPER, mew=1.5, capsize=0)
-            style.label_end(ax, L_[-1], mu[-1], name, col, dx=10, fontsize=9.5)
+            style.label_end(ax, L_[-1], mu[-1], name.replace(", ", ",\n"), col, dx=8, fontsize=11)
             summary[f"depth_{tag}_{kind}"] = dict(zip(map(int, L_), mu))
     if tag == "iso":
         g = d / n
