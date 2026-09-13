@@ -12,10 +12,12 @@
 - XOR η film 72×480² (3 parts, ~11 min each), rendered raw/canon/spectral at 8 fps (TQ 1.6–4.1 for XOR).
 - README: XOR gallery section written; split variants table added. Remaining placeholders: XOR_ZOOM_PLACEHOLDER, XOR_VERIFY_PLACEHOLDER, WALL_XOR.
 
-## Running
-- `prod_xor_zoom.sh` (zX, 6 levels ×6, 1024², fan) → logs/prod_xor_zoom.log (was waiting on a GPU slot).
+## Session 2 finish
+- XOR fan zoom zX done (36 min): box D = 1.82,1.83,1.79,1.76,1.77,1.77 (mean 1.79±0.03), all levels 18 labels, ~40% boundary px. `analyze.py xor` → cache/verify_xor.json, gallery/verify_xor.png. `render_xor.py zoom` → zoom_zX_{raw,canon,spectral}.png.
+- README complete: all placeholders filled, link check clean. GPU total ≈ 3.9 h slot time.
+- No background jobs running.
 
-## Next
-1. After zoom: `python analyze.py xor` (verify_xor.json/png), `python render_xor.py zoom`; view; fill README placeholders; wall times (XOR hero 29 min, uncert 11+11+6.5 min, η series 17 min, film 31 min, fact3c 2.4 min, zoom ?).
-2. Optional: XOR fan zoom film; link check README; final commit.
-GPU used: ~2.3 h before session 2, ~1.2 h in session 2 so far.
+## Possible next steps (optional polish)
+- XOR resolution check (fan L1 window at 513/1025/2049) — not done, stated in README.
+- XOR fan zoom film (e.g. 540², 120 frames, 3 parts via compute_frames.py zoom --part) — would be the strongest B motion piece; ~2 h slot time.
+- Large print crop of zoom_zX L2 in Spectral / hubble_sho at native 1024 → needs recompute at 2048+ for print.

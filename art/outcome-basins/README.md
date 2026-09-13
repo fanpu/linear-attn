@@ -4,9 +4,11 @@
 
 <img src="gallery/f3_s0_e0.3_wide_newton.png" width="49%"> <img src="gallery/f3_s0.5_e1.1_tassel_spectral.png" width="49%">
 
+<img src="gallery/xor_s4_e1.2_spectral.png" width="49%"> <img src="gallery/zoom_zX_spectral.png" width="49%">
+
 <video src="gallery/f3_zoomfilm_newton.mp4" autoplay loop muted playsinline width="49%"></video> <video src="gallery/f3_etafilm_newton.mp4" autoplay loop muted playsinline width="49%"></video>
 
-<sub>Top left: *Four Roots*, 4096² runs of GD on ¼(xyz−1)², η = 0.3. Top right: the fringe of the same system at η = 1.1 (window 0.875 wide), in the Sohl-Dickstein Spectral split. Bottom left: a 1.3·10⁸× zoom into a boundary between solutions. Bottom right: the same slice as η rises from 0.02 to 1.32. GIF versions: [zoom](gallery/f3_zoomfilm_newton.gif), [η](gallery/f3_etafilm_newton.gif).</sub>
+<sub>Top left: *Four Roots*, 4096² runs of GD on ¼(xyz−1)², η = 0.3. Top right: the fringe of the same system at η = 1.1 (window 0.875 wide), in the Sohl-Dickstein Spectral split. Bottom left: a 1.3·10⁸× zoom into a boundary between solutions. Middle row: *Modulo Permutation*, the XOR 2-2-1 net at η = 1.2 in the Spectral split, and a 7776× zoom into its fan (D ≈ 1.79). Bottom right: the *Four Roots* slice as η rises from 0.02 to 1.32. GIF versions: [zoom](gallery/f3_zoomfilm_newton.gif), [η](gallery/f3_etafilm_newton.gif).</sub>
 
 ---
 
@@ -117,7 +119,11 @@ What each style measures, and what is a declared choice:
 
 <sub>Films play at 8 frames per second; brightness range for the newton films is fixed across frames (log₁₀ steps 1.6–4.1, pooled 0.5–99.5 percentiles).</sub>
 
-XOR_ZOOM_PLACEHOLDER
+**Zoom into the fan**
+
+<img src="gallery/zoom_zX_spectral.png" width="100%">
+
+<sub><b>zoom_zX_spectral</b> (also [raw](gallery/zoom_zX_raw.png), [canonical](gallery/zoom_zX_canon.png)). Six nested levels, 6× each (width 1 → 1.3·10⁻⁴, 7776× in total), 1024² runs per level, η = 1.2. Level 0 is centred on the most boundary-dense point of the hero map; later centres are picked automatically by boundary density. Spectral split, rank-normalised per level (declared). At every level the window holds all 18 outcome labels (16 raw solutions + plateau + diverged) and 37–48% of pixels sit on a boundary: the fan is a self-similar stack of streaks, and it does not smooth out as we zoom. The share of diverged runs grows with depth (45% → 78%) because the zoom centre drifts deeper into the divergent side.</sub>
 
 ## 4. What was computed
 
@@ -130,7 +136,7 @@ XOR_ZOOM_PLACEHOLDER
 | converged | loss < 10⁻¹² and still < 10⁻¹² 64 steps later | same |
 | diverged | max\|θ\| > 10⁴ or non-finite | same |
 | outcome | sign class of (x,y,z) | ordered pair of hidden-unit sign codes; canonical = sorted pair of min(c, 15−c) |
-| grids | heroes 4096²; η series 2048²; zoom levels 2048²; resolution check 1025/2049/4097; films 1080² | hero 2048²; η series 768²; zoom 768²; film 360² (nearest-neighbour upscale to 1080, declared) |
+| grids | heroes 4096²; η series 2048²; zoom levels 2048²; resolution check 1025/2049/4097; films 1080² | hero 2048²; η series 1024²; fan zoom 1024² (6 levels ×6); film 72 frames at 480² (2× nearest-neighbour on a 1080² mat, declared) |
 | precision | float64 end to end (raw CUDA kernels, one GPU thread per run) | float64 |
 
 The engine, `cuda_gd.py`, compiles one CUDA kernel per problem with `torch.utils.cpp_extension.load_inline`. Each GPU thread runs one pixel's entire training run, stops early when that run finishes, and records a smoothed first-passage time. On a GPU shared with about 10 other jobs, this was 20–30× faster than a fused torch.compile step loop (`engine.py`, kept for reference and for the batched Jacobian/sharpness). The two engines agreed on 100% of labels in a check (`scratch/test_cuda.py`).
@@ -141,15 +147,17 @@ The engine, `cuda_gd.py`, compiles one CUDA kernel per problem with `torch.utils
 $G ./prod_fact3.sh      # heroes, η series, null, zoom levels, resolution check, uncertainty, both A films
 $G ./prod_fact3b.sh     # extra A plates (wide, fringe, fringe zoom, s=1.5 η=1.2)
 $G ./prod_fact3c.sh     # 10^6-sample uncertainty tail (riddling test)
-$G ./prod_xor.sh        # B: hero, uncertainty (raw/canon/null), η series, zoom, film
+$G ./prod_xor.sh        # B: hero + uncertainty raw/canon (first 3 lines were used; later lines superseded by:)
+$G ./prod_xor2.sh; $G ./prod_xor_zoom.sh; for p in 0 1 2; do $G ./prod_xor_film.sh $p & done   # B null, η series, fan zoom, film
 $PY analyze.py fact3; $PY analyze.py xor                        # verification JSON + plates
 $PY render_fact3.py heroes heroes2 triptych eta zoom; $PY render_xor.py hero eta zoom
 $PY render_films.py f3_etafilm newton 20; $PY render_films.py f3_etafilm spectral 20
 $PY render_films.py f3_zoomfilm newton 24; $PY render_films.py f3_zoomfilm spectral 24
-$PY render_films.py xor_etafilm raw 12; $PY render_films.py xor_etafilm canon 12
+$PY render_fact3.py splits; $PY render_xor.py eta zoom
+for s in raw canon spectral; do $PY render_films.py xor_etafilm $s 8; done
 ```
 
-Wall time on the shared GB10 (8 GPU slots, about 95% utilised by other projects the whole time): A production 53 min in one slot (the two films took 36 min of that), A follow-ups 4 min, WALL_XOR. Rendering is CPU only (OMP_NUM_THREADS=4) and took about 15 min. Caches of raw arrays are in `cache/` (gitignored).
+Wall time on the shared GB10 (8 GPU slots, about 95% utilised by other projects the whole time): A production 53 min in one slot (the two films took 36 min of that), A follow-ups 4 min, B hero 29 min, B uncertainty exponents 11 + 11 + 6.5 min, B η series 17 min, B η film 31 min (3 slots × ~11 min), B fan zoom 36 min, A riddling tail 2.4 min (total GPU slot time over the project ≈ 3.9 h). Rendering is CPU only (OMP_NUM_THREADS=4) and took about 15 min. Caches of raw arrays are in `cache/` (gitignored).
 
 ## 5. Verification and honesty (fractals doc §11)
 
@@ -170,7 +178,17 @@ Wall time on the shared GB10 (8 GPU slots, about 95% utilised by other projects 
 
 **B. XOR**
 
-XOR_VERIFY_PLACEHOLDER
+<img src="gallery/verify_xor.png" width="100%">
+
+| test | result |
+|---|---|
+| box counting on the nested fan zoom (6 levels, 6× each, width 1 → 1.3·10⁻⁴; 1024² per level) | D = 1.82, 1.83, 1.79, 1.76, 1.77, 1.77. **Mean 1.79 ± 0.03**, steady across 3.9 decades of zoom. |
+| hero map (2048², ±3), quotient analysis | raw, all boundaries D = 1.67 ± 0.01; between raw solutions only D = 1.26 ± 0.03. Canonical, all boundaries D = 1.68; between canonical solutions only D = 1.14 ± 0.04. Canonicalisation removes **58%** of between-solution boundary pixels (16 → 2 classes). What survives is the fan: solve vs plateau vs diverge. |
+| uncertainty exponent, M = 2·10⁴, ε = 10⁻¹ … 10⁻¹¹ of window width | raw labels α = 0.22 → **D = 1.78**; canonical α = 0.21 → **D = 1.79**. Agrees with the zoom box counts. f(ε) falls from 0.64 to 0.0033 without flattening, so **not riddled** down to 10⁻¹¹, but close to intermingled. |
+| null model (same pipeline, η = 0.3) | uncertainty α = 0.92 → **D = 1.08**: smooth borders, as expected for a near-gradient-flow step size. The η series shows no fan at η ≤ 0.8. |
+| resolution check | **not done for XOR** (XOR runs are ~10× costlier than A because plateau runs go to T = 20 000). The agreement of box counting (pixel-scale) and the uncertainty exponent (to 10⁻¹¹, far below a pixel) is our substitute. With ~40% boundary pixels, box counts at 1024² are near saturation; treat D ≈ 1.8 as ±0.05. |
+| edge-of-stability selection | max sharpness among converged runs vs 2/η: 6.665 vs 6.667 (η = 0.3), 2.008 vs 2.000 (η = 1), 1.818 vs 1.818 (η = 1.1), 1.740 vs 1.739 (η = 1.15), 1.683 vs 1.667 (η = 1.2), 1.600 vs 1.600 (η = 1.25). The few runs above the line are ≤ 4 per 10⁶ (η = 0.8: 4 runs, max 2.568 vs 2.5), consistent with hold-window transients at loss < 10⁻¹². |
+| precision | float64 throughout; the deepest XOR zoom pixel is 1.3·10⁻⁷, far above rounding. |
 
 **What did not work / negative results**
 
