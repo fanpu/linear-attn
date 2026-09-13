@@ -13,21 +13,49 @@ from common import load_run, log_kde, shape_NM, mp_edges
 import render_common as R
 
 BW = 0.025
+BW_SV = 0.012
 GAMMA = 0.5
+AXIS = 'sv'
 
 
-def ridge_data(run, layer, n_ridges=80, key='lam', grid=None):
+def pick(steps, n, time):
+    """Indices of measured checkpoints nearest to n targets evenly spaced in step ('lin') or log step from 100 ('log')."""
+    s = np.asarray(steps, float)
+    if time == 'lin':
+        tg = np.linspace(0, s[-1], n)
+        idx = np.abs(s[None, :] - tg[:, None]).argmin(1)
+    else:
+        tg = np.geomspace(100, s[-1], n)
+        idx = np.abs(np.log10(np.maximum(s, 1))[None, :] - np.log10(tg)[:, None]).argmin(1)
+    return np.unique(idx)
+
+
+def ridge_data(run, layer, n_ridges=80, key='lam', grid=None, time=None, lo_pct=2.0):
     r = load_run(run)
     lam = r[f'{layer}/{key}']
     T = lam.shape[0]
-    idx = np.unique(np.round(np.linspace(0, T - 1, min(n_ridges, T))).astype(int))
+    if time is None:
+        time = 'lin' if r['meta'].get('n_lin') else 'log'
+    idx = pick(r['step'], n_ridges, time)
+    if AXIS == 'sv':  # x = singular value s/sqrt(N) = sqrt(lambda), linear; KDE bandwidth BW_SV * init MP edge
+        allv = np.sqrt(np.concatenate([r[f'{layer}/lam'][idx].ravel(), r[f'{layer}/lam_shuf'][idx].ravel()]))
+        if grid is None:
+            grid = np.linspace(0, allv.max() * 1.04, 1600)
+        bw = BW_SV * np.sqrt(r[f'{layer}/lam'][0].max())
+        D = np.stack([lin_kde(np.sqrt(lam[i]), grid, bw) for i in idx])
+        return grid, D, idx, r
     if grid is None:
         allv = np.concatenate([r[f'{layer}/lam'][idx].ravel(), r[f'{layer}/lam_shuf'][idx].ravel()])
-        lo = np.log10(np.percentile(allv, 2.0)) - 0.1
+        lo = np.log10(np.percentile(allv, lo_pct)) - 0.1
         hi = np.log10(allv.max()) + 0.12
         grid = np.linspace(lo, hi, 1400)
     D = np.stack([log_kde(lam[i], grid, BW) for i in idx])
     return grid, D, idx, r
+
+
+def lin_kde(x, grid, bw):
+    d = (grid[:, None] - x[None, :]) / bw
+    return np.exp(-0.5 * d * d).sum(1) / (x.size * bw * np.sqrt(2 * np.pi))
 
 
 def draw_ridges(ax, grid, D, peak, spacing=1.0, height=7.0, fg='w', bg='k', lw=0.8, colors=None, fill=True,
@@ -49,9 +77,10 @@ def caption(fig, r, run, layer, idx, color, y=0.035, size=9, font='DejaVu Sans M
     N, M = shape_NM(r, layer)
     s0, s1 = int(r['step'][idx[0]]), int(r['step'][idx[-1]])
     meta = r['meta']
-    txt = (f'{layer}  {N}×{M}   ESD of WᵀW/N   {len(idx)} checkpoints, step {s0} → {s1:,} (log-spaced, top → bottom)   '
-           f'MLP 784-1024-1024-1024-10 · FashionMNIST · SGD bs {meta["bs"]} lr {meta["lr"]}   '
-           f'x: log₁₀ λ   height: (KDE density)^{GAMMA}, bw {BW} dex')
+    txt = (f'{layer}  {N}×{M} · {len(idx)} measured checkpoints, SGD step {s0:,} → {s1:,} (top → bottom) · '
+           f'MLP 784-1024-1024-1024-10 · FashionMNIST · SGD bs {meta["bs"]} lr {meta["lr"]} momentum {meta["momentum"]}\n'
+           + (f'x: singular value s/√N (linear)   height: (KDE density)^{GAMMA}, bw {BW_SV}×init edge' if AXIS == 'sv'
+              else f'x: log₁₀ λ   height: (KDE density)^{GAMMA}, bw {BW} dex'))
     fig.text(0.5, y, txt, ha='center', va='center', color=color, fontsize=size, family=font)
 
 
@@ -79,7 +108,7 @@ def render(run, layer, style, n_ridges=80, out=None):
                  ha='center', color=tc, fontsize=15, family=R.SANS if style == 'joy' else R.SERIF,
                  fontweight='bold' if style == 'joy' else 'normal')
         caption(fig, r, run, layer, idx, tc if style != 'ink' else '#6d675c', size=5.2)
-        return R.save(fig, out or f'ridgeline_{run}_{layer}_{style}.png', dpi=300)
+        return R.save(fig, out or f'ridgeline_{run}_{layer}_{AXIS}_{style}.png', dpi=300)
     if style == 'riso':
         # two drums: measured ESD ridges (federal blue) over element-shuffled null ridges (fluo pink)
         _, Dn, _, _ = ridge_data(run, layer, n_ridges, key='lam_shuf', grid=grid)
@@ -100,7 +129,7 @@ def render(run, layer, style, n_ridges=80, out=None):
         fig.text(0.5, 0.912, 'blue: eigenvalues of the trained layer    pink: same weights, entries randomly permuted',
                  ha='center', color=R.RISO['fluo_pink'], fontsize=7.5, family=R.MONO)
         caption(fig, r, run, layer, idx, R.RISO['federal_blue'], size=5.2)
-        return R.save(fig, out or f'ridgeline_{run}_{layer}_riso.png', dpi=250)
+        return R.save(fig, out or f'ridgeline_{run}_{layer}_{AXIS}_riso.png', dpi=250)
 
 
 if __name__ == '__main__':

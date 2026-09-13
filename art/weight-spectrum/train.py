@@ -126,6 +126,7 @@ def main():
     ap.add_argument('--wd', type=float, default=0.0)
     ap.add_argument('--epochs', type=float, default=30)
     ap.add_argument('--n_ckpt', type=int, default=80)
+    ap.add_argument('--n_lin', type=int, default=0, help='add this many linearly spaced checkpoints')
     ap.add_argument('--n_full', type=int, default=0, help='save full W at this many log-spaced checkpoints')
     ap.add_argument('--crop', type=int, default=0, help='save top-left crop x crop of W at every checkpoint')
     ap.add_argument('--k_vec', type=int, default=16)
@@ -158,6 +159,8 @@ def main():
     steps_per_epoch = ntr // args.bs
     total = int(round(args.epochs * steps_per_epoch))
     cks = ckpt_steps(total, args.n_ckpt)
+    if args.n_lin:
+        cks = sorted(set(cks) | set(np.round(np.linspace(0, total, args.n_lin + 1)).astype(int).tolist()))
     full_set = set(ckpt_steps(total, args.n_full)) if args.n_full else set()
     full_set |= {0, cks[-1]}
     print(f'[{args.name}] total steps {total}, {len(cks)} checkpoints', flush=True)
