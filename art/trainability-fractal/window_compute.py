@@ -28,8 +28,10 @@ p.add_argument('--checkpoints', default=None, help='start:stop:step, e.g. 20:500
 p.add_argument('--from_zoom', default=None, help='tag:k -> take window from a zoom keyframe')
 p.add_argument('--seed', type=int, default=0)
 p.add_argument('--chunk', type=int, default=32768)
+p.add_argument('--dtype', default='float64')
 args = p.parse_args()
 tf.setup_gpu(0.10)
+tf.DT = getattr(torch, args.dtype)
 os.makedirs('cache/windows', exist_ok=True)
 fn = f'cache/windows/{args.name}.npz'
 if os.path.exists(fn):
@@ -62,7 +64,7 @@ dt = time.time() - t0
 R = args.res
 save = dict(c0=c0, c1=c1, hw=hw, hwy=hwy, res=R, steps=args.steps, nonlin=args.nonlin,
             axes=args.axes, minibatch=-1 if args.minibatch is None else args.minibatch,
-            seconds=dt, seed=args.seed)
+            seconds=dt, seed=args.seed, dtype=args.dtype)
 if cps:
     save['measure'] = r[0].reshape(R, R); save['measure_T'] = r[1].reshape(len(cps), R, R)
     save['checkpoints'] = np.array(cps)

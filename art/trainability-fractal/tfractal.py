@@ -35,16 +35,17 @@ LAST = 20
 
 def make_problem(seed=0, width=N_HID, nonlin='tanh', device='cuda', data_mult=1.0):
     g = torch.Generator(device='cpu').manual_seed(seed)
-    W0 = torch.randn(width, width, generator=g, dtype=DT)
-    W1 = torch.randn(width, 1, generator=g, dtype=DT)
+    W0 = torch.randn(width, width, generator=g, dtype=torch.float64)
+    W1 = torch.randn(width, 1, generator=g, dtype=torch.float64)
     n_params = width * width + width
     if nonlin == 'quadratic':
         n_data = n_params
     else:
         n_data = int(n_params * data_mult)
-    X = torch.randn(n_data, width, generator=g, dtype=DT)
-    Y = torch.randn(n_data, 1, generator=g, dtype=DT)
-    return dict(W0=W0.to(device), W1=W1.to(device), X=X.to(device), Y=Y.to(device),
+    X = torch.randn(n_data, width, generator=g, dtype=torch.float64)
+    Y = torch.randn(n_data, 1, generator=g, dtype=torch.float64)
+    # always drawn in float64 so float32 runs see the same init/data (rounded)
+    return dict(W0=W0.to(device, DT), W1=W1.to(device, DT), X=X.to(device, DT), Y=Y.to(device, DT),
                 width=width, nonlin=nonlin, seed=seed)
 
 

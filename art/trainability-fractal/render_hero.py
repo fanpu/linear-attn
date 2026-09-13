@@ -27,7 +27,15 @@ args = p.parse_args()
 w = load(args.name)
 M = w['M']
 R = M.shape[0]
-fn = {'spectral': S.spectral, 'magma': S.dark_magma}[args.style]
+if args.style in ('spectral', 'magma'):
+    fn = {'spectral': S.spectral, 'magma': S.dark_magma}[args.style]
+else:
+    # split pairings from the shared colour-research module (declared aesthetic variants);
+    # near_boundary='large' = his measure, where large |M| (slow) sits at the edge
+    import sys
+    sys.path.insert(0, '/home/fzeng/ml/research/art/color-research')
+    import palettes as P
+    fn = lambda m: (np.clip(P.render_split(m, args.style, near_boundary='large')[::-1], 0, 1) * 255 + 0.5).astype(np.uint8)
 img = fn(M)
 f = max(1, args.px // R)
 Image.fromarray(S.upscale(img, f)).save(f'gallery/hero_{args.out}_{args.style}_print.png')

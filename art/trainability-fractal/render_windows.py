@@ -47,7 +47,8 @@ def label_of(w):
 
 
 # --------------------------------------------------------------------------- diptych
-def diptych(win):
+def diptych(win, style='spectral'):
+    colf = {'spectral': S.spectral, 'magma': S.dark_magma}[style]
     names = [f'dip_{win}_tanh', f'dip_{win}_relu', f'dip_{win}_sin', f'dip_{win}_mb16']
     if win == 'A':
         names[0] = 'zoomA:0'
@@ -61,19 +62,19 @@ def diptych(win):
     page = Image.new('RGB', (Wd, top + P + bot), (14, 12, 16))
     d = ImageDraw.Draw(page)
     w0 = ws[0]
-    d.text((pad, 40), 'Same window, four trainings', font=font(SERIF_B, 52), fill=(235, 228, 215))
+    d.text((pad, 40), f'Same window, {["","one","two","three","four"][n]} architectures', font=font(SERIF_B, 52), fill=(235, 228, 215))
     d.text((pad, 110), f'log10 eta0 in [{w0["c0"]-w0["hw"]:.3f}, {w0["c0"]+w0["hw"]:.3f}]   '
                        f'log10 eta1 in [{w0["c1"]-w0["hw"]:.3f}, {w0["c1"]+w0["hw"]:.3f}]   '
                        f'{w0["res"]}x{w0["res"]} nets per panel, 500 steps, float64',
            font=font(MONO, 26), fill=(170, 160, 150))
     for i, w in enumerate(ws):
         x = pad + i * (P + pad)
-        page.paste(Image.fromarray(S.dark_magma(w['M'])).resize((P, P), Image.NEAREST), (x, top))
+        page.paste(Image.fromarray(colf(w['M'])).resize((P, P), Image.NEAREST), (x, top))
         E = edges(w['M'])
         d.text((x, top + P + 24), label_of(w), font=font(SERIF, 38), fill=(235, 228, 215))
         d.text((x, top + P + 80), f'trainable {100*(w["M"]<0).mean():.1f}%   boundary px {100*E.mean():.2f}%',
                font=font(MONO, 26), fill=(170, 160, 150))
-    page.save(f'gallery/diptych_{win}_magma.png')
+    page.save(f'gallery/diptych_{win}_{style}.png')
     # --- (2) overlay line drawing: each architecture's boundary in its own ink on paper
     inks = [(200, 40, 70), (20, 90, 160), (30, 130, 80), (120, 80, 20)]
     R = ws[0]['res']; sc = 4
@@ -194,7 +195,7 @@ def styles_set(name, out):
 if __name__ == '__main__':
     cmd = sys.argv[1]
     if cmd == 'diptych':
-        diptych(sys.argv[2])
+        diptych(sys.argv[2], 'spectral'); diptych(sys.argv[2], 'magma')
     elif cmd == 'semantic':
         semantic()
     elif cmd == 'steps':
