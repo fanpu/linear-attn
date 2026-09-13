@@ -10,7 +10,7 @@
 | run | status | notes |
 |---|---|---|
 | mlp_bs32/64/128/256_s0 | done | 60 log ckpts, 6 full W |
-| mlp_bs16_s0 | running (ETA ~15:20) | 120 log ckpts, 24 full W |
+| mlp_bs16_s0 | done (2480 s) | 120 log ckpts, 24 full W |
 | mlp_bs8_s0 | running (ETA ~16:00) | 80 log ckpts, 12 full W |
 | mlp_bs512_s0, mlp_bs1024_s0 | running (short) | from `run_series.sh` |
 | mlp_bs16_s1 | running (ETA ~16:15) | **MAIN ART RUN**: 150 linear + 50 log ckpts (197), 12 full W |
