@@ -20,6 +20,29 @@
   hubble_sho split, atlas) — `python render_maps.py --tag g51`; render_extra.py (stl, ridge, sweep, zoom, pca, ckfilm, lines).
   Shared clip LO,HI = 0.08,150 on log10 loss.
 
-## Next
-1. Render g51 for all 4 + atlas, view, fix. 2. lines/zoom/pca/ckfilm when data lands. 3. Merge g101, render heroes,
-stl, ridge, sweep. 4. README (mandatory slice caveat, Dinh et al. 2017), commit.
+- Surface stats: `python analyze_surf.py g51` -> cache/surf_stats_g51.json (+ cache/curv_*.npz for curvature plate).
+- KEY FINDING so far: r56ns 51² slice is NOT chaotic (single elongated valley, 1 local min, basin 7% of square vs 17-22%
+  for r20/r20ns; non-convex fraction inside basin ~5%). Negative vs Li et al. Fig 5; likely 40-epoch undertraining
+  (81.8% train acc). README states this; zoom test + 101² hero will decide at finer spacing.
+- Rendered + viewed (g51, r20/r20ns/r56ns): survey (good), hachure + hachure_dark (strong; dark crop is lovely),
+  hillshade (ok after alt40/exag0.35 + faint contours), hypsometric (ok after palette fix), spectral/hubble split
+  at chance ln10 (good), curvature_split_g51.png (λ_min split; red = convex), atlas_g51.png (3 of 4 so far),
+  slices_1d.png (partial), ckpt_ridge/ckpt_slices smoke test only (2 epochs; rerun when chain C done).
+- render_extra.py smoke-tested: ckfilm, zoom, lines, curv. NOT yet run: stl, ridge, sweep, pca (need data).
+- README.md drafted with mandatory slice caveat; *pending* markers to fill.
+
+## Running at handoff (started ~16:10 EDT Sep 13; do not relaunch while alive: `pgrep -af landscape.py`)
+- chainA: r56 g51 (ETA ~17:25), then g101 shard0 r56ns, r56. chainB: 1D lines, subset check, zooms, PCA, g101 shard1.
+- chainC: ckline epochs (at ep10 of 16 at 17:00; ~3 min/epoch pair).
+- If a chain died: rerun its remaining lines by hand (partial files resume; finished outputs are recomputed if
+  rerun, so skip those whose .npz exists).
+
+## Next (exact commands, PY=/home/fzeng/ml/research/art/.venv/bin/python, OMP_NUM_THREADS=4)
+1. When resnet56_final_g51.npz lands: `$PY analyze_surf.py g51 && $PY render_maps.py --tag g51 --models resnet56 && $PY render_maps.py --tag g51 --styles atlas && $PY render_extra.py curv --tag g51`; fill the README stats row.
+2. When zooms land: `$PY render_extra.py zoom` (json in cache/zoom_test.json); `$PY render_extra.py lines` (prints subset check).
+3. PCA: `$PY render_extra.py pca`. Checkpoints: `$PY render_extra.py ckfilm` after chain C.
+4. Hero: `$PY merge_shards.py resnet56_noshort_final_g101 resnet56_final_g101`, then `$PY analyze_surf.py g101`,
+   `$PY render_maps.py --tag g101 --models resnet56 resnet56_noshort`, `$PY render_extra.py stl|ridge|sweep --tag g101`.
+   (STL files ~? MB: 241² grid -> ~116k tris ~5.8 MB each, under 20 MB.) View each downscaled; fix.
+5. README: fill pending, hero -> g101 images, zoom-test roughness table, GPU time (sum meta wall_s), commit.
+6. Optional if budget: retrain r56ns longer (e.g. 150 epochs) to test whether chaos appears with full training.
