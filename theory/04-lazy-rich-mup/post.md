@@ -94,7 +94,26 @@ That's the lazy regime. If this were the whole story, the "deep" in deep learnin
 
 ## 2. Laziness is a dial
 
-TODO
+Chizat, Oyallon & Bach (2019) noticed that laziness has nothing to do with neural networks as such. Take *any* model $h(x;w)$, centred so that it outputs zero at initialization. Multiply its output by a constant $\alpha$, and divide the loss by $\alpha^2$ so that the problem keeps the same overall scale:
+
+$$\min_w\; \frac{1}{\alpha^2}\,\mathcal L\big(\alpha\, h(\cdot\,;w)\big).$$
+
+To change the output $\alpha h$ by a fixed amount, the weights only need to move by about $1/\alpha$. The $1/\alpha^2$ in the loss keeps the function-space speed of gradient descent the same for every $\alpha$: its tangent kernel is $\alpha^2\Theta_h$, and the loss divides that factor back out. So large $\alpha$ reaches the same fit with weights that barely move, and in the limit it trains exactly like the linearized model. Chizat et al. prove the deviation shrinks like $1/\alpha$, for any differentiable model.
+
+Width is one way to turn this dial. Write the two-layer network with the *mean-field* scaling $\frac{1}{m}\sum_j a_j\sigma(w_j\cdot x)$ (Chizat & Bach 2018; Mei, Montanari & Nguyen 2018). The NTK parameterization is then the same network with $\alpha = \sqrt m$. Making an NTK-parameterized network wider *is* turning up $\alpha$. In the mean-field scaling, $\alpha$ stays at 1 as $m$ grows, the neurons keep moving by order-one amounts at any width, and the infinite-width limit is a genuinely nonlinear evolution of a population of neurons.
+
+That is exactly the hero animation: 1,024 neurons in the mean-field scaling, with $\alpha = 0.5$ (rich) and $\alpha = 1000$ (lazy), the same initialization and learning rate, and 40,000 steps. The NTK parameterization would sit at $\alpha = 32$. Try the whole dial yourself:
+
+<div class="widget wide">
+<p class="widget-title">Playground: turn the laziness dial</p>
+<div id="toy-widget"></div>
+<p class="wcap">A 384-neuron version of the hero network, trained at six output scales α with the same data, initialization, learning rate (0.1) and 40,000 steps. Drag α and watch the lines, or scrub through training. "Show starting lines" overlays the initialization. The charts show all six runs, with the selected one highlighted. At this width the NTK parameterization corresponds to α = √384 ≈ 20.</p>
+</div>
+<script src="widgets/common.js"></script>
+<script src="widgets/data_toy.js"></script>
+<script src="widgets/toy.js"></script>
+
+TODO-B
 
 ## 3. μP: keeping every layer alive
 
@@ -132,7 +151,16 @@ Our testbed from here on is a small GPT: 4 pre-LayerNorm transformer blocks, 4 a
 
 ## 4. The payoff: one learning rate for every width
 
-TODO
+TODO-C
+
+<div class="widget wide">
+<p class="widget-title">Explorer: where is the best learning rate?</p>
+<div id="mup-widget"></div>
+</div>
+<script src="widgets/data_mup.js"></script>
+<script src="widgets/mup.js"></script>
+
+TODO-D
 
 ## 5. Building on it
 

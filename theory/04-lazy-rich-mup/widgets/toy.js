@@ -65,7 +65,7 @@
       if (Math.abs(c) > 1.8 * R) continue;
       const L = 2 * R;
       const x0 = c * ux - L * uy, y0 = c * uy + L * ux, x1 = c * ux + L * uy, y1 = c * uy - L * ux;
-      pctx.globalAlpha = Math.min(0.9, strength * wt[j] / mean);
+      pctx.globalAlpha = Math.min(0.75, strength * wt[j] / mean);
       pctx.strokeStyle = P.a[j] > 0 ? C.pos : C.neg;
       pctx.beginPath(); pctx.moveTo(toPx(x0), S - toPx(y0)); pctx.lineTo(toPx(x1), S - toPx(y1)); pctx.stroke();
     }
@@ -112,8 +112,11 @@
     if (state.ghost) {
       pctx.save(); pctx.globalAlpha = 1; drawLinesGhost(params(state.a, 0)); pctx.restore();
     }
-    drawLines(P, alpha, 0.16);
+    drawLines(P, alpha, 0.075);
     contour();
+    const rg = pctx.createRadialGradient(S / 2, S / 2, S * 0.40, S / 2, S / 2, S * 0.5 * 1.02);
+    rg.addColorStop(0, "rgba(7,9,18,0)"); rg.addColorStop(1, "rgba(7,9,18,1)");
+    pctx.fillStyle = rg; pctx.fillRect(0, 0, S, S);
     pctx.save();
     for (let i = 0; i < n; i++) {
       pctx.fillStyle = Y[i] > 0 ? "rgba(255,196,120,0.9)" : "rgba(140,214,250,0.9)";
