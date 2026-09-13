@@ -51,6 +51,18 @@ def local_slope(B, lo=2, hi_frac=8):
     return float(sl), sizes, n
 
 
+def adj_corr(B):
+    """Pearson correlation of the binary label between horizontally and vertically adjacent pixels
+    (1 = resolved smooth regions, 0 = neighbouring pixels independent, i.e. unresolved / area-filling)."""
+    b = B.astype(float)
+    cs = []
+    for a, c in ((b[:, :-1], b[:, 1:]), (b[:-1, :], b[1:, :])):
+        a, c = a.ravel() - a.mean(), c.ravel() - c.mean()
+        den = np.sqrt((a * a).sum() * (c * c).sum())
+        cs.append(float((a * c).sum() / den) if den > 0 else np.nan)
+    return float(np.nanmean(cs))
+
+
 def lab(Zf, k):
     if args.label == "sync":
         return Zf["t_hit"][k] > args.D
@@ -74,7 +86,8 @@ for k in range(nlev):
     sl, sizes, n = local_slope(B)
     d = dict(level=k, window=[float(x) for x in wins[k]], side=float(side), zoom=float(4.0 / side),
              chaotic_frac=float(B.mean()), edge_cells=int(edge_cells(B).sum()), slope=sl,
-             sizes=sizes, counts=n.tolist(), mf_chaotic_frac=float(lab_mf(Z["L_mf"][k]).mean()))
+             sizes=sizes, counts=n.tolist(), mf_chaotic_frac=float(lab_mf(Z["L_mf"][k]).mean()),
+             adj_corr=adj_corr(B))
     if Z32 is not None and k < Z32["L_avg"].shape[0]:
         d["mismatch_f32"] = float((lab(Z32, k) != B).mean())
         d["slope_f32"] = local_slope(lab(Z32, k))[0]
@@ -139,7 +152,7 @@ rep["stitched_eps_range"] = [float(st_eps.min()), float(st_eps.max())]
 
 # null model: mean-field chain with its own boundary-centred zooms, same pipeline
 nw = [(0.0, 4.0, 0.0, 4.0)]
-null = []
+null, null_B = [], []
 for k in range(args.null_levels):
     x0, x1, y0, y1 = nw[k]
     xs, ys = grid_axes(x0, x1, y0, y1, R)
@@ -148,18 +161,21 @@ for k in range(args.null_levels):
     B = lab_mf(LmfD) if args.label == "sync" else (Lmf > args.tau)
     sl, sizes, n = local_slope(B)
     null.append(dict(level=k, window=list(map(float, nw[k])), slope=sl, counts=n.tolist(), sizes=sizes,
-                     chaotic_frac=float(B.mean())))
+                     chaotic_frac=float(B.mean()), adj_corr=adj_corr(B)))
+    null_B.append(B)
     np.save(C(f"null_mf_level{k}_r{R}.npy"), Lmf.astype(np.float64))
     cx, cy = pick_zoom_center(B, 1 / step, margin=1 / step / 2 + 0.02)
     wx = (x1 - x0) / step
     mx, my = x0 + cx * (x1 - x0), y0 + cy * (y1 - y0)
     nw.append((mx - wx / 2, mx + wx / 2, my - wx / 2, my + wx / 2))
 rep["null"] = null
+np.savez_compressed(C(f"null_labels_{args.label}_r{R}.npz"), B=np.stack(null_B), windows=np.array(nw[:len(null_B)]))
 json.dump(rep, open(C(f"fractal_report_{args.tag}_N{args.N}_{args.label}.json"), "w"), indent=1)
-print(f"{'lev':>3} {'zoom':>9} {'chaos':>6} {'edges':>6} {'slope':>6} {'f32mis':>7} {'pertmis':>8} {'mf':>5} {'null':>5}")
+print(f"{'lev':>3} {'zoom':>9} {'chaos':>6} {'edges':>6} {'slope':>6} {'f32mis':>7} {'pertmis':>8} {'mf':>5} {'null':>5} {'adj':>5}")
 for d, nl in zip(rep["levels"], null):
     print(f"{d['level']:>3} {d['zoom']:>9.3g} {d['chaotic_frac']:>6.3f} {d['edge_cells']:>6} {d['slope']:>6.2f} "
-          f"{d.get('mismatch_f32', np.nan):>7.4f} {d.get('mismatch_pert', np.nan):>8.4f} {d['mf_chaotic_frac']:>5.2f} {nl['slope']:>5.2f}")
+          f"{d.get('mismatch_f32', np.nan):>7.4f} {d.get('mismatch_pert', np.nan):>8.4f} {d['mf_chaotic_frac']:>5.2f} {nl['slope']:>5.2f} {d['adj_corr']:>5.2f}")
+    print("    rescheck:", {r: round(v["slope_fine"], 3) for r, v in d["rescheck"].items()})
 print("stitched slope", rep["stitched_slope"], "eps range", rep["stitched_eps_range"])
 for d in rep["levels"]:
     print(d["level"], "tau scan:", " ".join(f"{t:.0e}:{s:.2f}" for t, s in d["tau_scan"][::2]))

@@ -162,4 +162,24 @@ for style in styles:
              + (f"{np.nanmean([d['slope'] for d in rep['null']]):.2f}" if rep else "~1") + ").", int((W - 2 * side_m) / (18 * s_)))),
              color=fg, fontsize=12, va="top", linespacing=1.6, alpha=0.9, wrap=False)
     savefig(fig, f"{args.prefix}_N{N}_magnification_{style}.png", dpi=int(200 * s_))
+    if len(PAN) == 4:
+        # 2x2 poster: panels read left-to-right, top-to-bottom; minimal captions (PIL, pixel-exact)
+        from PIL import Image, ImageDraw, ImageFont
+        g, m, capH = 24, 70, 170
+        Wp = 2 * m + 2 * pw + g
+        img = Image.new("RGB", (Wp, m + 2 * pw + g + capH), BG[style])
+        dr = ImageDraw.Draw(img)
+        fB = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf", 26)
+        fS = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", 17)
+        for i, p in enumerate(PAN):
+            x0, y0 = m + (i % 2) * (pw + g), m + (i // 2) * (pw + g)
+            img.paste(Image.fromarray(to_uint8(fit_panel(style_rgb(p, style), pw)[::-1])), (x0, y0))
+            tag = f"x{zoom_label(p):,.0f}"
+            dr.rectangle([x0, y0 + pw - 34, x0 + 11 * len(tag) + 24, y0 + pw], fill=BG[style])
+            dr.text((x0 + 10, y0 + pw - 30), tag, font=fS, fill=FG[style])
+        yc = m + 2 * pw + g + 30
+        dr.text((m, yc), f"The order/chaos frontier of one random erf network (width {N}, depth {D}), magnified x1, x16, x1,024, x65,536", font=fB, fill=FG[style])
+        dr.text((m, yc + 50), "centres " + ";  ".join(f"({0.5*(p['win'][0]+p['win'][1]):.8f}, {0.5*(p['win'][2]+p['win'][3]):.8f})" for p in PAN[1:]) + "  in (sigma_w, sigma_b)", font=fS, fill=FG[style])
+        dr.text((m, yc + 80), "; ".join(f"{zoom_label(p):,.0f}x: {p['R']}^2 {'float64' if p['dtype']=='f64' else 'float32'}" for p in PAN) + ".  " + STYLE_NOTE[style][:120], font=fS, fill=FG[style])
+        img.save(os.path.join(GAL, f"{args.prefix}_N{N}_poster_{style}.png"))
     print("wrote", style)
