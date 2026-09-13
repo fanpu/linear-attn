@@ -104,9 +104,13 @@ def table_context(rs, model="Qwen/Qwen3-8B"):
 
 
 def table_prefill(rs):
-    """NOTE: invalid for rows produced before enable_prefix_caching=False.
-    Those runs served prefill from cache, giving throughputs ~10x above the
-    machine's compute-bound ceiling. Flagged rather than silently printed."""
+    """Prefill at the 8k prompt, as a fraction of the measured compute roof.
+
+    Uses active parameters, so the MoE is charged for the ~3.3B it computes
+    per token, not the 30B it stores. The 2*params FLOP count omits attention,
+    which at 8k tokens is a large share of small models' compute -- so their
+    percentages understate how busy the GPU really is. Anything above ~105%
+    is physically impossible and flagged (the prefix-cache bug produced ~1000%)."""
     by = {}
     for r in ok(rs):
         if r.get("prefill_tok_s") and r["in_len"] == 8192:
@@ -121,10 +125,10 @@ def table_prefill(rs):
         except Exception:
             continue
         b, tps = max(by[m], key=lambda x: x[1])
-        params = spec.weight_bytes / 2
+        params = pm.active_weight_bytes(spec.config, spec.weight_bytes) / 2
         achieved = 2 * params * tps / 1e12
         pct = achieved / 95.9 * 100
-        flag = "  **invalid (prefix cache)**" if pct > 100 else ""
+        flag = "  **exceeds roof -- invalid**" if pct > 105 else ""
         lines.append(f"| {short(m)} | {tps:,.0f} | {b} | {pct:.0f}%{flag} |")
     return "\n".join(lines)
 

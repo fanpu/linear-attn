@@ -9,9 +9,16 @@ Everything here is reproducible from this directory. The memory safety machinery
 not incidental: GB10 has *unified* memory, so an over-allocation starves the host
 instead of raising a clean CUDA OOM.
 
-> **Status:** decode results are complete for the five dense models and partial for
-> the MoE. Prefill and TTFT numbers from this run are **invalid** (see *What went
-> wrong*) and are excluded pending a re-measurement.
+**Findings, in one line each:**
+
+- Decode is bandwidth-bound up to batch ≈ 406. A parameter-free roofline prediction
+  lands within ~5 % of measured throughput for every dense model from batch 1 to 256.
+- Single-stream use wastes the machine: a 14B gives 8 tok/s alone, 1233 tok/s at
+  batch 256.
+- A 30B MoE is 3.8× faster than a dense 14B for one user, and *slower* at batch 256,
+  because a batch reads the union of every sequence's experts: 120 of 128 at batch 256.
+- At 8 k context, batching stops helping by batch 16–32. The roofline gets the shape
+  right but misses the level by 22 %, because it ignores attention compute.
 
 ## The machine
 
@@ -147,123 +154,220 @@ that risks an OOM.
 
 ## Results
 
-83 cells, BF16, vLLM 0.23. Every planned cell fit under the memory ceiling; none
-was silently split into waves.
+105 cells, BF16, vLLM 0.23, prefix caching off. Three cells were refused by the
+memory gate (below); none of the rest was silently split into waves. Every row
+passes `validate_results.py`, which checks each number against physical limits:
+prefill cannot exceed the compute roof, and decode cannot read fewer bytes per step
+than the model's active weights.
 
 ### Decode throughput
 
 128-token prompts, 128 output tokens:
 
-| model | batch-1 tok/s | best tok/s | at batch | speedup |
-|---|---:|---:|---:|---:|
-| Qwen3-0.6B | 123 | 6956 | 256 | 56× |
-| Qwen3-1.7B | 47 | 5107 | 256 | 108× |
-| Qwen3-4B | 22 | 3041 | 256 | 141× |
-| Qwen3-8B | 13 | 2044 | 256 | 154× |
-| Qwen3-14B | 8.0 | 1226 | 256 | 154× |
-| Qwen3-30B-A3B | 31 | *(partial)* | — | — |
+| model | batch-1 tok/s | batch-1 TTFT | best tok/s | at batch | speedup |
+|---|---:|---:|---:|---:|---:|
+| Qwen3-0.6B | 126 | 12 ms | 6990 | 256 | 56× |
+| Qwen3-1.7B | 47 | 24 ms | 5190 | 256 | 110× |
+| Qwen3-4B | 22 | 47 ms | 3024 | 256 | 135× |
+| Qwen3-8B | 14 | 83 ms | 1994 | 256 | 145× |
+| Qwen3-14B | 8.2 | 147 ms | 1233 | 256 | 151× |
+| Qwen3-30B-A3B | 31 | 177 ms | 969 | 256 | 31× |
 
-Single-stream decode is poor and that is structural, not a tuning failure: a 14B
-produces **8 tok/s**, slower than most people read. The same model with 256
-concurrent sequences produces 1226 tok/s. **GB10 is a throughput machine; using it
-one request at a time wastes roughly 99 % of it.**
+![decode throughput vs batch](results/fig_decode_vs_batch.png)
+
+Single-stream decode is poor, and that comes from the hardware, not from tuning: a
+14B produces **8 tok/s**, slower than most people read. The same model with 256
+concurrent sequences produces 1233 tok/s. **GB10 is a throughput machine; using it
+one request at a time wastes more than 99 % of it.** Even at batch 256 the dense
+models are nowhere near the batch-406 ridge, so none of these curves has flattened
+because of compute.
 
 ### The roofline predicts the machine
 
-Measured ÷ predicted, where the prediction has no free parameters — just measured
-bandwidth, measured FLOP/s, and the model's own weight and KV bytes:
+Measured ÷ predicted, where the prediction has no free parameters. It uses only the
+measured bandwidth, the measured FLOP/s, and the model's own weight and KV bytes
+(active weights for the MoE):
 
 | model | B=1 | B=8 | B=64 | B=256 |
 |---|---:|---:|---:|---:|
-| Qwen3-0.6B | 0.80 | 1.01 | 1.05 | 1.04 |
-| Qwen3-1.7B | 0.82 | 1.06 | 1.03 | 0.98 |
-| Qwen3-4B | 0.74 | 0.93 | 0.87 | 0.89 |
-| Qwen3-8B | 0.92 | 1.00 | 0.95 | 0.88 |
-| Qwen3-14B | 1.00 | 1.00 | 0.93 | 0.82 |
-| Qwen3-30B-A3B | 0.89 | — | — | — |
+| Qwen3-0.6B | 0.81 | 1.03 | 1.07 | 1.04 |
+| Qwen3-1.7B | 0.82 | 1.07 | 1.07 | 0.99 |
+| Qwen3-4B | 0.77 | 0.94 | 0.90 | 0.88 |
+| Qwen3-8B | 0.96 | 1.02 | 0.94 | 0.86 |
+| Qwen3-14B | 1.02 | 1.00 | 0.94 | 0.82 |
+| Qwen3-30B-A3B | 0.87 | *0.34* | *0.19* | *0.21* |
 
-Across three orders of magnitude of throughput, a one-line bandwidth argument lands
-within a few percent of what a heavily-optimised serving stack actually does. The
-14B is exact from batch 1 to 16.
+Across three orders of magnitude of throughput, a one-line bandwidth argument comes
+within a few percent of what a heavily optimised serving stack actually does, for
+every dense model. The 14B is exact from batch 1 to 16. The decode numbers also
+reproduce an earlier run, made before the prefix-cache fix, to within 2 %.
 
-The two places it misses are informative. At **batch 1** the measurement falls
-*below* prediction (0.74–0.92) because a step takes only milliseconds and fixed
-launch overhead dominates — except on the 14B, where the step is long enough that
-overhead vanishes and the ratio is 1.00. At **batch 256** the larger models fall to
-0.82–0.89, where scheduling and attention work the model omits start to matter.
+The dense misses tell us something too. At **batch 1** the measurement falls *below*
+prediction (0.77–0.96). A step takes only milliseconds, so fixed launch overhead
+dominates. On the 14B the step is long enough for that overhead to vanish, and the
+ratio is 1.00. At **batch 256** the larger models fall to 0.82–0.88, where scheduling
+and attention work the model leaves out start to matter.
 
-![decode throughput vs batch](results/fig_measured_vs_predicted.png)
+The MoE row collapses at batch 8 and above. That miss is the next finding.
 
-### The sparse model decodes like a small dense one
+![measured vs predicted](results/fig_measured_vs_predicted.png)
 
-Qwen3-30B-A3B holds 128 experts per layer and routes each token to 8. Deriving the
+### A sparse model is fast alone and loses its edge in a batch
+
+Qwen3-30B-A3B has 128 experts per layer and routes each token to 8. Deriving the
 active fraction from its config gives **6.2 GiB read per token out of 56.9 GiB
-resident** — 3.3 B active parameters of 30.5 B, matching Qwen's published figure.
+resident**: 3.3 B active parameters of 30.5 B, matching Qwen's published figure.
 
-The consequence on a bandwidth-bound machine is direct: the MoE decodes at
-**31 tok/s at batch 1, roughly 4× faster than the 14B dense model** (8.0 tok/s)
-despite being more than twice its size. Predicted from active parameters alone:
-35.2 tok/s, a ratio of 0.89 — the same accuracy as the dense ladder.
+At batch 1 that works exactly as the bandwidth argument promises. The MoE decodes at
+**31 tok/s, 3.8× faster than the 14B dense model** (8.2 tok/s), despite storing more
+than twice as many weights. The prediction from active parameters alone is within
+13 %.
 
-This is the single best argument for a 128 GB unified-memory box. Sparse models
-trade capacity, which this machine has in abundance, for bandwidth, which it does
-not.
+**But the advantage is gone by batch 32.** The MoE's decode curve is visibly
+shallower than every dense curve: 31× from batch 1 to 256, against 145–151× for the
+8B and 14B. It falls behind the 4B by batch 2, the 8B at batch 4, and the 14B between
+batch 16 and 32. At batch 256 it is
+the slowest model in the survey (969 tok/s, versus 1233 for the 14B).
+
+The reason is that the prediction assumed each step reads 8 experts per layer. That
+holds for one token, not for a batch. Each sequence picks its own 8, and the step
+has to read the **union**. Since decode here is bandwidth-bound, the measured
+throughput can be inverted to get bytes read per step (`bandwidth × batch ÷ tok/s`).
+Subtracting the non-expert weights and the KV cache leaves the number of experts
+actually touched:
+
+| batch | 1 | 2 | 4 | 8 | 16 | 32 | 64 | 128 | 256 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| experts read / layer, derived | 10 | 15 | 27 | 38 | 56 | 72 | 86 | 103 | 120 |
+| if routing were uniform random | 8 | 16 | 29 | 52 | 82 | 112 | 126 | 128 | 128 |
+
+![experts touched](results/fig_moe_experts.png)
+
+By batch 256 the step reads 120 of 128 experts, so the MoE is paying the bandwidth
+cost of nearly all 30 B parameters while computing with only 3 B of them per token.
+It is not a bug in vLLM: it is what sparsity means once a batch exists. The derived
+counts sit below the uniform-random curve at mid-batch, which means routing is
+correlated: different sequences favour overlapping experts.
+
+Two caveats bound this. First, the inversion treats every byte of the step time as
+reading. The batch-1 value of 10 against a true 8 suggests a ~25 % overhead from
+routing and grouped expert kernels, so the derived counts are upper bounds. Second,
+the prompts are random token IDs, which do not route like real text. Real traffic
+is probably *more* correlated across sequences, so the erosion would be somewhat
+slower than measured here.
+
+The practical reading: **on a bandwidth-bound machine, an MoE is the right choice for
+one user and the wrong one for a crowd.** This box holds 128 GB, enough to park a
+large sparse model, which makes that trade tempting. It pays off at low concurrency.
 
 ### Context erodes the batching win
 
 Qwen3-8B decode tok/s:
 
-| prompt | B=1 | B=4 | B=8 | B=16 | B=64 | B=256 |
-|---|---:|---:|---:|---:|---:|---:|
-| 128 tok | 13 | 57 | 113 | 224 | 762 | 2044 |
-| 1024 tok | 13 | 55 | — | 195 | 531 | — |
-| 8192 tok | 13 | 45 | 72 | — | — | — |
+| prompt | B=1 | B=4 | B=8 | B=16 | B=32 | B=64 | B=256 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 128 tok | 14 | 59 | 116 | 227 | 420 | 757 | 1994 |
+| 1024 tok | 14 | 56 | — | 200 | — | 506 | — |
+| 8192 tok | 13 | 44 | 72 | 100 | **106** | — | — |
 
-At batch 8 an 8 k prompt already costs 36 % of the throughput a 128-token prompt
-gets (72 vs 113 tok/s), because each sequence re-reads its own KV cache every step.
+With an 8 k prompt, **going from batch 16 to 32 buys 6 %**. KV cache traffic grows
+with `batch × context` while the weight read stays fixed, so at long context
+every added sequence brings its own 1.1 GiB of cache to read every step, and
+batching stops helping. At batch 32 an 8 k prompt gets a quarter of the throughput a
+128-token prompt does (106 vs 420 tok/s).
 
-**This table understates the effect and should be read with care.** The long-context
-rows stop early because batch was capped there to bound prefill cost, so the
-measurements show the divergence beginning but do not reach the saturation the model
-predicts (~190 tok/s regardless of batch). Extending 8 k to batch 16 and 32 fits the
-memory ceiling comfortably and is the first thing to run next.
+The roofline predicts this shape but not the level. Measured ÷ predicted at 8 k is
+0.95, 1.00, 0.99, 0.95 for batch 1–16, then **0.78 at batch 32**. The model predicts
+an asymptote near 194 tok/s; the measurement flattens around 106. The gap is
+attention *compute*, which the model leaves out because it counts only `2 × params`
+FLOPs per token. At 8 k tokens and batch 32, attending over 264 k cached tokens per
+step is no longer negligible. It is the one place in the survey where the
+bandwidth-only model is clearly wrong, and it says where to extend it.
 
 ![context effect](results/fig_context_effect.png)
 
+### Prefill and time to first token
+
+Batch-1 TTFT by prompt length:
+
+| model | 128 tok | 1 k tok | 8 k tok |
+|---|---:|---:|---:|
+| Qwen3-0.6B | 12 ms | 27 ms | 267 ms |
+| Qwen3-1.7B | 24 ms | 54 ms | 473 ms |
+| Qwen3-4B | 47 ms | 120 ms | 1.1 s |
+| Qwen3-8B | 83 ms | 210 ms | 1.7 s |
+| Qwen3-14B | 147 ms | 408 ms | 3.0 s |
+| Qwen3-30B-A3B | 177 ms | 321 ms | 1.7 s |
+
+Best 8 k-prompt prefill as a fraction of the 95.9 TFLOP/s roof (`2 × active params ×
+tok/s`):
+
+| model | prefill tok/s | % of roof |
+|---|---:|---:|
+| Qwen3-0.6B | 31,316 | 49 % |
+| Qwen3-1.7B | 17,538 | 74 % |
+| Qwen3-4B | 7,268 | 61 % |
+| Qwen3-8B | 4,687 | 80 % |
+| Qwen3-14B | 2,736 | 84 % |
+| Qwen3-30B-A3B | 4,946 | 34 % |
+
+Prefill is compute-bound, as expected, and saturates at batch 1 for the larger dense
+models: batching a 14B's 8 k prompts gives 2,736 tok/s at every batch size. The
+utilisation figures understate how busy the GPU is for the small models, because at
+8 k tokens attention is a large share of their compute and the `2 × params` count
+leaves it out.
+
+The MoE is the outlier at 34 %. Per token it does less work than the 4B, yet it
+prefills more slowly (4,946 vs 7,268 tok/s). Grouped expert kernels are much less
+efficient than one dense GEMM. Its 8 k TTFT still beats the dense 8B, but not by the
+~2.5× its active parameter count suggests.
+
+<!-- SERVING -->
+
 ## What went wrong
 
-Three failures worth recording, since a survey that reports only its successes is
-not much use to the next person.
+Four failures worth recording. A survey that reports only its successes is not much
+use to the next person.
 
-**Prefill and TTFT from this run are invalid.** vLLM enables prefix caching by
+**The first full run measured prefill from cache.** vLLM enables prefix caching by
 default. The warmup pass primes the cache with exactly the prompts the measured
-passes reuse, so prefill was served from cache: the harness recorded 624,577 tok/s
-for a 0.6B whose compute-bound ceiling is 63,916 tok/s — about 10× faster than
-physically possible. The fix (`enable_prefix_caching=False`) is committed, but the
-affected numbers are excluded rather than published. Decode is unaffected: with
-prefill cached, the measured interval is essentially pure decode, and its
-independent agreement with the roofline is the corroboration.
+passes reuse, so prefill was served from cache. The harness recorded 624,577 tok/s
+for a 0.6B whose compute-bound ceiling is 63,916 tok/s, about 10× faster than
+physically possible. With `enable_prefix_caching=False` every cell was re-run; the
+contaminated rows are archived in `results/results_stale_prefixcache.jsonl`.
+`validate_results.py` now checks every row against the roofline, so this class of
+error cannot pass silently again. Decode was unaffected: the clean re-run
+reproduces it within 2 %.
 
 **The MoE tripped the memory watchdog, for a reason no budget model would catch.**
 The first 30B attempt was killed at 10.9 GiB available. The cause was not weights or
-KV cache. FlashInfer JIT-compiles fused MoE kernels — which no dense model triggers —
-and its ninja build defaults to `nproc+2`, here **22 concurrent `nvcc` processes at
-51 GiB of resident compiler memory**. On unified memory that comes out of the same
-pool as the model. Capping `MAX_JOBS=4` cut peak compiler memory to 17.8 GiB and the
+KV cache. FlashInfer JIT-compiles fused MoE kernels, which no dense model triggers,
+and its ninja build defaults to `nproc+2`: here **22 concurrent `nvcc` processes
+holding 51 GiB of compiler memory**. On unified memory that comes out of the same
+pool as the model. Capping `MAX_JOBS=4` cut peak compiler memory to 17.8 GiB, and the
 retry stayed above 24 GiB available. *A memory budget for a unified-memory machine
 has to account for the toolchain, not just the model.*
 
 **The watchdog's process-group kill has a hole.** Those `nvcc` jobs are spawned via
 `sh -c` and were reparented to init, so they outlived the kill and kept allocating
-after the engine was dead. Prevention (capping parallelism) is the fix actually in
-place; cleanup alone was not sufficient.
+after the engine was dead. The fix actually in place is prevention (capping
+parallelism); cleanup alone was not enough.
+
+**Interruptions cost whole models.** The machine is shared, and the sweep was stopped
+several times to hand the GPU back. `sweep.py` originally parsed a model's results
+only after its engine process exited, so stopping mid-model discarded every finished
+cell for that model, 40 minutes of 14B work in one case. Rows are now written as each
+cell completes (`guard.run_guarded(on_line=...)`), and the sweep resumes from the
+last recorded cell.
 
 ## Still to do
 
-- Re-measure prefill and TTFT with prefix caching disabled
-- Finish the 30B MoE sweep (1 of 16 cells so far; kernel cache is now warm)
-- Extend 8 k context to batch 16 and 32 to demonstrate saturation
-- The serving phase (`serve_bench.py`): TTFT/TPOT/p99 under arrival-rate load
+- Extend the roofline with attention compute (`∝ batch × context`). It is the one
+  term whose absence is visible in the data (8 k context, batch 32).
+- Re-run the MoE expert-union measurement on real text to see how much more
+  correlated real routing is than random token IDs.
+- FP8 weights: the probe shows 1.52× the BF16 FLOP rate, and halving weight bytes
+  should nearly double batch-1 decode on a bandwidth-bound machine.
 
 ## Reproducing
 
@@ -271,7 +375,8 @@ place; cleanup alone was not sufficient.
 python3 hw_probe.py                 # roofline -> results/roofline.json
 python3 sweep.py --dry-run          # show the grid and every cell's memory budget
 python3 sweep.py                    # run it (resumable; skips completed cells)
-python3 serve_bench.py --model Qwen/Qwen3-8B
+python3 validate_results.py        # every row within physical limits?
+./run_serving.sh                    # online serving latency
 /path/to/.venv/bin/python plot.py   # figures + summary tables
 ```
 
@@ -296,4 +401,7 @@ on the system python that has vLLM.
 | `bench.py` | Runs one model's cells inside one engine |
 | `sweep.py` | Orchestrates the grid; resumable |
 | `serve_bench.py` | Online serving latency via `vllm bench serve` |
+| `run_serving.sh` | Runs the serving phase for the 8B and the MoE |
+| `validate_results.py` | Rejects rows that exceed physical limits |
+| `report.py` | Markdown tables for this README |
 | `plot.py` | Figures and summary tables |

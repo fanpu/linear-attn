@@ -130,10 +130,13 @@ def main():
 
             RESULTS.parent.mkdir(exist_ok=True)
             for c in concurrencies:
-                r = run_client(args.model, c, args.num_prompts, tmpdir)
+                # Enough requests to reach steady state at each concurrency
+                # without spending half an hour on c=1.
+                n = max(8, min(args.num_prompts, 4 * c))
+                r = run_client(args.model, c, n, tmpdir)
                 row = {"model": args.model, "concurrency": c,
                        "in_len": IN_LEN, "out_len": OUT_LEN,
-                       "num_prompts": args.num_prompts,
+                       "num_prompts": n,
                        "gpu_memory_utilization": plan.gpu_memory_utilization,
                        "watchdog_tripped": wd.tripped,
                        "result": r}
