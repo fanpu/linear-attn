@@ -5,7 +5,8 @@ All GPU jobs finished (bvideo2, bplate2a, bplate2b, batch2 = Bpert + Bres3). No 
 Session 4 did: analyze_fractal B (final report), render_verification + boxcount plate, zoom plates in 5 styles + posters,
 raw x256/x4096 singles (spectral/aurora/riso; the 2-panel "frontier_single" sheets were deleted: title overflowed),
 merged video chain (cache/zoom_Bvideoall...npz, 13 levels), deepzoom_{spectral,magma,ink}.{mp4,gif}
-(magma/ink rendered in parallel under --name dzp and renamed), README tokens filled, GPU time line, link check, commit.
+(magma/ink rendered in parallel under --name dzp and renamed; all three re-encoded from the original MP4s to CRF 30 (spectral, ink) / CRF 23 (magma) so they stay under the 20 MB commit limit, GIFs 360 px 6 fps ~11 MB), README tokens filled, GPU time line, link check, commit.
+Verification sheet panel (a): legend no longer overlaps the null line (ylim 0.05, ticks from 1.0).
 Fixes to render_zoom_plates.py: caption block height now computed from the wrapped line count (text was cut off at
 the bottom); caption no longer says "red half/purple half" on non-split styles; poster centres labelled by zoom.
 

@@ -34,7 +34,7 @@ This project renders both halves: **Part A** reproduces and measures the tanh ph
 </table>
 
 <p align="center"><video src="gallery/deepzoom_spectral.mp4" autoplay loop muted playsinline width="640"></video><br>
-<sub><b>Deep zoom, x1 → x4096</b> into the N = 100 frontier: 13 native 1280² float32 keyframes, one per doubling (GIF: <a href="gallery/deepzoom_spectral.gif">deepzoom_spectral.gif</a>).</sub></p>
+<sub><b>Deep zoom, x1 → x4096</b> into the N = 100 frontier: 13 native 1280² float32 keyframes, one per doubling; 1080² H.264, 26 s, CRF 30 to stay under the 20 MB commit limit (GIF, 360 px: <a href="gallery/deepzoom_spectral.gif">deepzoom_spectral.gif</a>).</sub></p>
 
 ## 3. Gallery
 

@@ -29,7 +29,7 @@ for R, col, lab in ((RB, c_sync, "sync frontier (pair merged within 1000 layers?
 zn = [4.0 ** d["level"] for d in RB["null"]]
 ax.plot(zn, [d["slope"] for d in RB["null"]], "^-", color=c_null, lw=1.2, label="null model: infinite width, same pipeline")
 ax.axhline(1, color=INK, lw=0.4, ls=":"); ax.axhline(2, color=INK, lw=0.4, ls=":")
-ax.set_xscale("log"); ax.set_ylim(0.45, 2.15)
+ax.set_xscale("log"); ax.set_ylim(0.05, 2.15); ax.set_yticks([1.0, 1.25, 1.5, 1.75, 2.0])
 ax.set_xlabel("zoom factor (window side 4 / zoom)"); ax.set_ylabel("local box-counting slope (box 2 to R/8 px)")
 ax.legend(fontsize=7.5, frameon=False, loc="lower right", ncol=2, columnspacing=0.8)
 ax.set_title("(a) slope inside each boundary-centred window", loc="left", fontsize=13)
