@@ -77,6 +77,9 @@ This is the accompanying document. Markdown with embedded HTML is fine: `<img>` 
 
 - **Commit regularly** with `/home/fzeng/ml/research/art/_shared/commit.sh <your-dir> "<message>"`: after each working script, each finished piece or style batch, and at least every ~30 minutes of progress. Use messages like `art/<your-dir>: add hachure plates`. The script commits only your directory, takes a lock (other agents commit concurrently), and skips files over 20 MB; list those in your README. Never run `git add`/`git commit`/`git stash`/`git checkout` yourself, never create branches, and never push.
 - Don't touch other agents' directories.
+- **Hard context budget: 150k tokens per agent.**
+  - Once you're near ~120k context (if you can see your token usage), or after ~70 tool calls if you can't, stop at a clean point. Update `NOTES.md` with everything a successor needs, commit, kill background processes that a successor can't pick up (long runs launched via nohup/gpu_run.sh with logs may stay running if NOTES.md says so), and end your turn with a final message starting `HANDOFF:` plus a ≤80-word status. The orchestrator will start a fresh agent from your NOTES.md.
+  - Never read full large files or full-size images into context.
 - **Checkpoint for cheap resumption:** keep a short `NOTES.md` in your directory, a living handoff: state, key numbers, decisions, next steps, exact resume commands. Update it at every commit, so a fresh agent can continue from `NOTES.md` + `_shared/TASKS.md` without your history. Avoid dumping huge logs or images into your own context: tail logs, downscale images before viewing them.
 - **Palettes:** `/home/fzeng/ml/research/art/color-research/palettes.py` (`import palettes as P; P.render_split(M, 'aurora_ember')`; see its README) provides many artistic palettes and boundary-split pairings. Use 1–2 as extra variants.
 - Don't leave long-running background processes when you finish.
