@@ -110,7 +110,7 @@ def semantic():
              ('sem_wd_lr_384', 'log10 lambda  (L2 weight decay) ->',
               'log10 eta  (shared learning rate) ^', 'Trainability over weight decay and learning rate')]
     for name, xl, yl, title in specs:
-        if not os.path.exists(f'cache/windows/{name}.npz'):
+        if not os.path.exists(f'cache/windows/{name}.npz') or os.path.getsize(f'cache/windows/{name}.npz') == 0:
             continue
         w = load(name)
         M = w['M']
@@ -121,8 +121,8 @@ def semantic():
                      f'y centre {w["c1"]:.3f}, half-width {w["hwy"]:.2f} decades',
                      f'{w["res"]}x{w["res"]} independent 16-unit tanh networks, {w["steps"]} steps full-batch GD, float64',
                      f'trainable fraction {100*(M<0).mean():.1f}%',
-                     '~same data, same base init, same convergence measure as the (eta0, eta1) plates']
-            page = plate_page(img, dict(c0=w['c0'], c1=w['c1'], hw=w['hw'], hwy=w['hwy'], xlabel=xl, ylabel=yl),
+                     'same data, same base init, same convergence measure as the (eta0, eta1) plates']
+            page = plate_page(img, dict(c0=w['c0'], c1=w['c1'], hw=w['hw'], hwy=w['hwy'], xlabel=xl, ylabel=yl, abs_ticks=True),
                               lines, title)
             page.save(f'gallery/{name}_{style}.png')
         print('semantic', name)

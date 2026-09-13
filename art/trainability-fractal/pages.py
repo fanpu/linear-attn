@@ -88,8 +88,11 @@ def plate_page(img, meta, lines, title, plate_no=None, locator=None, W=2400, H=3
         if tick_labels and f in (0, 0.5, 1.0):
             off = (f * 2 - 1) * hw
             offy = (f * 2 - 1) * hwy
-            lx = f'{off:+.3g}' if f != 0.5 else fmt_log_centre(c0, hw)
-            ly = f'{offy:+.3g}' if f != 0.5 else fmt_log_centre(c1, hwy)
+            if meta.get('abs_ticks'):
+                lx = f'{c0 + off:.3g}'; ly = f'{c1 + offy:.3g}'
+            else:
+                lx = f'{off:+.3g}' if f != 0.5 else fmt_log_centre(c0, hw)
+                ly = f'{offy:+.3g}' if f != 0.5 else fmt_log_centre(c1, hwy)
             anc = {0: 'lt', 0.5: 'mt', 1.0: 'rt'}[f]
             d.text((x, mt + img_px + 28), lx, font=f_tick, fill=GREY, anchor=anc)
             _paste_vtext(page, ly, f_tick, GREY, paper, x_right=ml - 30, y=y,
