@@ -25,6 +25,8 @@ ap.add_argument("--fps", type=int, default=30)
 ap.add_argument("--sec_per_step", type=float, default=2.0)
 ap.add_argument("--max_frames", type=int, default=100000)
 ap.add_argument("--name", default="deepzoom")
+ap.add_argument("--label", default=None)
+ap.add_argument("--ss", type=int, default=2)
 args = ap.parse_args()
 Z = np.load(os.path.join(HERE, args.chain))
 wins = Z["windows"].astype(np.float64)
@@ -35,17 +37,33 @@ FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf"
 MONO = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
 
 
-def keyframe_rgb(k, style):
-    L = Z["L_avg"][k]; ch = L > args.tau
-    mag = np.where(ch, np.log10(np.maximum(L, 1e-300) / args.tau), (D + 1) - Z["t_hit"][k].astype(float))
-    if style == "spectral":
-        return split_rgb(ch, mag, "sd_spectral", near_boundary="small")
-    if style == "aurora":
-        return split_rgb(ch, mag, "aurora_ember", near_boundary="small")
+LABEL = args.label or (str(Z["label"]) if "label" in Z else "tau")
+
+
+def keyframe_fields(k):
+    """(chaotic bool, magnitude >= 0 with small = close to the frontier, log10 L) at native resolution."""
+    L = Z["L_avg"][k]; t = Z["t_hit"][k].astype(float)
+    if LABEL == "sync":
+        ch = t > D; floor = 1e-10
+    else:
+        ch = L > args.tau; floor = args.tau
+    mag = np.where(ch, np.log10(np.maximum(L, 1e-300) / floor), (D + 1) - t)
+    e = boundary_mask(ch)
+    return np.stack([ch.astype(float), mag, np.log10(np.maximum(L, 1e-30)), e], -1)
+
+
+def fields_to_rgb(F, style):
+    ch, mag, lL, e = F[..., 0] > 0.5, F[..., 1], F[..., 2], F[..., 3]
+    if style in ("spectral", "aurora"):
+        # per-frame, per-side rank normalisation (Sohl-Dickstein-style CDF) of the composited field: no seams
+        # at keyframe borders; ranks from a fixed random subsample of the frame (declared)
+        x = np.where(ch, 1.0, -1.0) * np.maximum(mag, 1e-300)
+        ref = x.ravel()[RS]
+        return split_rgb(ch, mag, "sd_spectral" if style == "spectral" else "aurora_ember", near_boundary="small", ref=ref)
     if style == "magma":
-        return plt.get_cmap("magma")(np.clip((np.log10(np.maximum(L, 1e-30)) + 16) / 16.5, 0, 1))[..., :3]
+        return plt.get_cmap("magma")(np.clip((lL + 16) / 16.5, 0, 1))[..., :3]
     if style == "ink":
-        return P.overprint([np.maximum(ch * 0.12, boundary_mask(ch) * 0.95)], [INK])
+        return P.overprint([np.maximum(ch * 0.12, np.clip(e, 0, 1) * 0.95)], [INK])
     raise ValueError(style)
 
 
@@ -59,10 +77,11 @@ def sample(img, win, X, Y):
 
 BG = {"spectral": (17, 16, 20), "aurora": (7, 8, 11), "magma": (7, 6, 10), "ink": (244, 239, 227)}
 FG = {"spectral": (233, 228, 218), "aurora": (233, 228, 218), "magma": (233, 228, 218), "ink": (29, 27, 25)}
-ss = 3  # supersampling per axis (area average of nearest samples)
+ss = args.ss  # supersampling per axis (area average of nearest samples)
+RS = np.random.default_rng(0).choice((args.out * ss) ** 2, 400000, replace=False)
 O = args.out
 for style in args.styles.split(","):
-    kimgs = [keyframe_rgb(k, style) for k in range(nk)]
+    kimgs = [keyframe_fields(k) for k in range(nk)]
     fdir = os.path.join(CACHE, f"frames_{args.name}_{style}")
     shutil.rmtree(fdir, ignore_errors=True); os.makedirs(fdir)
     nsteps = nk - 1
@@ -80,14 +99,14 @@ for style in args.styles.split(","):
         X = view[0] + u[None, :] * (view[1] - view[0])
         Y = view[2] + u[:, None] * (view[3] - view[2])
         X = np.broadcast_to(X, (O * ss, O * ss)); Y = np.broadcast_to(Y, (O * ss, O * ss))
-        out = sample(kimgs[k], wins[k], X, Y)
+        out = sample(kimgs[k], wins[k], X, Y).copy()
         for j in range(k + 1, nk):
             w = wins[j]
             inside = (X >= w[0]) & (X < w[1]) & (Y >= w[2]) & (Y < w[3])
             if not inside.any():
                 break
             out[inside] = sample(kimgs[j], w, X[inside], Y[inside])
-        out = out.reshape(O, ss, O, ss, 3).mean((1, 3))
+        out = fields_to_rgb(out, style).reshape(O, ss, O, ss, 3).mean((1, 3))
         frame = Image.new("RGB", (O, O), BG[style])
         frame.paste(Image.fromarray(to_uint8(out[::-1])), (0, 0))
         d = ImageDraw.Draw(frame)
@@ -98,7 +117,7 @@ for style in args.styles.split(","):
             fs = ImageFont.truetype(FONT, 22); fm = ImageFont.truetype(MONO, 18)
             d.text((30, O - 138), f"Finite Width: random erf network N = {N}, depth {D}, zoom x{4 / side:,.0f}", font=fs, fill=FG[style])
             d.text((30, O - 100), f"centre sigma_w = {0.5*(view[0]+view[1]):.10f}  sigma_b = {0.5*(view[2]+view[3]):.10f}", font=fm, fill=FG[style])
-            d.text((30, O - 70), f"{nk} native {R}x{R} keyframes ({str(Z['dtype'])}), frontier L = {args.tau:g}; composited, not upsampled", font=fm, fill=FG[style])
+            d.text((30, O - 70), f"{nk} native {R}x{R} keyframes ({str(Z['dtype'])}), label: {LABEL}; composited, <=1.7x magnified between keyframes", font=fm, fill=FG[style])
         else:
             fm = ImageFont.truetype(MONO, 16)
             d.text((16, O - 28), f"x{4 / side:,.1f}", font=fm, fill=FG[style])
