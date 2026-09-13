@@ -101,3 +101,76 @@ class Qwen3:
         x = x[:, -1] if n_out is None else x[:n_out, -1]      # unembed only the rows needed
         x = self.rms(x.to(self.head_dtype), w["model.norm.weight"])
         return F.linear(x, w["lm_head.weight"])
+
+
+class StepGraphs:
+    """CUDA-graph-captured single-token decode step for fixed windows of Fb cache rows.
+
+    One graph per window offset r0 in {0, Fb, 2Fb, ...}. Every graph attends over the full
+    static cache length with a boolean mask (instead of slicing K[:end]), so shapes never
+    change. The attention kernel therefore differs from the eager path (math/mem-efficient
+    instead of flash on a sliced cache); bf16 logits differ at the ~1e-3 level, which is the
+    same class of batch/kernel noise the placement test measures. Always unembeds all Fb rows."""
+
+    def __init__(self, m, Fb, n_windows, max_len):
+        self.m, self.Fb, self.max_len = m, Fb, max_len
+        dev = m.device
+        self.ids = torch.zeros(Fb, 1, dtype=torch.long, device=dev)
+        self.pos = torch.zeros(1, dtype=torch.long, device=dev)
+        self.mask = torch.zeros(1, 1, 1, max_len, dtype=torch.bool, device=dev)
+        self.ar = torch.arange(max_len, device=dev)
+        self.graphs, self.outs = [], []
+        self.pool = torch.cuda.graph_pool_handle()
+        self.pos.fill_(max_len - 1); self.mask.fill_(True)
+        for j in range(n_windows):
+            r0 = j * Fb
+            s = torch.cuda.Stream()
+            with torch.cuda.stream(s):
+                for _ in range(2):
+                    self._step(r0)
+            torch.cuda.current_stream().wait_stream(s)
+            g = torch.cuda.CUDAGraph()
+            with torch.cuda.graph(g, pool=self.pool):
+                out = self._step(r0)
+            self.graphs.append(g)
+            self.outs.append(out)
+
+    @torch.no_grad()
+    def _step(self, r0):
+        m, w, Fb = self.m, self.m.w, self.Fb
+        x = w["model.embed_tokens.weight"][self.ids]
+        cos = m.cos.index_select(0, self.pos)[None, None]
+        sin = m.sin.index_select(0, self.pos)[None, None]
+        for i in range(m.nl):
+            p = f"model.layers.{i}."
+            h = m.rms(x, w[p + "input_layernorm.weight"])
+            q = F.linear(h, w[p + "self_attn.q_proj.weight"]).view(Fb, 1, m.nh, m.hd)
+            k = F.linear(h, w[p + "self_attn.k_proj.weight"]).view(Fb, 1, m.nkv, m.hd)
+            v = F.linear(h, w[p + "self_attn.v_proj.weight"]).view(Fb, 1, m.nkv, m.hd)
+            q = m.rms(q, w[p + "self_attn.q_norm.weight"]).transpose(1, 2)
+            k = m.rms(k, w[p + "self_attn.k_norm.weight"]).transpose(1, 2)
+            v = v.transpose(1, 2)
+            q = q * cos + m.rot_half(q) * sin
+            k = k * cos + m.rot_half(k) * sin
+            K = m.cache_k[i, r0:r0 + Fb]
+            V = m.cache_v[i, r0:r0 + Fb]
+            K.index_copy_(2, self.pos, k)
+            V.index_copy_(2, self.pos, v)
+            a = F.scaled_dot_product_attention(q, K, V, attn_mask=self.mask, enable_gqa=True)
+            a = a.transpose(1, 2).reshape(Fb, 1, m.nh * m.hd)
+            x = x + F.linear(a, w[p + "self_attn.o_proj.weight"])
+            h = m.rms(x, w[p + "post_attention_layernorm.weight"])
+            g = F.linear(h, w[p + "mlp.gate_proj.weight"])
+            u = F.linear(h, w[p + "mlp.up_proj.weight"])
+            x = x + F.linear(F.silu(g) * u, w[p + "mlp.down_proj.weight"])
+        x = m.rms(x[:, -1].to(m.head_dtype), w["model.norm.weight"])
+        return F.linear(x, w["lm_head.weight"])
+
+    def run(self, ids, start, r0):
+        """ids [Fb,1] at position start, cache rows r0..r0+Fb-1. Returns a view of the static
+        output buffer [Fb,V] (clone or copy before the next call)."""
+        self.ids.copy_(ids)
+        self.pos.fill_(start)
+        torch.lt(self.ar, start + 1, out=self.mask[0, 0, 0])
+        self.graphs[r0 // self.Fb].replay()
+        return self.outs[r0 // self.Fb]
