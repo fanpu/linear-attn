@@ -63,7 +63,8 @@ def build_layers(style, mode):
     main = InkLayer(H, W, rgb=rgb)
     sub = InkLayer(H, W)
     rules = InkLayer(H, W)
-    cmap = plt.get_cmap("cmc.batlow")
+    fine = InkLayer(H, W)
+    cmap = plt.get_cmap("plasma")
     for i, (name, fmt, nb, _, _) in enumerate(ROWS):
         yb = ROW_Y0 + (i + 1) * ROW_PITCH - 40
         v, h, is_sub, frac = heights(fmt, nb, mode)
@@ -72,8 +73,18 @@ def build_layers(style, mode):
         dense = fmt is not None and fmt.M >= 7
         w = 0.45 if dense else 3.0
         s = win & ~is_sub
-        cols = cmap(0.2 + 0.8 * frac[s]) if rgb else None
-        main.ticks(x[s], yb, TICK_H * h[s], w_px=w, colors=cols)
+        if dense and mode == "ruler":
+            # ticks whose on-sheet spacing would be < ~3 px go to a faint tone layer (every value still drawn)
+            px_oct = (X1 - X0) / (HI - LO)
+            lcut = int(np.floor(np.log2(px_oct / 3.0)))
+            lev = fmt.M - trailing_zeros(positive_finite(fmt)["m"], fmt.M)
+            coarse = lev <= lcut
+            main.ticks(x[s & coarse], yb, TICK_H * h[s & coarse], w_px=1.4,
+                       colors=cmap(0.3 + 0.7 * frac[s & coarse]) if rgb else None)
+            fine.ticks(x[s & ~coarse], yb, TICK_H * h[s & ~coarse], w_px=w)
+        else:
+            cols = cmap(0.3 + 0.7 * frac[s]) if rgb else None
+            main.ticks(x[s], yb, TICK_H * h[s], w_px=w, colors=cols)
         s = win & is_sub
         if s.any():
             sub.ticks(x[s], yb, TICK_H * h[s], w_px=w)
@@ -102,7 +113,7 @@ def build_layers(style, mode):
         dense = fmt is not None and fmt.M >= 7
         w = 0.45 if dense else 3.0
         s = sel & ~is_sub
-        main.ticks(linx(v[s]), yb, LIN_H * h[s], w_px=w, colors=cmap(0.2 + 0.8 * frac[s]) if rgb else None)
+        main.ticks(linx(v[s]), yb, LIN_H * h[s], w_px=w, colors=cmap(0.3 + 0.7 * frac[s]) if rgb else None)
         s = sel & is_sub
         if s.any():
             sub.ticks(linx(v[s]), yb, LIN_H * h[s], w_px=w)
@@ -111,7 +122,7 @@ def build_layers(style, mode):
     for k in range(9):
         rules.ticks(np.array([linx(k)]), ya2 + 30, np.array([30]), w_px=2.5)
     rules.hline(ya2, X0, X1, 2.0, 1.0)
-    return main, sub, rules
+    return main, sub, rules, fine
 
 
 def text_figure(style, mode, bgimg=None, color="black"):
@@ -129,7 +140,7 @@ def text_figure(style, mode, bgimg=None, color="black"):
                 "log2 axis:  uniform within an octave, doubling from one octave to the next.",
       family=SERIF, fontsize=15, style="italic", va="center")
     hdesc = ("tick height = significand 1 + m/2^M: each octave is one rising ramp" if mode == "sawtooth" else
-             "tick height = ruler rank of mantissa field m: octave marks tallest, then halves, quarters, eighths ...")
+             "tick height = ruler rank of mantissa field m: octave marks tallest, then halves, quarters, eighths ...  (float16/bfloat16: ranks finer than 1/32 octave drawn as faint tone)")
     T(140, 500, hdesc, family=MONO, fontsize=10.5, va="center")
     for i, (name, fmt, nb, layout, note) in enumerate(ROWS):
         yb = ROW_Y0 + (i + 1) * ROW_PITCH - 40
@@ -154,7 +165,7 @@ def text_figure(style, mode, bgimg=None, color="black"):
     ya2 = LIN_Y0 + len(LIN_ROWS) * LIN_PITCH
     for k in range(9):
         T(linx(k), ya2 + 70, str(k), family=MONO, fontsize=11, ha="center", va="center")
-    sub_note = ("subnormals (exponent field 0) in blue; colour = mantissa position m/2^M (batlow)"
+    sub_note = ("subnormals (exponent field 0) in blue; colour = mantissa position m/2^M (plasma)"
                 if style == "observatory" else "subnormals (exponent field 0) in the second ink")
     T(140, H - 110, sub_note, family=MONO, fontsize=9, va="center")
     T(X1, H - 110, STACK, family=MONO, fontsize=9, ha="right", va="center")
@@ -170,26 +181,24 @@ def fig_coverage(fig):
 
 def render(style, mode):
     st = STYLES[style]
-    main, sub, rules = build_layers(style, mode)
+    main, sub, rules, fine = build_layers(style, mode)
     suffix = "_sawtooth" if mode == "sawtooth" else ""
     if style == "riso":
         txt = fig_coverage(text_figure(style, mode))[: H, : W]
-        A = main.alpha(1.6) * 0.95
+        A = np.clip(main.alpha(1.6) + 0.35 * fine.alpha(0.6), 0, 1) * 0.95
         B = np.clip(sub.alpha(1.6) + rules.alpha(1.0) + txt, 0, 1) * 0.95
         B = np.roll(np.roll(B, 5, 0), -6, 1)  # deliberate misregistration
         img = multiply(st["bg"], [(A, st["ink"]), (B, st["ink2"])])
         rng = np.random.default_rng(3)
-        img = np.clip(img * (1 - 0.035 * rng.random(img.shape[:2], dtype=np.float32))[..., None], 0, 1)
+        g = rng.integers(0, 4, (H // 3 + 1, W // 3 + 1)).repeat(3, 0).repeat(3, 1)[:H, :W]
+        img = np.clip(img * (1 - 0.012 * g)[..., None], 0, 1)
         fig = plt.figure(figsize=(W / DPI, H / DPI), dpi=DPI)
         fig.figimage((img * 255).astype(np.uint8), 0, 0)
     else:
         gain = 1.3
         maincol = main.color(st["ink"]) if style == "observatory" else st["ink"]
-        img = composite(st["bg"], [(rules.alpha(1.0) * 0.8, st["ink"]), (main.alpha(gain), maincol),
+        img = composite(st["bg"], [(rules.alpha(1.0) * 0.8, st["ink"]), (fine.alpha(0.6) * 0.45, st["ink"] if style != "observatory" else "#8a7fa8"), (main.alpha(gain), maincol),
                                    (sub.alpha(gain), st["sub"])])
-        if style == "engraved":
-            rng = np.random.default_rng(3)
-            img = np.clip(img * (1 - 0.03 * rng.random(img.shape[:2], dtype=np.float32))[..., None], 0, 1)
         fig = text_figure(style, mode, bgimg=img[::-1] if False else img, color=st["ink"])
     save(fig, f"specimen_{style}{suffix}.png", dpi=DPI)
 
@@ -197,8 +206,7 @@ def render(style, mode):
 def main(styles):
     for style in styles:
         render(style, "ruler")
-        if style != "riso":
-            render(style, "sawtooth")
+        render(style, "sawtooth")
 
 
 if __name__ == "__main__":
