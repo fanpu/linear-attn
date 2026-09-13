@@ -1,0 +1,62 @@
+{
+  "started": "2026-09-11T23:50:02",
+  "argv": [
+    "burst.py",
+    "run"
+  ],
+  "device": "NVIDIA GB10",
+  "driver": "580.173.02",
+  "torch": "2.14.0+cu130",
+  "n": 8192,
+  "dtype": "bfloat16",
+  "flop_per_matmul": 1099511627776,
+  "load_s_target": 600,
+  "sm_clock_max_MHz": 3003.0,
+  "smi_fields": [
+    "temperature.gpu",
+    "temperature.gpu.tlimit",
+    "power.draw.instant",
+    "power.draw.average",
+    "clocks.sm",
+    "utilization.gpu",
+    "clocks_event_reasons.active",
+    "clocks_event_reasons_counters.sw_power_cap",
+    "clocks_event_reasons_counters.sw_thermal_slowdown",
+    "clocks_event_reasons_counters.hw_thermal_slowdown",
+    "clocks_event_reasons_counters.hw_power_brake_slowdown"
+  ],
+  "other_gpu_processes_start": [],
+  "loadavg_start": 0.4931640625,
+  "ref_burst_tflops": 93.9,
+  "ref_copy_gbps": 246.8,
+  "predict_tflops": null,
+  "note": "",
+  "phases": {
+    "copy_cold": [
+      1.3247721351217479,
+      6.349024174036458
+    ],
+    "cool_wait": [
+      6.349195246119052,
+      37.368644054979086
+    ],
+    "load": [
+      37.36907651904039,
+      637.471438097069
+    ],
+    "copy_hot": [
+      637.49378450308,
+      642.5189464939758
+    ],
+    "cooldown": [
+      642.5724125490524,
+      762.572849473916
+    ]
+  },
+  "interrupted": false,
+  "chunk_matmuls": 9,
+  "copy_cold_GBps": 222.3244222867836,
+  "cool_wait": "stable",
+  "other_gpu_processes_end": [],
+  "copy_hot_GBps": 219.68538430499362
+}

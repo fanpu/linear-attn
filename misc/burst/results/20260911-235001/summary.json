@@ -1,0 +1,94 @@
+{
+  "run": "20260911-235001",
+  "started": "2026-09-11T23:50:02",
+  "soak_s": 600.1023234809596,
+  "burst_tflops": 93.03768665734937,
+  "first5s_tflops": 96.31020453500399,
+  "t5_15s_tflops": 96.13760581602696,
+  "plateau_tflops": 93.13728707200262,
+  "plateau_window_s": 60.0,
+  "plateau_cv_1s": 0.008753132338260222,
+  "drop_vs_burst_pct": -0.10705383832261273,
+  "plateau_vs_ref_pct": -0.8122608391878394,
+  "ref_burst_tflops": 93.9,
+  "fit_tput": {
+    "y_inf": 93.2617776291975,
+    "amp": 3.863080360272612,
+    "tau_s": 35.83264074985207,
+    "r2": 0.3250353498832107,
+    "converged": true,
+    "significant": true
+  },
+  "sawtooth": {
+    "resid_cv": 0.002787844793592089,
+    "crossings": 245
+  },
+  "temp_fit": {
+    "y_inf": 81.32169002105798,
+    "amp": -24.457716606054603,
+    "tau_s": 34.938210476675366,
+    "r2": 0.9584838516698474,
+    "converged": true
+  },
+  "cooldown_fit": {
+    "y_inf": 49.71129195136339,
+    "amp": 16.256527742349252,
+    "tau_s": 32.84928964095806,
+    "r2": 0.9853926662486975,
+    "converged": true
+  },
+  "thermal": {
+    "R_th_K_per_W": 0.5149470917596698,
+    "C_th_J_per_K": 67.8481557343785,
+    "T_idle_C": 42.0,
+    "P_idle_W": 11.81628205128205,
+    "P_load_W": 88.17692307692307,
+    "note": "GPU-reported power; effective values"
+  },
+  "tlimit_C": 88.83265993265994,
+  "sm_clock_MHz": {
+    "first5s": 2314.5263157894738,
+    "plateau": 2149.0042735042734,
+    "max": 3003.0
+  },
+  "reasons": {
+    "SW power cap": {
+      "sampled_frac": 0.0,
+      "counter_frac_load": 0.0,
+      "counter_frac_idle_before": 0.0
+    },
+    "SW thermal slowdown": {
+      "sampled_frac": 0.0,
+      "counter_frac_load": 0.0,
+      "counter_frac_idle_before": 0.0
+    },
+    "HW thermal slowdown": {
+      "sampled_frac": 0.0,
+      "counter_frac_load": 0.0,
+      "counter_frac_idle_before": 0.0
+    },
+    "HW slowdown": {
+      "sampled_frac": 0.0,
+      "counter_frac_load": null,
+      "counter_frac_idle_before": null
+    },
+    "HW power brake": {
+      "sampled_frac": 0.0,
+      "counter_frac_load": 0.0,
+      "counter_frac_idle_before": 0.0
+    }
+  },
+  "copy_cold_GBps": 222.3244222867836,
+  "copy_hot_GBps": 219.68538430499362,
+  "ridge_flop_per_byte": {
+    "sustained": 423.95759447837577,
+    "burst": 423.50421695866345,
+    "beta_used_GBps": 219.68538430499362,
+    "ref": 380.47001620745544
+  },
+  "shape": "flat",
+  "verdict": "flat: no throttling, the burst number stands as sustained",
+  "contended": false,
+  "interrupted": false,
+  "ledger": "2026-09-11 burst-vs-sustained GB10: burst 93.0 -> sustained 93.1 TFLOP/s (+0.1%, 600 s heat-soaked), flat; I* = 424 FLOP/byte; beta hot 220 GB/s"
+}

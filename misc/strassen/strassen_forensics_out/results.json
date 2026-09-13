@@ -1,0 +1,454 @@
+{
+  "device": "NVIDIA GB10",
+  "torch": "2.14.0+cu130",
+  "cutoff": 2048,
+  "s_det": 0.001,
+  "fingerprint": {
+    "n": 1024,
+    "block": 4,
+    "graded": 1e-06,
+    "stats": {
+      "cublas": {
+        "median": 8.014062881469727,
+        "worst": 6.833494186401367,
+        "p001": 7.154406547546387
+      },
+      "s1": {
+        "median": 7.86469841003418,
+        "worst": 0.928420901298523,
+        "p001": 1.3747620582580566
+      },
+      "s2": {
+        "median": 7.69346809387207,
+        "worst": -1.7009767293930054,
+        "p001": -1.3049124479293823
+      }
+    }
+  },
+  "error_vs_scale": {
+    "n": 1024,
+    "s": [
+      1.0,
+      0.31622776601683794,
+      0.1,
+      0.03162277660168379,
+      0.01,
+      0.0031622776601683794,
+      0.001,
+      0.00031622776601683794,
+      0.0001
+    ],
+    "cublas": [
+      8.012986606977861,
+      8.012032186980607,
+      8.012722410687475,
+      8.012285778419038,
+      8.013275501199907,
+      8.013290484828016,
+      8.011331629185602,
+      8.013643554612571,
+      8.011938106789433
+    ],
+    "s1": [
+      7.7252588913802835,
+      7.054404960448192,
+      6.138026445521281,
+      5.148909765285519,
+      4.150573886862411,
+      3.1491992396491266,
+      2.1489783399619644,
+      1.1493610197735011,
+      0.1734273823515641
+    ],
+    "s2": [
+      7.641648627725029,
+      6.962495710855775,
+      6.03147834693923,
+      5.0417749390029885,
+      4.043395523859849,
+      3.0426539206734198,
+      2.0421807691905385,
+      1.04507985498553,
+      0.043222337644242916
+    ]
+  },
+  "scorecard": [
+    {
+      "mode": "fp32",
+      "n": 512,
+      "alg": "cublas",
+      "digits_balanced": 8.005580873479154,
+      "digits_lopsided": 8.007907026213159,
+      "digits_lost": -0.002326152734005049,
+      "reproducible": true,
+      "inner_scaling_invariant": true,
+      "identity_exact": true
+    },
+    {
+      "mode": "fp32",
+      "n": 512,
+      "alg": "s1",
+      "digits_balanced": 7.76284321269322,
+      "digits_lopsided": 2.180947637972873,
+      "digits_lost": 5.581895574720347,
+      "reproducible": true,
+      "inner_scaling_invariant": false,
+      "identity_exact": false
+    },
+    {
+      "mode": "fp32",
+      "n": 1000,
+      "alg": "cublas",
+      "digits_balanced": 8.015195997370874,
+      "digits_lopsided": 8.01568614043767,
+      "digits_lost": -0.0004901430667949569,
+      "reproducible": true,
+      "inner_scaling_invariant": true,
+      "identity_exact": true
+    },
+    {
+      "mode": "fp32",
+      "n": 1000,
+      "alg": "s1",
+      "digits_balanced": 7.72696270711386,
+      "digits_lopsided": 2.1511120075771255,
+      "digits_lost": 5.575850699536735,
+      "reproducible": true,
+      "inner_scaling_invariant": false,
+      "identity_exact": false
+    },
+    {
+      "mode": "fp32",
+      "n": 2048,
+      "alg": "cublas",
+      "digits_balanced": 8.015818920041037,
+      "digits_lopsided": 8.015953273050007,
+      "digits_lost": -0.000134353008970578,
+      "reproducible": true,
+      "inner_scaling_invariant": true,
+      "identity_exact": true
+    },
+    {
+      "mode": "fp32",
+      "n": 2048,
+      "alg": "s1",
+      "digits_balanced": 7.736408268258995,
+      "digits_lopsided": 2.16045846726597,
+      "digits_lost": 5.575949800993025,
+      "reproducible": true,
+      "inner_scaling_invariant": false,
+      "identity_exact": false
+    },
+    {
+      "mode": "fp32",
+      "n": 4096,
+      "alg": "cublas",
+      "digits_balanced": 7.862773589650775,
+      "digits_lopsided": 7.86259650613581,
+      "digits_lost": 0.00017708351496548147,
+      "reproducible": true,
+      "inner_scaling_invariant": true,
+      "identity_exact": true
+    },
+    {
+      "mode": "fp32",
+      "n": 4096,
+      "alg": "s1",
+      "digits_balanced": 7.738977650938209,
+      "digits_lopsided": 2.1639039221032004,
+      "digits_lost": 5.575073728835009,
+      "reproducible": true,
+      "inner_scaling_invariant": false,
+      "identity_exact": false
+    },
+    {
+      "mode": "tf32",
+      "n": 512,
+      "alg": "cublas",
+      "digits_balanced": 4.864198581433165,
+      "digits_lopsided": 4.859573890011346,
+      "digits_lost": 0.004624691421819094,
+      "reproducible": true,
+      "inner_scaling_invariant": true,
+      "identity_exact": false
+    },
+    {
+      "mode": "tf32",
+      "n": 512,
+      "alg": "s1",
+      "digits_balanced": 4.472616612213863,
+      "digits_lopsided": -1.1326656662585597,
+      "digits_lost": 5.605282278472423,
+      "reproducible": true,
+      "inner_scaling_invariant": false,
+      "identity_exact": false
+    },
+    {
+      "mode": "tf32",
+      "n": 1000,
+      "alg": "cublas",
+      "digits_balanced": 5.009378438535719,
+      "digits_lopsided": 5.007037076740194,
+      "digits_lost": 0.002341361795524577,
+      "reproducible": true,
+      "inner_scaling_invariant": true,
+      "identity_exact": false
+    },
+    {
+      "mode": "tf32",
+      "n": 1000,
+      "alg": "s1",
+      "digits_balanced": 4.617588928690148,
+      "digits_lopsided": -0.9933354654873181,
+      "digits_lost": 5.6109243941774665,
+      "reproducible": true,
+      "inner_scaling_invariant": false,
+      "identity_exact": false
+    },
+    {
+      "mode": "tf32",
+      "n": 2048,
+      "alg": "cublas",
+      "digits_balanced": 5.162176613384152,
+      "digits_lopsided": 5.162303499254012,
+      "digits_lost": -0.00012688586985998285,
+      "reproducible": true,
+      "inner_scaling_invariant": true,
+      "identity_exact": false
+    },
+    {
+      "mode": "tf32",
+      "n": 2048,
+      "alg": "s1",
+      "digits_balanced": 4.775348005297055,
+      "digits_lopsided": -0.8354378474024834,
+      "digits_lost": 5.6107858526995384,
+      "reproducible": true,
+      "inner_scaling_invariant": false,
+      "identity_exact": false
+    },
+    {
+      "mode": "tf32",
+      "n": 4096,
+      "alg": "cublas",
+      "digits_balanced": 5.313014941751733,
+      "digits_lopsided": 5.31329497868028,
+      "digits_lost": -0.000280036928546501,
+      "reproducible": true,
+      "inner_scaling_invariant": true,
+      "identity_exact": false
+    },
+    {
+      "mode": "tf32",
+      "n": 4096,
+      "alg": "s1",
+      "digits_balanced": 4.925802375876539,
+      "digits_lopsided": -0.6861539146161985,
+      "digits_lost": 5.611956290492738,
+      "reproducible": true,
+      "inner_scaling_invariant": false,
+      "identity_exact": false
+    },
+    {
+      "mode": "bf16",
+      "n": 512,
+      "alg": "cublas",
+      "digits_balanced": 4.310237132754795,
+      "digits_lopsided": 4.308680051245714,
+      "digits_lost": 0.0015570815090804047,
+      "reproducible": true,
+      "inner_scaling_invariant": true,
+      "identity_exact": true
+    },
+    {
+      "mode": "bf16",
+      "n": 512,
+      "alg": "s1",
+      "digits_balanced": 3.449743976402372,
+      "digits_lopsided": 0.9293073875690853,
+      "digits_lost": 2.5204365888332867,
+      "reproducible": true,
+      "inner_scaling_invariant": false,
+      "identity_exact": false
+    },
+    {
+      "mode": "bf16",
+      "n": 1000,
+      "alg": "cublas",
+      "digits_balanced": 4.445141976746024,
+      "digits_lopsided": 4.446530874529788,
+      "digits_lost": -0.0013888977837641647,
+      "reproducible": true,
+      "inner_scaling_invariant": true,
+      "identity_exact": true
+    },
+    {
+      "mode": "bf16",
+      "n": 1000,
+      "alg": "s1",
+      "digits_balanced": 3.589444167449861,
+      "digits_lopsided": 1.0754001641081046,
+      "digits_lost": 2.5140440033417564,
+      "reproducible": true,
+      "inner_scaling_invariant": false,
+      "identity_exact": false
+    },
+    {
+      "mode": "bf16",
+      "n": 2048,
+      "alg": "cublas",
+      "digits_balanced": 4.616657038484694,
+      "digits_lopsided": 4.612382821881461,
+      "digits_lost": 0.004274216603232794,
+      "reproducible": true,
+      "inner_scaling_invariant": true,
+      "identity_exact": true
+    },
+    {
+      "mode": "bf16",
+      "n": 2048,
+      "alg": "s1",
+      "digits_balanced": 3.746977698163129,
+      "digits_lopsided": 1.2335132838379266,
+      "digits_lost": 2.5134644143252025,
+      "reproducible": true,
+      "inner_scaling_invariant": false,
+      "identity_exact": false
+    },
+    {
+      "mode": "bf16",
+      "n": 4096,
+      "alg": "cublas",
+      "digits_balanced": 4.75168744991078,
+      "digits_lopsided": 4.752651899118629,
+      "digits_lost": -0.000964449207848439,
+      "reproducible": true,
+      "inner_scaling_invariant": true,
+      "identity_exact": true
+    },
+    {
+      "mode": "bf16",
+      "n": 4096,
+      "alg": "s1",
+      "digits_balanced": 3.896315171552781,
+      "digits_lopsided": 1.3839003712774607,
+      "digits_lost": 2.5124148002753204,
+      "reproducible": true,
+      "inner_scaling_invariant": false,
+      "identity_exact": false
+    }
+  ],
+  "kernels": {
+    "n": 8192,
+    "cublas": {
+      "ms": {
+        "matmul": 31.912800999999998,
+        "add": 0.0,
+        "other": 0.0
+      },
+      "count": {
+        "matmul": 1,
+        "add": 0,
+        "other": 0
+      },
+      "matmul_kernels": [
+        "nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_NNNN"
+      ]
+    },
+    "s1": {
+      "ms": {
+        "matmul": 26.342226,
+        "add": 19.551191,
+        "other": 0.0
+      },
+      "count": {
+        "matmul": 7,
+        "add": 18,
+        "other": 0
+      },
+      "matmul_kernels": [
+        "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x256_32x3_nn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_128x256_32x3_nn_align8::Params)"
+      ]
+    },
+    "s2": {
+      "ms": {
+        "matmul": 38.597009,
+        "add": 54.441481,
+        "other": 0.0
+      },
+      "count": {
+        "matmul": 49,
+        "add": 144,
+        "other": 0
+      },
+      "matmul_kernels": [
+        "void cutlass::Kernel2<cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_nn_align8>(cutlass_80_tensorop_bf16_s16816gemm_relu_bf16_256x128_32x3_nn_align8::Params)"
+      ]
+    }
+  },
+  "timing_contention": [
+    "1815985, .venv/bin/python",
+    "1849519, .venv/bin/python"
+  ],
+  "timing": [
+    {
+      "n": 1024,
+      "t_lib": 3.7487998604774476e-05,
+      "t_s1": 0.0001666880026459694,
+      "t_scut": 3.7487998604774476e-05,
+      "L_cut": 0
+    },
+    {
+      "n": 2048,
+      "t_lib": 0.0002070240005850792,
+      "t_s1": 0.0006072160005569458,
+      "t_scut": 0.0002070240005850792,
+      "L_cut": 0
+    },
+    {
+      "n": 3072,
+      "t_lib": 0.000620608001947403,
+      "t_s1": 0.001665615975856781,
+      "t_scut": 0.0016810719966888427,
+      "L_cut": 1
+    },
+    {
+      "n": 4096,
+      "t_lib": 0.0015076160430908202,
+      "t_s1": 0.007984767913818358,
+      "t_scut": 0.007964128017425538,
+      "L_cut": 1
+    },
+    {
+      "n": 6144,
+      "t_lib": 0.014942607879638671,
+      "t_s1": 0.028167423248291017,
+      "t_scut": 0.05438163185119629,
+      "L_cut": 2
+    },
+    {
+      "n": 8192,
+      "t_lib": 0.035825551986694334,
+      "t_s1": 0.0663545913696289,
+      "t_scut": 0.10290342712402344,
+      "L_cut": 2
+    },
+    {
+      "n": 12288,
+      "t_lib": 0.14542177581787108,
+      "t_s1": 0.1882496337890625,
+      "t_scut": 0.45220370483398437,
+      "L_cut": 3
+    },
+    {
+      "n": 16384,
+      "t_lib": 0.39132357788085936,
+      "t_s1": 0.4114478454589844,
+      "t_scut": 0.843087158203125,
+      "L_cut": 3
+    }
+  ],
+  "add_GBps": 75.8814697181279,
+  "peak_TFLOPS": 93.42782934486563,
+  "predicted_crossover_n": 132973.24902544636
+}
