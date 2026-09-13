@@ -73,7 +73,8 @@ This is the accompanying document. Markdown with embedded HTML is fine: `<img>` 
 
 ## Don'ts
 
-- Don't commit to git, create branches, or touch other agents' directories.
+- **Commit regularly** with `/home/fzeng/ml/research/art/_shared/commit.sh <your-dir> "<message>"`: after each working script, each finished piece or style batch, and at least every ~30 minutes of progress. Use messages like `art/<your-dir>: add hachure plates`. The script commits only your directory, takes a lock (other agents commit concurrently), and skips files over 20 MB; list those in your README. Never run `git add`/`git commit`/`git stash`/`git checkout` yourself, never create branches, and never push.
+- Don't touch other agents' directories.
 - Don't leave long-running background processes when you finish.
 - Don't claim success you didn't verify: look at your own images (use the Read tool on the PNGs) before calling a style done.
 

@@ -2,3 +2,4 @@
 _shared/.gpu_slots/
 _shared/.pip.lock
 */cache/
+_shared/.git.lock
