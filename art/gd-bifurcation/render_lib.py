@@ -72,10 +72,10 @@ def apply_lut(t, lut):
 def paper(H, W, base=(244, 239, 228), grain=6.0, seed=0):
     rng = np.random.default_rng(seed)
     p = np.ones((H, W, 3)) * np.array(base, float)
-    n = rng.normal(0, grain, (H // 4 + 1, W // 4 + 1))
+    # coarse fibre-like grain only (4 px blocks, integer levels) so lossless PNGs stay compressible
+    n = np.round(rng.normal(0, grain, (H // 4 + 1, W // 4 + 1)))
     n = np.kron(n, np.ones((4, 4)))[:H, :W]
-    fine = rng.normal(0, grain * 0.5, (H, W))
-    return np.clip(p + (n + fine)[..., None], 0, 255)
+    return np.clip(p + n[..., None], 0, 255)
 
 
 def ink_multiply(paper_rgb, alpha, ink_rgb):

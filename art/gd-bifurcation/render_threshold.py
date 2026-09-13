@@ -45,17 +45,19 @@ def main():
         ax.axhline(1.0, color=BLUE, lw=0.9, label=r"$2/s_{\min}$")
         gf = d["rule_gf"] * k / 2
         ini = d["rule_init"] * k / 2
-        ax.axhspan(gf.min(), gf.max(), color=RED, alpha=0.12, lw=0, label=r"$2/s_{GF}(x_0)$ range (flow minimum)")
-        ax.axhspan(max(ini.min(), 0.2), min(ini.max(), 1.6), color="#888", alpha=0.12, lw=0, label=r"$2/\lambda_{\max}(x_0)$ range")
+        xr = len(Ts) - 0.35
+        ax.plot(np.full(len(gf), xr), gf, "_", ms=9, color=RED, label=r"$2/s_{GF}(x_0)$ per init (flow minimum)")
+        ax.plot(np.full(len(ini), xr + 0.3), ini, "_", ms=9, color="#777", label=r"$2/\lambda_{\max}(x_0)$ per init")
+        ax.set_xlim(-0.5, len(Ts) + 0.2)
         ax.set_xticks(range(len(Ts)))
         ax.set_xticklabels([f"T = 10^{int(np.log10(t))}" for t in Ts], family="serif", fontsize=8)
         ax.set_ylabel(r"measured onset  $\eta_1 / (2/k)$", family="serif")
-        ax.set_ylim(0.3 if k == 4 else 0.7, 1.08)
+        ax.set_ylim(0.3 if k == 4 else 0.7, 1.75 if k == 4 else 1.12)
         ax.legend(frameon=False, fontsize=7, loc="lower right")
         med = [np.nanmedian(d[f"onset_T{TT}"]) * k / 2 for TT in Ts]
         ax.set_title("finite-time onset is init-dependent; it converges to 2/s_min\nmedian: " + ", ".join(f"{m:.4f}" for m in med),
                      family="serif", fontsize=9, loc="left")
-    fig.suptitle("The first doubling is at η = 2/s_min, where s_min = k is the sharpness of the balanced (flattest) global minimum of ½(x₁⋯x_k − 1)²",
+    fig.suptitle("The first doubling is at η = 2/s_min, where s_min = k is the sharpness of the balanced (flattest) global minimum of ½(x₁x₂…x_k − 1)²",
                  family="serif", fontsize=11, color=INK, x=0.06, ha="left")
     fig.savefig(f"{GAL}/plate_threshold_rule.png", facecolor=PAPER)
     print("wrote plate_threshold_rule.png")

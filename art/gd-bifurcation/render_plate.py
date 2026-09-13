@@ -61,8 +61,8 @@ def plate(name="prod4", lo=0.45, hi=1.21, ylo=-0.03, yhi=2.2, W=6000, H=1900, ou
     sg = s_gf(x0)[0]
     ax.axvline(2 / sg, color=RED, lw=0.5, ls=(0, (3, 3)))
     ax.text(es + 0.002, yhi - 0.05, r"$\eta^\ast = 2/s_{\min}$" + f" = 2/{k}\n" +
-            r"$s_{\min}$ = sharpness of the balanced (flattest) global minimum" + "\nmeasured first doubling (Newton-Floquet): "
-            + f"{etan[0]:.6f}", color=RED, fontsize=6.5, family="serif", va="top")
+            r"$s_{\min}$ = sharpness of the balanced (flattest) global minimum" + "\nFloquet multiplier of the balanced fixed point hits −1 at η = "
+            + f"{etan[0]:.10f}" + f"\nsimulation bisection from x0 after 2·10⁵ steps: {json.load(open(f'{CACHE}/feigenbaum_B.json'))['B_prod4_T200000']['eta'][0]:.5f} (critical slowing)", color=RED, fontsize=6.5, family="serif", va="top")
     ax.annotate(r"$2/s_{GF}(x_0)$" + f" = {2 / sg:.4f}: 2/sharpness of the minimum gradient flow\nwould reach from the declared init (dashed). Not the onset.",
                 xy=(2 / sg, 1.55), xytext=(0.53, 1.62), color=RED, fontsize=6.5, family="serif", va="center",
                 arrowprops=dict(arrowstyle="-", color=RED, lw=0.4))

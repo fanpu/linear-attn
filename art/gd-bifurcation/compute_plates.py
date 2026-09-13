@@ -88,6 +88,23 @@ def atlas_job(r):
     return fn
 
 
+def tower_job(r):
+    p = r["base"]
+    w = r["hi"] - r["lo"]
+    lo, hi = r["lo"] - 0.12 * w, r["hi"] + 0.80 * w
+    h = r["yhi"] - r["ylo"]
+    ylo, yhi = r["ylo"] - 0.55 * h, r["yhi"] + 0.55 * h
+    fn = f"{CACHE}/atlas/tower_p{p:03d}.npz"
+    if os.path.exists(fn):
+        return fn
+    t0 = time.time()
+    C, e, ly, lb, al = counts(lo, hi, ylo, yhi, 2400, 1500, 30000, int(min(2500 * p, 400000)), spp=1)
+    np.savez_compressed(fn, C=C.astype(np.int32), etas=e, lyap=ly, lyap_bal=lb, alive=al, rect=(lo, hi, ylo, yhi),
+                        period=p, win=(r["lo"], r["hi"]))
+    print(f"tower p={p} done {time.time() - t0:.0f}s", flush=True)
+    return fn
+
+
 def zoom_path(tower, nframes, full=(0.45, 0.99, -0.03, 1.80)):
     """Keyframes: full diagram, then each tower window's central branch.  Log-linear interpolation of
     centre offsets and widths; returns list of (lo, hi, ylo, yhi, p_eff)."""
@@ -148,6 +165,11 @@ def main():
         os.makedirs(f"{CACHE}/atlas", exist_ok=True)
         with Pool(a.workers) as pool:
             list(pool.imap_unordered(atlas_job, Wj["atlas"]))
+    elif a.what == "tower":
+        os.makedirs(f"{CACHE}/atlas", exist_ok=True)
+        Wj = json.load(open(f"{CACHE}/windows.json"))
+        with Pool(a.workers) as pool:
+            list(pool.imap_unordered(tower_job, Wj["tower"][::-1]))
     else:
         Wj = json.load(open(f"{CACHE}/windows.json"))
         os.makedirs(f"{CACHE}/zoom", exist_ok=True)

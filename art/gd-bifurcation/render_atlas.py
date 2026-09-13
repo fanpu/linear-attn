@@ -31,7 +31,8 @@ def fmt(v, span):
 
 def strip(etas, lam, W, H, rect):
     lo, hi = rect[0], rect[1]
-    pos, neg, y0, _, _ = lyap_raster(etas, lam, lo, hi, W, H, -1.5, 0.7)
+    lam = np.sign(lam) * np.sqrt(np.abs(lam))  # declared sign-preserving sqrt compression
+    pos, neg, y0, _, _ = lyap_raster(etas, lam, lo, hi, W, H, -1.2, 0.6)
     return pos, neg, int(round(y0))
 
 
@@ -40,7 +41,7 @@ def plate_img(d, W, H, style="dark", strip_h=None):
     t = tone_plate(C)
     im = Image.fromarray(np.uint8(t * 255)).resize((W, H), Image.LANCZOS)
     t = np.asarray(im, float) / 255
-    sh = strip_h or H // 7
+    sh = strip_h or H // 4
     pos, neg, y0 = strip(d["etas"], d["lyap_bal"], W, sh, d["rect"])
     if style == "dark":
         img = apply_lut(t, cmap_lut("cc:fire"))
@@ -78,10 +79,12 @@ def main():
                 f"   ·   full 4-coordinate GD, float64", fill=(170, 150, 140), font=f2)
         pil.save(f"{GAL}/atlas/p{int(d['period']):02d}.png", optimize=True)
     # grids
-    for style in ["dark", "paper"]:
+    D_period = list(D)
+    D_zoom = sorted(D, key=lambda d: (d["rect"][1] - d["rect"][0]), reverse=True)
+    for style, D, suffix in [("dark", D_period, ""), ("paper", D_period, ""), ("dark", D_zoom, "_byzoom")]:
         cols = 4
         pw, ph = 1200, 750
-        sh = ph // 7
+        sh = ph // 4
         cell_h = ph + 6 + sh + 110
         rows = int(np.ceil(len(D) / cols))
         margin = 120
@@ -96,8 +99,8 @@ def main():
         dr = ImageDraw.Draw(pil)
         dr.text((margin, 70), "WINDOW ATLAS  ·  every periodic window of gradient descent on ½(x₁x₂x₃x₄ − 1)² is a small copy of the whole cascade",
                 fill=fg, font=font(46, "serif"))
-        dr.text((margin, 140), "each plate: widest window of that base period found in η ∈ [η∞, 0.99]; branch nearest the critical point; strip below: Lyapunov exponent (λ>0 up, λ<0 down)",
-                fill=fg2, font=font(28, "serif"))
+        dr.text((margin, 140), ("ordered by zoom factor. " if suffix else "") + "each plate: widest window of that base period in η ∈ [η∞, 0.99]; branch nearest the critical point (upside-down copies sit on orientation-reversing branches); strip: Lyapunov exponent, λ>0 up, λ<0 down",
+                fill=fg2, font=font(26, "serif"))
         for i, d in enumerate(D):
             r, c = divmod(i, cols)
             x = margin + c * (pw + 50)
@@ -109,7 +112,7 @@ def main():
             dr.text((x + 160, y + ph + 6 + sh + 10), f"η {fmt(lo, hi - lo)} … {fmt(hi, hi - lo)}", fill=fg2, font=font(24, "mono"))
             dr.text((x + 160, y + ph + 6 + sh + 42), f"P {fmt(ylo, yhi - ylo)} … {fmt(yhi, yhi - ylo)}   ×{(HERO[1] - HERO[0]) / (hi - lo):,.0f}",
                     fill=fg2, font=font(24, "mono"))
-        out = f"{GAL}/atlas_{style}.png"
+        out = f"{GAL}/atlas_{style}{suffix}.png"
         pil.save(out, optimize=True)
         print("wrote", out, pil.size)
 
