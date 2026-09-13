@@ -1,6 +1,6 @@
 # Theory posts: progress log
 
-**Status as of 2026-09-13: paused at the user's request. All agents stopped cleanly; no theory processes running; each started project has a `PAUSED.md` with rerun commands.**
+**Status as of 2026-09-13: resumed.** 02, 03, 08 running (resumed from `PAUSED.md`); queue 04 → 01 → 05 → 06 → 07 launches as slots free (max 3 agents).
 
 Each project becomes a blog post, following `_shared/BRIEF.md`. At most 3 agents run at a time.
 
