@@ -5,10 +5,12 @@
 **No project has a `gallery/` or `README.md` yet.** What exists is compute code (often tested), paper reads, and a few toy runs.
 
 **Update:** resumed with at most 5 agents at a time; the other agents keep their context and continue where they stopped.
-- **Done:** attention-textile, gd-bifurcation, depth-roughness, grokking, game-chaos, color-research; hardware: dither, posterize, float-ruler, precision-divergence, block-quant.
-- **Wave (Opus, fresh agents from TASKS.md + PAUSED/NOTES handoffs):** trainability-fractal, outcome-basins, signal-propagation, edge-of-stability, neural-collapse.
-- **Queue (≤5 concurrent):** decode-map → diffusion-basins → loss-landscape → mode-connectivity → hessian-spectrum → weight-spectrum → scaling-dimension → ouroboros.
-- **Orchestration protocol:** per-project specs in `_shared/TASKS.md`; each agent keeps `NOTES.md` as handoff and commits via `_shared/commit.sh`; the orchestrator reviews heroes at completion and starts the next queued project.
+- **Done:** attention-textile, gd-bifurcation, depth-roughness, grokking, game-chaos, color-research, outcome-basins, signal-propagation, ouroboros; hardware: dither, posterize, float-ruler, precision-divergence, block-quant.
+- **Running agents:** diffusion-basins (CPU toy first).
+- **Waiting on compute before successor (check NOTES.md in each):** trainability-fractal (GPU jobs ~21:15), neural-collapse (training), edge-of-stability (main4), hessian-spectrum (C10 + film), scaling-dimension (ts sweep), weight-spectrum (bs16_s1 CPU ~16:15), mode-connectivity (planes + fmnist).
+- **Queued compute without agent:** loss-landscape (4 ResNet trainings via gpu_run, 40 epochs; see its NOTES.md).
+- **Not started:** decode-map (needs sampler speedup + GPU; start when slots free).
+- GPU is the bottleneck (8/8 slots, ~10 queued). Handoff rule: ~50 tool calls or ~120k context.
 
 ## Shared setup (done, reusable)
 
