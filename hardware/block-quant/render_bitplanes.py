@@ -173,7 +173,7 @@ def hero_strip(tag, sort=False, style="riso"):
     gbig = (Wd_inner - 4 * w) // 3
     side, top = 110, 260
     chart_h = 330
-    H = top + h + 150 + sm + 160 + chart_h + 260
+    H = top + h + 150 + sm + 160 + chart_h + 340
     Wd = Wd_inner + 2 * side
     if style == "riso":
         bg, fg, mu, inkc = S.PAPER, S.RISO_BLACK, np.array([0.40, 0.38, 0.35]), S.RISO_BLACK
@@ -220,9 +220,17 @@ def hero_strip(tag, sort=False, style="riso"):
         items.append((x + 75, base + 10, f"{st['H']:.2f}", 20, "Mono", fg, "ma"))
         items.append((x + 181, base + 10, f"x{max(st['od_row'], st['od_col']):.0f}", 20, "Mono", acc, "ma"))
     S.hline(img, base, side, side + Wd_inner, mu)
-    items += [(side, yc - 36, "dark bar: entropy H (bits/pixel, full = 1).   pink bar: stripe strength = max(row, column) overdispersion, log scale, "
+    items += [(side, yc - 36, "dark bar: entropy H (bits/pixel, full = 1).   coloured bar: stripe strength = max(row, column) overdispersion, log scale, "
                "full = x1000; x1 means indistinguishable from i.i.d. bits", 24, "Sans", mu)]
-    notes = ["bf16 = 1 sign bit, 8 exponent bits (bias 127), 7 mantissa bits.  Ink = bit set; one pixel per weight; rows = output units, columns = input dims.",
+    sgn = (W > 0).mean(0)
+    top = np.argsort(-np.abs(sgn - 0.5))[:6]
+    extra = []
+    if stats[0]["od_col"] > 5:
+        extra.append("Sign plane: vertical stripes are input dimensions whose sign is (almost) the same for every row here, e.g. dims "
+                     + ", ".join(f"{t} ({100 * sgn[t]:.0f}% positive)" for t in top[:5]) + ".")
+    if sort:
+        extra.append("The smooth gradient in the exponent planes is produced by the sort (declared) and is not itself a finding; the stripe statistics are permutation-invariant.")
+    notes = extra + ["bf16 = 1 sign bit, 8 exponent bits (bias 127), 7 mantissa bits.  Ink = bit set; one pixel per weight; rows = output units, columns = input dims.",
              "Overdispersion = variance of row (column) means / binomial variance for i.i.d. bits; a random pixel permutation of every plane gives x1.0 +- 0.1.",
              S.STACK]
     for j, n in enumerate(notes):

@@ -49,7 +49,7 @@ def plate(tag, style="night", nrows=1024):
         bg, fg, mu, acc = S.PAPER, S.RISO_BLACK, np.array([0.4, 0.38, 0.35]), S.RISO_PINK
         cm = None
         bit = lambda b: S.ink(b.astype(float), S.RISO_BLUE)
-    img = S.canvas(top + panel_h + 120, img_w, bg)
+    img = S.canvas(top + panel_h + 180, img_w, bg)
     name = str(d["name"])
     rows = d["rows"]
     items = [(side, 50, "Rotation" if style == "night" else "ROTATION", 72, "Bold", fg if style == "night" else S.RISO_PINK),
@@ -85,9 +85,10 @@ def plate(tag, style="night", nrows=1024):
             (x, y + prof_h + 140, f"col-RMS spread (CV) {d[f'{v}_colrms_cv']:.3f}   row-RMS CV {d[f'{v}_rowrms_cv']:.3f}", 26, "Mono", fg),
         ]
     foot = top + panel_h + 20
-    items += [(side, foot, "A rotation on the input side mixes columns, so column (input-dim) outliers are spread out; row norms are untouched, so row stripes survive. "
-                           "Scale maps: each panel centred on its own median (declared).", 24, "Sans", mu),
-              (side, foot + 40, "Simplification: only the residual-stream rotation is applied (no online Hadamard inside attention/MLP, no activation quantization).  " + S.STACK, 22, "Sans", mu)]
+    items += [(side, foot, "Input-side rotation mixes columns: column (input-dim) outliers are spread out; row norms are untouched, so row stripes survive.", 24, "Sans", mu),
+              (side, foot + 36, "With 16/32-weight micro-blocks, rotation does not lower NVFP4 weight MSE here: the block scale already adapts locally.", 24, "Sans", mu),
+              (side, foot + 72, "Scale maps: each panel centred on its own median (declared). Only the residual-stream rotation is applied.", 22, "Sans", mu),
+              (side, foot + 104, S.STACK, 22, "Sans", mu)]
     img = S.text(img, items)
     return S.save(img, f"hadamard_{style}_{tag}.png", palette=None if style == "night" else None)
 
