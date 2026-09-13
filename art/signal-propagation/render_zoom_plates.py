@@ -128,7 +128,7 @@ for style in styles:
     fg = FG[style]
     fig.text(side_m / W, 1 - 90 * s_ / H, f"Finite Width: the order/chaos frontier of one random erf network, N = {N}, depth {D}",
              color=fg, fontsize=30, va="center")
-    fig.text(side_m / W, 1 - 150 * s_ / H, "Four magnifications of one fixed random network (common random numbers: the same standard-normal "
+    fig.text(side_m / W, 1 - 150 * s_ / H, f"{len(PAN)} magnifications of one fixed random network (common random numbers: the same standard-normal "
              "weights at every pixel, scaled by sigma_w and sigma_b)", color=fg, fontsize=14, va="center", alpha=0.85)
     for i, p in enumerate(PAN):
         x0 = side_m + i * (pw + gap)
@@ -165,7 +165,7 @@ for style in styles:
     if len(PAN) == 4:
         # 2x2 poster: panels read left-to-right, top-to-bottom; minimal captions (PIL, pixel-exact)
         from PIL import Image, ImageDraw, ImageFont
-        g, m, capH = 24, 70, 170
+        g, m, capH = 24, 70, 200
         Wp = 2 * m + 2 * pw + g
         img = Image.new("RGB", (Wp, m + 2 * pw + g + capH), BG[style])
         dr = ImageDraw.Draw(img)
@@ -178,8 +178,10 @@ for style in styles:
             dr.rectangle([x0, y0 + pw - 34, x0 + 11 * len(tag) + 24, y0 + pw], fill=BG[style])
             dr.text((x0 + 10, y0 + pw - 30), tag, font=fS, fill=FG[style])
         yc = m + 2 * pw + g + 30
-        dr.text((m, yc), f"The order/chaos frontier of one random erf network (width {N}, depth {D}), magnified x1, x16, x1,024, x65,536", font=fB, fill=FG[style])
+        dr.text((m, yc), f"The order/chaos frontier of one random erf network (width {N}, depth {D}), magnified " + ", ".join(f"x{zoom_label(p):,.0f}" for p in PAN), font=fB, fill=FG[style])
         dr.text((m, yc + 50), "centres " + ";  ".join(f"({0.5*(p['win'][0]+p['win'][1]):.8f}, {0.5*(p['win'][2]+p['win'][3]):.8f})" for p in PAN[1:]) + "  in (sigma_w, sigma_b)", font=fS, fill=FG[style])
-        dr.text((m, yc + 80), "; ".join(f"{zoom_label(p):,.0f}x: {p['R']}^2 {'float64' if p['dtype']=='f64' else 'float32'}" for p in PAN) + ".  " + STYLE_NOTE[style][:120], font=fS, fill=FG[style])
+        dr.text((m, yc + 80), "native grids: " + "; ".join(f"x{zoom_label(p):,.0f} {p['R']}^2 {'float64' if p['dtype']=='f64' else 'float32'}" for p in PAN), font=fS, fill=FG[style])
+        for j, ln in enumerate(textwrap.wrap(STYLE_NOTE[style], int((Wp - 2 * m) / 10.3))[:2]):
+            dr.text((m, yc + 108 + 26 * j), ln, font=fS, fill=FG[style])
         img.save(os.path.join(GAL, f"{args.prefix}_N{N}_poster_{style}.png"))
     print("wrote", style)

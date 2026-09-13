@@ -113,7 +113,69 @@ Total GPU time: see §5 (end).
 
 ## 5. Verification and honesty
 
-RESULTS_PLACEHOLDER
+<p align="center"><img src="gallery/verification_boxcount_plate.png" width="100%"><br>
+<sub><b>Box-counting survey plate.</b> Rows: finite width with the sync label, finite width with the paper's threshold, and the infinite-width null model. Ink = edge cells of the native 256² float64 map; ochre = occupied 16-px boxes; right = N(s) for every zoom level.</sub></p>
+
+<p align="center"><img src="gallery/verification_sheet.png" width="100%"><br>
+<sub><b>Verification sheet.</b> (a) local slope vs zoom, (b) neighbour correlation of the label, (c) stitched N(ε), (d) precision floor, (e) threshold dependence, (f) resolution check.</sub></p>
+
+### Part A: did mean-field theory show up in our measurements?
+
+Yes. The analytic critical point at σ_b² = 0.05 is σ_w² = 1.7610 (Schoenholz et al. report ≈ 1.76). The measured map (N = 1000, 6 networks per pixel) matches the closed form. Numbers are measured/analytic median ratios.
+
+| quantity | ordered side | chaotic side |
+|---|---|---|
+| q\* | 0.997 | 0.997 |
+| c\* | 1.000 | 1.003 |
+| χ₁ | 1.002 | 0.999 |
+| ξ_c | 0.99 | 0.83 (noisy: c approaches c\* < 1 from both sides and the log-fit is short) |
+| ξ_q | 0.67 | 0.64 (ξ_q is under one layer, so the fit is crude) |
+
+- The measured sign of χ₁ − 1 agrees with theory on 99.7% of pixels.
+- The ridge of maximal measured ξ_c sits a median 0.026 in σ_w² (3 px) from the analytic line.
+- Trainability (MNIST, width 300, 1000 SGD steps): the largest trainable depth tracks 6 ξ_c at σ_w² = 1.0 … 4.0. Close to criticality every net deeper than 100 still failed, which we attribute to the 1000-step budget, not to signal propagation.
+
+### Part B: is the finite-width frontier fractal?
+
+**Short answer: rough, intricate and deterministic, yes. A fractal with a single, stable non-integer dimension, no.** The number the paper reports depends on the label, the threshold, the zoom level and the box range.
+
+**The paper (arXiv:2508.03222) checked against its code.** The setup is an erf MLP with W ~ N(0,1)/√N and b ~ N(0,1), redrawn per layer and shared by every pixel (common random numbers). The frontier is found by thresholding L = |x₁ − x₂|². The dimension is fitted with box sizes 1–49 px on a single image and reported as the **maximum over thresholds τ ∈ [1e-5, 1]**, which is 1.85 for MLPs. Taking a max over 25 thresholds of a noisy slope biases it upward. On our x1 map (256², box sizes 2–32 px) the slope at τ = 1e-5 is 1.14, and the max over the paper's τ range is 1.62.
+
+**Two labels, two zoom chains** (256² float64 at every level, ×4 per level, each window centred on the sub-window with the most ordered/chaotic mixing):
+
+| zoom | sync label: slope | neighbour corr | f32≠f64 | paper label L_avg > 1e-5: slope | neighbour corr | f32≠f64 | f64 perturbed 1e-13 ≠ f64 | null (N = ∞) slope |
+|---|---|---|---|---|---|---|---|---|
+| ×1 | 1.08 | 0.99 | 0.02% | 1.14 | 0.99 | 0.1% | 0.02% | 1.00 |
+| ×4 | 1.39 | 0.97 | 0.2% | 1.49 | 0.95 | 1.3% | 0.10% | 0.98 |
+| ×16 | 1.60 | 0.90 | 0.7% | 1.70 | 0.78 | 5.9% | 0.35% | 1.00 |
+| ×64 | 1.79 | 0.60 | 2.7% | 1.92 | 0.32 | 16.5% | 0.04% | 1.02 |
+| ×256 | **1.87** | 0.47 | 4.2% | 1.98 | 0.13 | 29.0% | 0.01% | 1.02 |
+| ×1,024 | 1.82 | 0.56 | 3.3% | 1.99 | 0.07 | 33.8% | 0 | 1.02 |
+| ×4,096 | 1.70 | 0.69 | 3.7% | 1.99 | 0.08 | 35.2% | 0.003% | 1.02 |
+| ×16,384 | 1.65 | 0.76 | 5.4% | 1.99 | 0.09 | 40.1% | 0 | 1.02 |
+| ×65,536 | 1.52 | 0.83 | 9.2% | 1.98 | 0.13 | 43.1% | 0 | 1.02 |
+| ×262,144 | 1.48 | 0.87 | 17.0% | | | | | 1.03 |
+
+Reading the table:
+
+- **Paper label: area-filling past ×256, not a stable non-integer dimension.** The local slope climbs 1.14 → 1.49 → 1.70 → 1.92 and then sits at 1.98–1.99 from ×256 to ×65,536. There, the label of adjacent pixels is almost uncorrelated (0.07–0.13), so at every grid we can afford the frontier fills the window like noise. D → 2 means "unresolved at this resolution"; it is not evidence of a fractal curve. The ordered/chaotic classification is nonetheless *deterministic*: re-running in float64 with inputs perturbed by 1e-13 flips at most 0.35% of pixels (0 at most deep levels), so this is real sensitivity of a 1000-layer map to (σ_w, σ_b), not roundoff. float32, in contrast, flips up to 43%.
+- **Sync label: a hump, not a plateau.** With "did the pair ever merge (L < 1e-10)?" the slope rises to a peak of 1.87 at ×256 and then falls steadily to 1.48 at ×262,144, while the neighbour correlation recovers from 0.47 to 0.87. Deep windows show laminated stripes (see the ×4,096 and ×65,536 plates) that become resolved as we zoom: a frontier that is smooth below some scale (≈ 1e-8 in σ at depth 1000) would look exactly like this. Finite depth sets an inner cutoff; there is no evidence of self-similarity continuing indefinitely. SYNC_PERT_TBD
+- **Null model.** The N = ∞ mean-field frontier through the identical pipeline (its own boundary-centred zoom chain) gives slope 0.98–1.03 at every level, and neighbour correlation 0.99. The roughness is a finite-width effect.
+- **Resolution check.** The same windows recomputed at 512² float64 give local slopes 1.16 (×1), 1.85 (×256), 1.67 (×4,096), against 1.08, 1.87, 1.70 at 256², and box counts at matched physical box sizes agree to within a few per cent (panel f). RES1024_TBD
+- **Stitched count.** Multiplying box counts across nested windows gives global slopes of 1.97 (sync, 6.9 decades of ε) and 2.03 (paper label, 6.3 decades). These numbers are upper-biased by construction, because every window is chosen at maximal mixing. We report them only for completeness.
+- **Threshold dependence.** At a fixed window the slope varies strongly with τ. At ×4 it spans 1.35–1.74 over τ ∈ [1e-12, 1], and deeper windows range from below 0.5 to 1.99. A dimension quoted without its τ, zoom and box range is not meaningful.
+- **Where the frontier is.** From ×16 on, every zoom window lies entirely on the *chaotic* side of the mean-field line (mean-field chaotic fraction 1.00). At N = 100 the frontier is shifted into the mean-field chaotic phase, so the roughness is not a thickening of the mean-field curve.
+- **Lyapunov map.** The finite-time Lyapunov exponent of the same network is a smooth field (47.1% of pixels have λ > 0). The intricacy lives in the binary merge/no-merge outcome, not in λ.
+
+**Precision floor.** float64 is used for every chain and every plate at ×256 and deeper. float32 is used for the video keyframes, width maps, depth dial and Lyapunov map. Label mismatches between float32 and float64 are listed in the table. float32 slopes agree with float64 to within 0.03 (sync) and 0.05 (paper label), so the float32 video shows representative texture, not the exact float64 answer.
+
+### What did not work, and what was not pursued
+
+- The trainability check cannot resolve the critical band beyond depth 100 with 1000 SGD steps (budget).
+- Measured ξ_c on the chaotic side is 17% short of the closed form, and ξ_q is too short to fit well.
+- Width maps for N = 640 and 1024 were skipped (GPU budget); the width film runs N = 8 … 512, then ∞.
+- Several early 1024² plate jobs were killed by the shared-GPU queue and recomputed from their saved windows.
+- Explored and built: the Lyapunov map and the depth dial. Not pursued: the backprop (gradient) version of the frontier, CNN/FDF architectures, an uncertainty-exponent estimator, a 3D width stack, and sonification.
 
 ## 6. Caveats
 

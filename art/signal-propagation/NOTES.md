@@ -2,6 +2,14 @@
 
 Living handoff (replaces PAUSED.md). `cache/` is gitignored; it survives locally but is not in git.
 
+## Session 3 (agent 3) progress
+- analyze_fractal.py now records `adj_corr` (label correlation of adjacent pixels) and saves `cache/null_labels_{label}_r256.npz`; A and B reports rerun (B rescheck 512: 1.16/1.85/1.67 vs 256: 1.08/1.87/1.70). Chain A adj corr 0.07-0.13 past x256; B 0.47 (x256) -> 0.87 (x262k).
+- Correction: Apert mismatch is not exactly 0 at every level (max 0.35% at x16, 0 at most deep levels).
+- New `render_boxcount_plate.py` -> gallery/verification_boxcount_plate.png (viewed, good). `render_verification.py` now 6 panels (adds neighbour corr + resolution check); viewed.
+- render_zoom_plates.py poster captions dynamic. Test spectral poster from Bvideo/Bres2 looked great (x256 is the most intricate level).
+- README section 5 written (tokens SYNC_PERT_TBD, RES1024_TBD to fill when Bpert/Bres3/Bplate2a/2b finish).
+- Waiting on GPU: bvideo2 (levels to 7), bplate2b (running), bplate2a + batch2 (queued).
+
 ## Session 2 (agent 2) progress
 - Flow videos: colour now log10(1 - c) (was linear c, saturated); Spectral = per-side rank split; fixed a bug where the chi_1 phase mask was not flipped with the image. Small multiples use log10(1-c).
 - Width: `compute_mf_thit.py` (CPU, mean-field t_hit) removes cancellation noise in the N = infinity tile; `width_as_time_{spectral,magma,ink}` + `width_seeds_grid_spectral` rendered and viewed. N = 640/1024 skipped (GPU budget).
