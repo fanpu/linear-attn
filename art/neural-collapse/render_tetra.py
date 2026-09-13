@@ -108,7 +108,7 @@ def render_series(states, style_name, R, panel_px=1400, captions=True, dust_colo
                 xy, _ = project3(X, R)
                 for j in range(4):
                     img += A.glow(A.splat(xy[y == j], ext, panel_px), (0.8, 3, 12), (1, .3, .1))[..., None] * cols[j]
-            img = A.tonemap(img, 0.35)
+            img = A.tonemap(img / np.percentile(img.max(-1), 99.7), 2.0)  # auto exposure (declared)
             ax.imshow(img, extent=ext, zorder=1, interpolation="lanczos")
         draw_tetra(ax, s["V"], R, st, lw, ghost=s["al"].F, edge_colors=None if edge_colors is None else edge_colors[i])
         if captions:
@@ -183,8 +183,8 @@ def export_stl(V, path, circum_mm=50.0, rod_mm=1.6, node_mm=3.2, hub=True):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("tag"); ap.add_argument("--epochs", type=float, nargs="+", required=True)
-    ap.add_argument("--style", default="brass"); ap.add_argument("--az", type=float, default=28)
-    ap.add_argument("--el", type=float, default=-62); ap.add_argument("--panel", type=int, default=1400)
+    ap.add_argument("--style", default="brass"); ap.add_argument("--az", type=float, default=20)
+    ap.add_argument("--el", type=float, default=-20); ap.add_argument("--panel", type=int, default=1400)
     ap.add_argument("--stl", action="store_true")
     a = ap.parse_args()
     states = [tetra_state(a.tag, e) for e in a.epochs]

@@ -12,7 +12,7 @@ import artlib as A
 sys.path.insert(0, "/home/fzeng/ml/research/art/color-research")
 import palettes as P
 
-EXT = 0.78
+EXT = 0.92
 
 
 def project(tag, epoch):
@@ -43,7 +43,9 @@ def night_layer(d, al, k, pan_px, ext, cols, gain=0.9):
             raw += w * A.splat(plane_xy(X[y == j], al, k), ext, pan_px)[..., None] * cols[j]
     s = pan_px / 1200
     img = np.stack([A.glow(raw[..., c], (0.7 * s, 3 * s, 14 * s)) for c in range(3)], -1)
-    return A.tonemap(img, gain)
+    q = d.get("norm") or np.percentile(img.max(-1), 99.7)  # auto exposure per plate; films pass a fixed norm
+    d.setdefault("norm_used", {})[k] = q
+    return A.tonemap(img / q, gain * 2.0)
 
 
 def plane_xy(X, al, k):
@@ -79,6 +81,7 @@ def render(d, style, planes, res_px):
         cols = class_colors(C)
         for rect, k in zip(layout(n), planes):
             img = night_layer(d, al, k, pan_px, ext, cols, gain=d.get("gain", 0.9))
+            img = A.rgb(bg) + (1 - A.rgb(bg)) * img
             ax = A.panel(fig, rect, ext)
             ax.imshow(img, extent=ext, interpolation="lanczos", zorder=1)
             star_lines(ax, al, k, color=(1, 1, 1, 0.55), lw=0.5 * res_px / 2400, ideal_color=(1, 1, 1, 0.12), ideal_lw=2.2 * res_px / 2400)
@@ -88,8 +91,10 @@ def render(d, style, planes, res_px):
         pink, blue = A.rgb(P.RISO["fluo_pink"]), A.rgb(P.RISO["blue"])
         for rect, k in zip(layout(n), planes):
             s = pan_px / 1200
-            cov_tr = A.tonemap(A.glow(A.splat(plane_xy(d["Xtr"], al, k), ext, pan_px), (0.9 * s, 3.5 * s), (1, .25)), 0.55)
-            cov_te = A.tonemap(A.glow(A.splat(plane_xy(d["Xte"], al, k), ext, pan_px), (0.9 * s, 3.5 * s), (1, .25)), 0.55)
+            gtr = A.glow(A.splat(plane_xy(d["Xtr"], al, k), ext, pan_px), (0.9 * s, 3.5 * s), (1, .25))
+            gte = A.glow(A.splat(plane_xy(d["Xte"], al, k), ext, pan_px), (0.9 * s, 3.5 * s), (1, .25))
+            cov_tr = A.tonemap(gtr / np.percentile(gtr, 99.5), 1.6)  # auto exposure (declared)
+            cov_te = A.tonemap(gte / np.percentile(gte, 99.5), 1.6)
             sh = max(1, int(round(4 * s)))  # declared misregistration of the blue drum
             cov_te = np.roll(cov_te, (sh, -sh), (0, 1))
             img = A.rgb(paper) * (1 - cov_tr[..., None] * (1 - pink)) * (1 - cov_te[..., None] * (1 - blue))
