@@ -44,8 +44,8 @@ def plate(name="prod4", lo=0.45, hi=1.21, ylo=-0.03, yhi=2.2, W=6000, H=1900, ou
     dl = A[key]["delta"]
     ds = A[key]["delta_sigma"]
 
-    fig = plt.figure(figsize=(W / 300 + 3.2, (H + 900) / 300 + 1.6), dpi=300, facecolor=PAPER)
-    gs = gridspec.GridSpec(2, 2, height_ratios=[H, 620], width_ratios=[W, 820], hspace=0.06, wspace=0.03,
+    fig = plt.figure(figsize=(W / 300 + 4.6, (H + 900) / 300 + 1.6), dpi=300, facecolor=PAPER)
+    gs = gridspec.GridSpec(2, 2, height_ratios=[H, 620], width_ratios=[W, 1250], hspace=0.06, wspace=0.03,
                            left=0.05, right=0.985, top=0.9, bottom=0.08)
     ax = fig.add_subplot(gs[0, 0])
     ax.imshow(img, extent=[lo, hi, ylo, yhi], aspect="auto", interpolation="nearest")
@@ -63,23 +63,25 @@ def plate(name="prod4", lo=0.45, hi=1.21, ylo=-0.03, yhi=2.2, W=6000, H=1900, ou
     ax.text(es + 0.002, yhi - 0.05, r"$\eta^\ast = 2/s_{\min}$" + f" = 2/{k}\n" +
             r"$s_{\min}$ = sharpness of the balanced (flattest) global minimum" + "\nmeasured first doubling (Newton-Floquet): "
             + f"{etan[0]:.6f}", color=RED, fontsize=6.5, family="serif", va="top")
-    ax.text(2 / sg - 0.002, 1.45, r"$2/s_{GF}(x_0)$" + f" = {2 / sg:.4f}\n(minimum reached by gradient flow\nfrom the declared init; not the onset)",
-            color=RED, fontsize=5.5, family="serif", ha="right", va="bottom")
+    ax.annotate(r"$2/s_{GF}(x_0)$" + f" = {2 / sg:.4f}: 2/sharpness of the minimum gradient flow\nwould reach from the declared init (dashed). Not the onset.",
+                xy=(2 / sg, 1.55), xytext=(0.53, 1.62), color=RED, fontsize=6.5, family="serif", va="center",
+                arrowprops=dict(arrowstyle="-", color=RED, lw=0.4))
     # eta_n ticks
     for n, en in enumerate(etan[1:6], start=2):
         ax.plot([en, en], [ylo, ylo + 0.06 + 0.03 * (n % 2)], color=RED, lw=0.4)
-    ax.text(etan[1], ylo + 0.12, r"$\eta_2$", color=RED, fontsize=6, ha="center", family="serif")
-    ax.text(etan[2], ylo + 0.09, r"$\eta_3$", color=RED, fontsize=6, ha="center", family="serif")
+    for n, (en, dx, yy) in enumerate([(etan[1], -0.03, 0.30), (etan[2], -0.012, 0.42)], start=2):
+        ax.annotate(rf"$\eta_{n}$ = {en:.10f}", xy=(en, ylo + 0.07), xytext=(en + dx, ylo + yy), color=RED, fontsize=7,
+                    family="serif", ha="right", arrowprops=dict(arrowstyle="-", color=RED, lw=0.4))
     einf = etan[-1]
-    ax.annotate(r"$\eta_\infty$" + f" = {einf:.10f}", xy=(einf, ylo + 0.02), xytext=(einf + 0.02, ylo + 0.25),
-                color=RED, fontsize=6, family="serif", arrowprops=dict(arrowstyle="-", color=RED, lw=0.4))
+    ax.annotate(r"$\eta_\infty$" + f" = {einf:.10f}", xy=(einf, ylo + 0.02), xytext=(einf + 0.03, ylo + 0.30),
+                color=RED, fontsize=7, family="serif", arrowprops=dict(arrowstyle="-", color=RED, lw=0.4))
     if windows:
         try:
             Wj = json.load(open(f"{CACHE}/windows.json"))["atlas"]
             for r in Wj:
                 if r["base"] in (3, 4, 5, 6, 7) and r["hi"] - r["lo"] > 2e-4:
                     xm = 0.5 * (r["lo"] + r["hi"])
-                    ax.text(xm, 1.86 if r["base"] != 3 else 1.9, f"{r['base']}", color=RED, fontsize=6, ha="center",
+                    ax.text(xm, 1.93 if r["base"] % 2 else 1.85, f"{r['base']}", color=RED, fontsize=7.5, ha="center",
                             family="serif")
         except FileNotFoundError:
             pass
@@ -124,7 +126,7 @@ def plate(name="prod4", lo=0.45, hi=1.21, ylo=-0.03, yhi=2.2, W=6000, H=1900, ou
               "η_n: Newton on G^p(x) = x,", "bisection on Floquet", "multiplier μ = −1;",
               "± = |float64 − quad|", "propagated",
               "", "declared init", f"x0 = {x0}", "16 000 η, burn-in 20 000,", "8 192 iterates per η, float64"]
-    axt.text(0.02, 0.98, "\n".join(lines), transform=axt.transAxes, va="top", ha="left", fontsize=6.2,
+    axt.text(0.04, 0.98, "\n".join(lines), transform=axt.transAxes, va="top", ha="left", fontsize=9,
              family="monospace", color=INK, linespacing=1.5)
     fig.suptitle(title or "CASCADE  ·  gradient descent on  f(x) = ½(x₁x₂x₃x₄ − 1)²  ·  every visited iterate, one dot each",
                  color=INK, fontsize=11, family="serif", x=0.05, ha="left", y=0.965)
