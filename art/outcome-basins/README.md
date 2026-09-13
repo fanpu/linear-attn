@@ -54,6 +54,14 @@ Every plate below comes from one cached 4096² map. The styles differ only in ho
 | s = 1.5, η = 0.8, ±3.5 | <img src="gallery/f3_s1.5_e0.8_newton.png" width="150"> | <img src="gallery/f3_s1.5_e0.8_ink.png" width="150"> | <img src="gallery/f3_s1.5_e0.8_riso.png" width="150"> | <img src="gallery/f3_s1.5_e0.8_darktime.png" width="150"> | <img src="gallery/f3_s1.5_e0.8_spectral.png" width="150"> |
 | s = 1.5, η = 1.2, ±3.5 | <img src="gallery/f3_s1.5_e1.2_newton.png" width="150"> | <img src="gallery/f3_s1.5_e1.2_ink.png" width="150"> | <img src="gallery/f3_s1.5_e1.2_riso.png" width="150"> | <img src="gallery/f3_s1.5_e1.2_darktime.png" width="150"> | <img src="gallery/f3_s1.5_e1.2_spectral.png" width="150"> |
 
+**Extra boundary-split palettes** (declared variants of the Spectral split from `art/color-research`, same ranks): `hubble_sho` (teal | ochre) and `aurora_ember` (green | ember).
+
+| | hubble_sho | aurora_ember |
+|---|---|---|
+| η = 1.1, ±3.5 | <img src="gallery/f3_s0.5_e1.1_split_hubble_sho.png" width="200"> | <img src="gallery/f3_s0.5_e1.1_split_aurora_ember.png" width="200"> |
+| fringe (0.875) | <img src="gallery/f3_s0.5_e1.1_tassel_split_hubble_sho.png" width="200"> | <img src="gallery/f3_s0.5_e1.1_tassel_split_aurora_ember.png" width="200"> |
+| fringe ×64 (0.109) | <img src="gallery/f3_s0.5_e1.1_tasselzoom_split_hubble_sho.png" width="200"> | <img src="gallery/f3_s0.5_e1.1_tasselzoom_split_aurora_ember.png" width="200"> |
+
 What each style measures, and what is a declared choice:
 
 - **newton**. Measured: solution label and convergence time. Declared: a categorical palette, gold for +++ plus three Klimt jewel tones for the S₃-rotated classes (colour-research `klimt_categorical`); brightness = 1 − 0.7·q, with q the log₁₀ convergence time clipped to its 0.5–99.5 percentile range; diverged pixels get #141217 plus a 10% glow from their smoothed escape time. Convergence time is smoothed by log-linear interpolation of the loss across the step where it crosses 10⁻¹². Faint contour lines inside basins are level sets of the integer step count.
@@ -79,7 +87,37 @@ What each style measures, and what is a declared choice:
 
 ### B. *Modulo Permutation* (XOR 2-2-1)
 
-XOR_SECTION_PLACEHOLDER
+<img src="gallery/diptych_xor_s4_e1.2.png" width="100%">
+
+<sub><b>diptych_xor_s4_e1.2</b>. One random 2-plane through the 9-dimensional initialisation space of a 2-2-1 tanh net, ±3, 2048² runs at η = 1.2. Left: the 16 raw solution identities (which boolean function each hidden unit computes, in order, with sign), in a declared 16-colour palette: warm family = the AND/OR-type canonical solution, cool family = the x₁∧¬x₂-type one; legend shows each identity's share of converged runs. Right: the same runs modulo hidden-unit permutation and tanh sign flip (2 canonical solutions, vermilion and blue). Grey = still on a plateau at T = 20 000 (11%), near-black = diverged (15%). Brightness = log convergence time.</sub>
+
+| newton (raw) | newton (canonical) | Spectral split | riso | ink | dark time |
+|---|---|---|---|---|---|
+| <img src="gallery/xor_s4_e1.2_raw_newton.png" width="130"> | <img src="gallery/xor_s4_e1.2_canon_newton.png" width="130"> | <img src="gallery/xor_s4_e1.2_spectral.png" width="130"> | <img src="gallery/xor_s4_e1.2_riso.png" width="130"> | <img src="gallery/xor_s4_e1.2_ink.png" width="130"> | <img src="gallery/xor_s4_e1.2_darktime.png" width="130"> |
+
+- **newton raw / canonical**: measured label + convergence time; declared palettes as in the diptych.
+- **Spectral**: measured status and time only (converged ranked purple→yellow, diverged ranked red→yellow, plateau runs = dark plum on the seam). The fan on the left, where diverging and slowly-converging runs interleave, is the most intricate texture in the whole project.
+- **riso**: canonical {1,7} → fluo pink, canonical {2,4} → medium blue; a raw identity with an odd number of tanh sign flips relative to its canonical representative adds the yellow drum (pink+yellow reads orange, blue+yellow green); misregistered as in A.
+- **ink**: heavy line = a boundary that survives quotienting by permutation and sign (between canonical solutions, or a converge/plateau/diverge edge); hairline at 60% ink = a boundary between raw identities that disappears modulo symmetry.
+- **dark time**: convergence time only (`cmc.lajolla`), identity invisible.
+
+**η series and films**
+
+<img src="gallery/eta_series_xor_raw.png" width="100%">
+
+<sub><b>eta_series_xor_raw</b> (also [canonical](gallery/eta_series_xor_canon.png)). Same plane at η = 0.3 … 1.25 (1024², hero at 2048² for η = 1.2). At η ≤ 0.8 the borders are smooth curves; the fan of fine interleaved diverge/plateau/solution filaments appears near η = 1.0 and thickens until at η = 1.25 only 56% of runs converge. The panel titles give the largest sharpness among converged runs vs 2/η.</sub>
+
+| film | MP4 (1080², silent) | GIF |
+|---|---|---|
+| η from 0.6 to 1.26, 72 computed frames at 480² (shown 2× nearest-neighbour on a dark mat, declared), raw identities | [xor_etafilm_raw.mp4](gallery/xor_etafilm_raw.mp4) | [gif](gallery/xor_etafilm_raw.gif) |
+| same, canonical solutions | [xor_etafilm_canon.mp4](gallery/xor_etafilm_canon.mp4) | [gif](gallery/xor_etafilm_canon.gif) |
+| same, Spectral split (per-frame ranks) | [xor_etafilm_spectral.mp4](gallery/xor_etafilm_spectral.mp4) | [gif](gallery/xor_etafilm_spectral.gif) |
+
+<video src="gallery/xor_etafilm_spectral.mp4" autoplay loop muted playsinline width="49%"></video> <video src="gallery/xor_etafilm_raw.mp4" autoplay loop muted playsinline width="49%"></video>
+
+<sub>Films play at 8 frames per second; brightness range for the newton films is fixed across frames (log₁₀ steps 1.6–4.1, pooled 0.5–99.5 percentiles).</sub>
+
+XOR_ZOOM_PLACEHOLDER
 
 ## 4. What was computed
 

@@ -6,15 +6,16 @@
 - Session 2 added: `render_fact3.py splits` (hubble_sho, aurora_ember split variants, done); `compute_frames.py --part/--parts`; film renderer mats 480² XOR frames at 2× nearest on 1080².
 - Deleted `cache/render_f3_*` (film PNG intermediates, regenerable via render_films.py) to keep cache < 5 GB.
 
-## Running GPU jobs (launched session 2; logs in logs/)
-- `prod_xor2.sh` (XOR null uncertainty η=0.3; η series 1024²) → logs/prod_xor2.log
-- `prod_xor_zoom.sh` (6-level ×6 zoom into divergence fan, 1024², tag zX) → logs/prod_xor_zoom.log
-- `prod_xor_film.sh 0|1|2` (η 0.6→1.26, 72 frames 480², tag xor_etafilm) → logs/prod_xor_film{0,1,2}.log
-- `prod_fact3c.sh` (1e6-sample uncertainty tail, riddling) → logs/prod_fact3c.log
-All are resumable (maps skip? no: maps recompute; frames skip existing files). Check with `tail -n 3 logs/prod_*.log`.
+## Done in session 2
+- fact3c riddling tail (1e6 samples): full α=0.28 (D 1.72), fringe α=0.21 (D 1.79), no flattening to ε=1e-14 → README filled.
+- XOR null uncertainty η=0.3: α=0.923, D=1.08. XOR η series 1024² (maps eta_xor_*), sheets `eta_series_xor_{raw,canon}.png`. EoS: ≤4 px/1e6 exceed 2/η (η=0.8: 4, max 2.568 vs 2.5; η=1: 1; η=1.15: 4).
+- XOR η film 72×480² (3 parts, ~11 min each), rendered raw/canon/spectral at 8 fps (TQ 1.6–4.1 for XOR).
+- README: XOR gallery section written; split variants table added. Remaining placeholders: XOR_ZOOM_PLACEHOLDER, XOR_VERIFY_PLACEHOLDER, WALL_XOR.
+
+## Running
+- `prod_xor_zoom.sh` (zX, 6 levels ×6, 1024², fan) → logs/prod_xor_zoom.log (was waiting on a GPU slot).
 
 ## Next
-1. When done: `python analyze.py xor`; `python render_xor.py eta zoom`; `python render_films.py xor_etafilm raw 8` (+ canon, spectral).
-2. Riddling tail from `cache/uncert/f3_e1.1_*_bigM.npz` → README RIDDLE_PLACEHOLDER.
-3. Fill README placeholders (XOR_SECTION_PLACEHOLDER, XOR_VERIFY_PLACEHOLDER, WALL_XOR, RIDDLE_PLACEHOLDER), add split variants to gallery, link check.
-GPU used: ~2.3 h slot time before session 2.
+1. After zoom: `python analyze.py xor` (verify_xor.json/png), `python render_xor.py zoom`; view; fill README placeholders; wall times (XOR hero 29 min, uncert 11+11+6.5 min, η series 17 min, film 31 min, fact3c 2.4 min, zoom ?).
+2. Optional: XOR fan zoom film; link check README; final commit.
+GPU used: ~2.3 h before session 2, ~1.2 h in session 2 so far.
