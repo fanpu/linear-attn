@@ -65,7 +65,16 @@ Full-census plates (all basins side by side): `graph_{float16,bfloat16,FP8_E4M3,
 
 ### Precision floor of a fractal (Mandelbrot, float32 vs float64 vs binary128)
 
-MANDEL_SECTION
+<video src="gallery/mandel_floor_zoom.mp4" autoplay loop muted playsinline width="100%"></video>
+
+`mandel_floor_zoom.mp4` / `.gif`: seahorse valley, c = −0.743643887037151 + 0.131825904205330i. The frame zooms from width 3 to 3 × 10⁻¹⁵ over 480 frames, with float32 on the left and float64 on the right. Every quantity is computed in the stated type, **including the pixel coordinates** c = centre + (i − W/2 + ½)·width/W. The overlays give the measured number of distinct pixel x-coordinates and the share of pixels whose escape count differs.
+
+| | | |
+|---|---|---|
+| <img src="gallery/mandel_floor_3e-15_dark.png"> | <img src="gallery/mandel_floor_1e-12_paper.png"> | <img src="gallery/mandel_floor_1e-05_riso.png"> |
+| **width 3e-15, dark** (batlow on log smooth count). float32 is a single colour. float64 has dissolved into rectangular blocks. binary128 still resolves the spirals. | **width 1e-12, paper** (14 iso-bands of log count, one ink). float32 is empty; float64 and binary128 look identical. | **width 1e-5, riso** (two inks by band parity). float32's horizontal smear appears first: x ≈ 0.74 has 8× coarser spacing than y ≈ 0.13. |
+
+All widths × styles: `mandel_floor_{1e-05,1e-12,3e-14,3e-15}_{dark,paper,riso}.png`; measured curves: `mandel_floor_curve.png`.
 
 ## What was computed
 
@@ -77,7 +86,7 @@ MANDEL_SECTION
 | `analyze_trees.py`, `analyze_scaling.py` | self-similarity diagnostics; cycle scaling | 2 min |
 | `orbit_cycles.c` | Brent cycle detection, float32 (5000 seeds) and float64 (256 seeds), OpenMP | 3 min |
 | `compute_divergence.py`, `render_braid.py` | 2000 seeds × 120 steps in bf16/fp16/fp32/fp64 plus mpmath (1024 bits, checked at 2048); ideal p-bit floats p = 3…64 (500 seeds) | 4 min |
-| `mandel.c`, `compute_mandel.py`, `render_mandel.py` | Mandelbrot zoom 3 → 3e-15, 480 frames of 960×1080 in f32 and f64; 1080² stills in binary128 | MANDEL_WALL |
+| `mandel.c`, `compute_mandel.py`, `render_mandel.py` | Mandelbrot zoom 3 → 3e-15, 480 frames of 960×1080 in f32 and f64; 1080² stills in binary128 | ~45 min (zoom, 4 threads) + ~10 min (binary128 stills) |
 
 Reproduce (from `hardware/precision-divergence`, `P=/home/fzeng/ml/research/art/.venv/bin/python`):
 ```
@@ -156,7 +165,25 @@ float64 tails are long: the median is 4.0 × 10⁷ steps before the cycle.
 
 The pictures are of the left-to-right C/torch order `4.0 * x * (1.0 - x)`.
 
-MANDEL_VERIFY
+**Mandelbrot precision floor (measured).**
+- **Coordinate floor.**
+  - float32 pixel x-coordinates start to collide at width 5.6 × 10⁻⁵, where 941 of 960 are distinct. Prediction: 960 × ulp32(0.7436) = 5.7 × 10⁻⁵.
+  - float32 is down to 117 distinct at 6.9 × 10⁻⁶ and to **1** at ≤ 1.1 × 10⁻⁸ (a uniform frame).
+  - float64 collides from 1.03 × 10⁻¹³ (prediction 960 × ulp64 = 1.07 × 10⁻¹³) and has 219 distinct at 2.4 × 10⁻¹⁴.
+- **Escape-count disagreement** between f32 and f64 starts long before the coordinate floor, because of arithmetic error near the boundary:
+  - 0.1% of pixels at width 3, 4.4% at 0.04, 28% at 6 × 10⁻⁵.
+  - The curve is non-monotone because the share of boundary pixels changes along the zoom path.
+  - ≥ 99% from 10⁻⁸.
+- **Against binary128:**
+
+| width | float32 differs | float64 differs |
+|---|---|---|
+| 10⁻⁵ | 58.5% | 0.9% |
+| 10⁻¹² | 100% | 22.4% (visually identical: boundary-pixel chaos only) |
+| 3 × 10⁻¹⁴ | 100% | 52.1% |
+| 3 × 10⁻¹⁵ | 100% | 77.8% (blocks) |
+
+- binary128 is the reference only down to about 10⁻³⁰, far below these widths. It is not a ground truth for chaotic escape counts of boundary pixels.
 
 **Didn't work / changed after review.**
 - The value-ordered radial layout drew long parallel rungs; it was replaced by heaviest-in-the-middle ordering.
