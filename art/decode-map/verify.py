@@ -24,9 +24,12 @@ def region_split(d):
 
 def placement():
     pairs = [("toy_story_tp64.npz", "toy_story_tp64_trie.npz", "brute force B=256 vs trie Fb=128"),
-             ("toy_story_tp64_trie.npz", "place_story64_shuffle.npz", "trie vs trie, shuffled pixel order, Ncap=32"),
-             ("story_tp128.npz", "place_story128_shuffle.npz", "trie vs trie, shuffled, Ncap=96 (128², L=64)"),
-             ("toy_story_tp64_trie.npz", "place_story64_fp32.npz", "bf16 body vs fp32 body (a different model precision)")]
+             ("toy_story_tp64_trie.npz", "toy_story_tp64_fast.npz", "old engine (eager, V-wide sampler) vs CUDA graph + certified sampler"),
+             ("place_story64_eager.npz", "place_story64_slow_eager.npz", "certified sampler vs V-wide sampler, same eager forward"),
+             ("place_story64_eager.npz", "toy_story_tp64_fast.npz", "eager forward vs CUDA-graph forward (masked attention kernel)"),
+             ("toy_story_tp64_fast.npz", "place_story64_shuffle.npz", "trie vs trie, shuffled pixel order, Ncap=32, Fb=16"),
+             ("story_tp128.npz", "place_story128_shuffle.npz", "trie vs trie, shuffled, Ncap=96, Fb=32 (128², L=48)"),
+             ("toy_story_tp64_fast.npz", "place_story64_fp32.npz", "bf16 body vs fp32 body (a different model precision)")]
     res = []
     for a, b, desc in pairs:
         if not (os.path.exists(C + a) and os.path.exists(C + b)):

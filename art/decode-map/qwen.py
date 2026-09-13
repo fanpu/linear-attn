@@ -112,8 +112,8 @@ class StepGraphs:
     instead of flash on a sliced cache); bf16 logits differ at the ~1e-3 level, which is the
     same class of batch/kernel noise the placement test measures. Always unembeds all Fb rows."""
 
-    def __init__(self, m, Fb, n_windows, max_len):
-        self.m, self.Fb, self.max_len = m, Fb, max_len
+    def __init__(self, m, Fb, n_windows, max_len, attn_fp32=False):
+        self.m, self.Fb, self.max_len, self.attn_fp32 = m, Fb, max_len, attn_fp32
         dev = m.device
         self.ids = torch.zeros(Fb, 1, dtype=torch.long, device=dev)
         self.pos = torch.zeros(1, dtype=torch.long, device=dev)
@@ -156,7 +156,11 @@ class StepGraphs:
             V = m.cache_v[i, r0:r0 + Fb]
             K.index_copy_(2, self.pos, k)
             V.index_copy_(2, self.pos, v)
-            a = F.scaled_dot_product_attention(q, K, V, attn_mask=self.mask, enable_gqa=True)
+            if self.attn_fp32:          # upcast the (short) attention: closer to the fp32 model than bf16 math SDPA
+                a = F.scaled_dot_product_attention(q.float(), K.float(), V.float(), attn_mask=self.mask,
+                                                   enable_gqa=True).to(x.dtype)
+            else:
+                a = F.scaled_dot_product_attention(q, K, V, attn_mask=self.mask, enable_gqa=True)
             a = a.transpose(1, 2).reshape(Fb, 1, m.nh * m.hd)
             x = x + F.linear(a, w[p + "self_attn.o_proj.weight"])
             h = m.rms(x, w[p + "post_attention_layernorm.weight"])
