@@ -274,8 +274,8 @@ def ckfilm(nf_between=24):
             y = base + (h - np.log10(LO)) / np.log10(HI / LO) * 2.2
             ax.fill_between(a, base - 3, y, color="#0c0b0a", zorder=k)
             ax.plot(a, y, color="#efe3c8", lw=0.9, zorder=k + 0.5)
-            ax.text(-1.08, base + 0.05, f"ep {e}", color="#9d9384", fontsize=7, ha="right", family=FONT)
-        ax.set_axis_off(); ax.set_title(PRETTY[m], color="#efe3c8", fontsize=14, family=FONT)
+            ax.text(-1.08, y[0], f"ep {e}", color="#9d9384", fontsize=7, ha="right", va="center", family=FONT)
+        ax.set_ylim(-0.1, (have - 1) * 0.35 + 2.4); ax.set_axis_off(); ax.set_title(PRETTY[m], color="#efe3c8", fontsize=14, family=FONT)
     fig.text(0.5, 0.03, "1-D filter-normalized slice (seed-1 direction, re-normalized to each checkpoint) through the weights "
              "at each saved epoch; top = epoch 1. Height = log10 train loss.", ha="center", color="#9d9384", fontsize=8, family=FONT)
     out = os.path.join(GAL, "ckpt_ridge.png"); fig.savefig(out, dpi=220, facecolor="#0c0b0a"); plt.close(fig); print("wrote", out)
@@ -321,7 +321,7 @@ def curv(tag):
         X, Y, Z = upsample(c["xs"], c["ys"], np.log10(L), 400)
         ax.contour(X, Y, Z, levels=[np.log10(CHANCE)], colors="#f5f0e6", linewidths=0.8, linestyles=[(0, (3, 2))])
         ax.set_axis_off(); ax.set_title(PRETTY[m], color="#e6e0d4", fontsize=13, family=FONT)
-    fig.text(0.5, 0.05, "Smaller principal curvature λ_min of the loss on the slice (finite differences on the grid). "
+    fig.text(0.5, 0.05, "Smaller principal curvature λ_min of the loss on the slice (finite differences on the grid).\n"
              "Spectral split at λ_min = 0: red→pale side convex (λ_min>0), purple→pale side non-convex (λ_min<0); rank-normalized per side.",
              ha="center", color="#b9b2a6", fontsize=9, family=FONT)
     fig.text(0.5, 0.02, "Dashed: chance-level contour. Non-convexity inside a slice proves non-convexity of the full loss; "
