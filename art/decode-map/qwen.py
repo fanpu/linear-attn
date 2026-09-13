@@ -1,4 +1,4 @@
-"""Minimal fp32 Qwen3 forward pass with a preallocated (static) KV cache.
+"""Minimal Qwen3 (bf16 body, fp32 final norm + unembedding -> fp32 logits) forward pass with a preallocated (static) KV cache.
 
 Written by hand (instead of HF generate()) so that:
   * every row of a batch has exactly the same length -> no padding at all;
@@ -20,7 +20,7 @@ HF_DIR = glob.glob(os.path.expanduser(
 
 
 class Qwen3:
-    def __init__(self, device="cuda", dtype=torch.float32):
+    def __init__(self, device="cuda", dtype=torch.bfloat16, head_dtype=torch.float32):
         cfg = json.load(open(os.path.join(HF_DIR, "config.json")))
         self.cfg = cfg
         self.nl = cfg["num_hidden_layers"]
@@ -32,8 +32,11 @@ class Qwen3:
         self.device = device
         sd = load_file(os.path.join(HF_DIR, "model.safetensors"))
         self.w = {k: v.to(device=device, dtype=dtype) for k, v in sd.items()}
-        if "lm_head.weight" not in self.w:
-            self.w["lm_head.weight"] = self.w["model.embed_tokens.weight"]
+        head = sd.get("lm_head.weight", sd["model.embed_tokens.weight"])
+        # final norm + unembedding in head_dtype (fp32) so that logits are fp32
+        self.w["lm_head.weight"] = head.to(device=device, dtype=head_dtype)
+        self.w["model.norm.weight"] = sd["model.norm.weight"].to(device=device, dtype=head_dtype)
+        self.head_dtype = head_dtype
         theta = cfg["rope_theta"]
         inv = 1.0 / (theta ** (torch.arange(0, self.hd, 2, dtype=torch.float64) / self.hd))
         pos = torch.arange(4096, dtype=torch.float64)
@@ -44,8 +47,10 @@ class Qwen3:
         self.cache_k = self.cache_v = None
 
     def rms(self, x, w):
+        dt = x.dtype                                   # as in HF: normalise in fp32
+        x = x.float()
         var = x.pow(2).mean(-1, keepdim=True)
-        return w * (x * torch.rsqrt(var + self.eps))
+        return w * (x * torch.rsqrt(var + self.eps)).to(dt)
 
     @staticmethod
     def rot_half(x):
@@ -92,5 +97,5 @@ class Qwen3:
             g = F.linear(h, w[p + "mlp.gate_proj.weight"])
             u = F.linear(h, w[p + "mlp.up_proj.weight"])
             x = x + F.linear(F.silu(g) * u, w[p + "mlp.down_proj.weight"])
-        x = self.rms(x[:, -1], w["model.norm.weight"])
+        x = self.rms(x[:, -1].to(self.head_dtype), w["model.norm.weight"])
         return F.linear(x, w["lm_head.weight"])

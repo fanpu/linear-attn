@@ -18,7 +18,7 @@ cell boundary is exactly where some cumulative sum crosses u_t Z or p.
   token = argmax_{v in top-p set} z_v / T + g_{t,v}
 which defines a different partition (see README).
 
-Numerics: fp32 model, float64 softmax/CDF, no padding (every row has the same
+Numerics: bf16 transformer body (--fp32 for full fp32), fp32 final norm + unembedding, float64 softmax/CDF, no padding (every row has the same
 length; the shared prompt is prefilled once and its KV copied to every row), fixed
 batch size (last chunk padded with copies of its last pixel).
 """
@@ -58,8 +58,9 @@ def shared_noise(seed, L, V, rule):
 
 
 class Sampler:
-    def __init__(self, model, prompt_ids, L, batch, rule="icdf", seed=0):
+    def __init__(self, model, prompt_ids, L, batch, rule="icdf", seed=0, K=1024, use_pen=False):
         self.m, self.L, self.B, self.rule = model, L, batch, rule
+        self.K, self.use_pen, self.n_fallback = K, use_pen, 0
         self.P = len(prompt_ids)
         self.V = model.w["lm_head.weight"].shape[0]
         u, gum = shared_noise(seed, L, self.V, rule)
@@ -76,36 +77,70 @@ class Sampler:
         model.alloc(batch, self.P + L)
 
     @torch.no_grad()
-    def step_sample(self, logits, T, p, rho, seen, t):
-        B = logits.shape[0]
-        zr = logits.double()
-        lsm = torch.log_softmax(zr, -1)
-        H_model = -(lsm.exp() * lsm).sum(-1)
-        z = zr
-        if (rho != 1).any():
+    def step_sample(self, logits, T, p, rho, seen, t, key):
+        """Exact inverse-CDF / Gumbel step. The sorted order is taken from a top-K
+        (rows sharing prefix and penalty share it); rows whose nucleus or target
+        lies beyond the top-K fall back to a full float64 sort, so the result is
+        identical to a full sort (up to cumsum association, ~1e-16)."""
+        B, V, K = logits.shape[0], self.V, self.K
+        dev = logits.device
+        lsm32 = torch.log_softmax(logits, -1)
+        H_model = -(lsm32.exp() * lsm32).sum(-1)
+        z = logits.double()
+        if self.use_pen:
             pen = rho[:, None]
             z = torch.where(seen, torch.where(z > 0, z / pen, z * pen), z)
-        z = z / T[:, None]
-        zs, idx = torch.sort(z, dim=-1, descending=True)
-        q = torch.softmax(zs, -1)
+        uniq, inv = torch.unique(key, dim=0, return_inverse=True)
+        rep = torch.zeros(uniq.shape[0], dtype=torch.long, device=dev).scatter_(
+            0, inv, torch.arange(B, device=dev))
+        vals, ix = torch.topk(z[rep], K, -1, sorted=True)
+        zT = z / T[:, None]
+        lse = torch.logsumexp(zT, -1)
+        zs = vals[inv] / T[:, None]
+        idx = ix[inv]
+        q = torch.exp(zs - lse[:, None])
         C = torch.cumsum(q, -1)
-        before = C - q
-        n = (before < p[:, None]).sum(-1).clamp(1, self.V)          # kept prefix length
-        Z = C.gather(1, (n - 1)[:, None])[:, 0]
+        full = p >= 1.0
+        n = ((C - q) < p[:, None]).sum(-1).clamp_min(1)
+        nok = full | (C[:, -1] >= p)
+        Z = torch.where(full, torch.ones_like(p), C.gather(1, (n - 1).clamp_max(K - 1)[:, None])[:, 0])
+        thr = torch.where(full, torch.full_like(p, -torch.inf), zs.gather(1, (n - 1).clamp_max(K - 1)[:, None])[:, 0])
+        target = self.u[t] * Z
+        ok = nok & (~full | (target <= C[:, -1]))
+        if self.rule == "gumbel":
+            ok = nok
+        token = torch.zeros(B, dtype=torch.long, device=dev)
         if self.rule == "icdf":
-            target = (self.u[t] * Z)[:, None]
-            r = torch.searchsorted(C, target, right=False)[:, 0]
-            r = torch.minimum(r, n - 1)
-        else:
-            y = zs + self.gum[t][idx]
-            ar = torch.arange(self.V, device="cuda")[None]
-            y = torch.where(ar < n[:, None], y, torch.tensor(-torch.inf, dtype=y.dtype, device="cuda"))
-            r = y.argmax(-1)
-        token = idx.gather(1, r[:, None])[:, 0]
-        keep = torch.arange(self.V, device="cuda")[None] < n[:, None]
-        qn = torch.where(keep, q / Z[:, None], torch.zeros((), dtype=q.dtype, device="cuda"))
-        H_samp = -(qn * torch.log(qn.clamp_min(1e-300))).sum(-1)
-        logp = lsm.gather(1, token[:, None])[:, 0]
+            r = torch.searchsorted(C, target[:, None])[:, 0].clamp_max(K - 1)
+            r = torch.where(full, r, torch.minimum(r, n - 1))
+            token = idx.gather(1, r[:, None])[:, 0]
+        bad = (~ok).nonzero()[:, 0]
+        self.n_fallback += len(bad)
+        if len(bad):
+            zb = zT[bad]
+            zsb, ixb = torch.sort(zb, -1, descending=True)
+            qb = torch.exp(zsb - lse[bad][:, None])
+            Cb = torch.cumsum(qb, -1)
+            pb = p[bad]
+            nb = ((Cb - qb) < pb[:, None]).sum(-1).clamp(1, V)
+            fb = pb >= 1.0
+            Zb = torch.where(fb, torch.ones_like(pb), Cb.gather(1, (nb - 1)[:, None])[:, 0])
+            thb = torch.where(fb, torch.full_like(pb, -torch.inf), zsb.gather(1, (nb - 1)[:, None])[:, 0])
+            Z[bad], thr[bad] = Zb, thb
+            if self.rule == "icdf":
+                rb = torch.searchsorted(Cb, (self.u[t] * Zb)[:, None])[:, 0]
+                rb = torch.minimum(rb, nb - 1)
+                token[bad] = ixb.gather(1, rb[:, None])[:, 0]
+            del zb, zsb, ixb, qb, Cb
+        kept = zT >= thr[:, None]
+        logq = (zT - lse[:, None])
+        if self.rule == "gumbel":
+            y = torch.where(kept, zT + self.gum[t][None], torch.full_like(zT, -torch.inf))
+            token = y.argmax(-1)
+        lq32 = logq.float()
+        H_samp = -(torch.where(kept, lq32.exp() * lq32, torch.zeros((), device=dev))).sum(-1) / Z.float() \
+            + torch.log(Z.float())
+        logp = lsm32.gather(1, token[:, None])[:, 0]
         return token, H_model, H_samp, logp
 
     @torch.no_grad()
@@ -125,7 +160,8 @@ class Sampler:
         for t in range(L):
             if t > 0:
                 logits = m.forward(toks[:, t - 1:t], self.P + t - 1)
-            tk, a, b, c = self.step_sample(logits, T, p, rho, seen, t)
+            key = torch.cat([rho.view(torch.int64)[:, None], toks[:, :t]], 1)
+            tk, a, b, c = self.step_sample(logits, T, p, rho, seen, t, key)
             toks[:, t] = tk
             Hm[:, t], Hs[:, t], lp[:, t] = a, b, c
             seen[ar, tk] = True
@@ -144,6 +180,8 @@ def main():
     ap.add_argument("--y", type=float, nargs=2, default=None, help="top-p or penalty range")
     ap.add_argument("--p_fixed", type=float, default=1.0, help="top-p used in the tr grid")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--K", type=int, default=1024)
+    ap.add_argument("--fp32", action="store_true", help="fp32 transformer body (default bf16 body, fp32 head)")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
     if args.y is None:
@@ -154,8 +192,8 @@ def main():
     torch.backends.cudnn.allow_tf32 = False
     tok = AutoTokenizer.from_pretrained("Qwen/Qwen3-0.6B", local_files_only=True)
     pids = chat_ids(tok, PROMPTS[args.prompt])
-    model = Qwen3()
-    S = Sampler(model, pids, args.L, args.batch, args.rule, args.seed)
+    model = Qwen3(dtype=torch.float32 if args.fp32 else torch.bfloat16)
+    S = Sampler(model, pids, args.L, args.batch, args.rule, args.seed, args.K, use_pen=args.grid == "tr")
 
     R = args.res
     xs = args.x[0] + (np.arange(R) + 0.5) / R * (args.x[1] - args.x[0])
@@ -181,7 +219,7 @@ def main():
             out[k][sl] = res[k][:len(sl)].cpu().numpy()
         if c % 8 == 0 or c == nchunks - 1:
             el = time.time() - t0
-            print(f"chunk {c + 1}/{nchunks}  {el:.0f}s  eta {el / (c + 1) * (nchunks - c - 1):.0f}s", flush=True)
+            print(f"chunk {c + 1}/{nchunks}  fallback rows {S.n_fallback}  {el:.0f}s  eta {el / (c + 1) * (nchunks - c - 1):.0f}s", flush=True)
 
     toks = out["tokens"]
     iseos = np.isin(toks, EOS)
@@ -196,7 +234,7 @@ def main():
         args.out, **{k: v.reshape(R, R, args.L) for k, v in out.items()},
         eos_pos=first.reshape(R, R).astype(np.int16), xs=xs, ys=ys, grid=args.grid, rule=args.rule,
         prompt=PROMPTS[args.prompt], prompt_key=args.prompt, prompt_ids=np.array(pids),
-        u=S.u.cpu().numpy(), p_fixed=args.p_fixed, seed=args.seed, L=args.L,
+        u=S.u.cpu().numpy(), fp32_body=args.fp32, K=args.K, n_fallback=S.n_fallback, p_fixed=args.p_fixed, seed=args.seed, L=args.L,
         wall=time.time() - t0, batch=args.batch)
     print("saved", args.out, f"{time.time() - t0:.0f}s")
 
