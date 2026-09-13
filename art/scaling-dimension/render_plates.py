@@ -95,57 +95,154 @@ def diptych(style):
         fig.text(x, 0.145, f"{d}", fontsize=11, ha="center", color=col, family="DejaVu Sans Mono")
         fig.text(x, 0.105, f"{F['four_over_alpha']:.1f}", fontsize=11, ha="center", color=S["text"], family="DejaVu Sans Mono")
         fig.text(x, 0.065, f"{idd:.1f}", fontsize=11, ha="center", color=S["text"], family="DejaVu Sans Mono")
-    fig.text(0.965, 0.02, f"teacher/student, ReLU teacher [24,600,600,1] on a d-cube; student [24,n,n,1], median of 3 seeds; ID from {a.idw}-wide students, 12k points",
+    fig.text(0.965, 0.02, f"teacher/student, ReLU teacher [24,600,600,1] on a d-cube; student [24,n,n,1], median of 3 seeds; TwoNN ID: median over widths 16/45/90 x 3 seeds, 12k points; N(r) curves from {a.idw}-wide seed-0 students",
              fontsize=7.5, ha="right", color=S["text"], alpha=0.75)
     return save(fig, f"{a.out}/diptych_{style}.png", riso=(style == "riso"))
 
 
 # --------------------------------------------------------------------------- fan of slopes
 def fan(style):
+    """Two fans hinged at one origin. Lower: log(L/L0) vs log(N/N0), slope -alpha.
+    Upper: 4*log(r/r0) vs log(N(r)/N0), slope 4/d.  If alpha = 4/d the fans are mirror images.
+    Rays and curves are cut at a common radius RR (declared composition choice)."""
     fig, S = setup(style, (12, 12), a.dpi)
-    ax = fig.add_axes([0.08, 0.08, 0.84, 0.84]); ax.set_facecolor(S["bg"])
+    ax = fig.add_axes([0.03, 0.03, 0.94, 0.94]); ax.set_facecolor(S["bg"])
     f = a.fam
-    ax.set_xlim(-0.1, 2.35); ax.set_ylim(-2.6, 2.6)
+    RR = 2.25
+    ax.set_ylim(-2.5, 2.55); ax.set_xlim(-0.75, 3.25)
     ax.set_aspect("equal")
     for sp in ax.spines.values(): sp.set_visible(False)
     ax.set_xticks([]); ax.set_yticks([])
-    # decade grid (declared: log paper ruling, one unit = one decade)
-    for v in np.arange(0, 2.4, 1):
-        ax.axvline(v, color=S["grid_major"], lw=0.8, zorder=0)
-    for v in np.arange(-2, 3, 1):
-        ax.axhline(v, color=S["grid_major"], lw=0.8 if v else 1.2, zorder=0)
+    th = np.linspace(-np.pi / 2, np.pi / 2, 400)
+    for R in (0.5, 1.0, 1.5, 2.0):             # declared: range rings every half decade
+        ax.plot(R * np.cos(th), R * np.sin(th), color=S["grid_minor"], lw=0.5, zorder=0)
+    ax.plot(RR * np.cos(th), RR * np.sin(th), color=S["grid_major"], lw=0.8, zorder=0)
     for e in range(0, 3):
-        for m in range(2, 10):
+        for m in range(1, 10):
             x = e + np.log10(m)
-            if x < 2.35: ax.axvline(x, color=S["grid_minor"], lw=0.35, zorder=0)
-    for e in range(-3, 3):
-        for m in range(2, 10):
-            y = e + np.log10(m)
-            if -2.6 < y < 2.6: ax.axhline(y, color=S["grid_minor"], lw=0.35, zorder=0)
-    x1 = 2.2
+            if x <= RR:
+                h = 0.07 if m == 1 else 0.03
+                ax.plot([x, x], [-h, h], color=S["grid_major"], lw=0.8, zorder=1)
+    ax.plot([0, RR], [0, 0], color=S["grid_major"], lw=1.2, zorder=1)
+    riso = style == "riso"
+    lower_col = lambda d: STYLES["riso"]["ink"] if riso else dcolor(style, d, dims)
+    upper_col = lambda d: "#ff48b0" if riso else dcolor(style, d, dims)
+
+    def clip(x, y):
+        k = np.hypot(x, y) <= RR
+        return np.where(k, x, np.nan), np.where(k, y, np.nan)
+
+    def ray(slope, col, sign, text):
+        ang = np.arctan(slope) * sign
+        ax.plot([0, RR * np.cos(ang)], [0, RR * np.sin(ang)], color=col, lw=1.5, zorder=3, solid_capstyle="round")
+        R2 = RR + 0.06
+        ax.text(R2 * np.cos(ang), R2 * np.sin(ang), text, color=col, fontsize=8.5, rotation=np.degrees(ang),
+                rotation_mode="anchor", va="center", ha="left")
+
     for d in dims:
-        F = A["fits"][f"{f}_{d}"]; col = dcolor(style, d, dims)
-        idd, _ = id_of(f, d)
-        # lower fan: loss curves, each seed, shifted to start at the origin (measured)
-        La = np.array(F["L_all"])[order]
+        F = A["fits"][f"{f}_{d}"]
+        La = np.array(F["L_all"])[order]; L = np.array(F["L"])[order]
+        L0 = np.exp(F["logc"]) * Ns[0] ** -F["alpha"]
         x = np.log10(Ns / Ns[0])
-        for s in range(La.shape[1]):
-            y = np.log10(La[:, s] / np.exp(F["logc"] + np.log(Ns[0]) * -F["alpha"]))
-            ax.plot(x, y, color=col, lw=0.5, alpha=0.45, zorder=2)
-        ax.plot([0, x1], [0, -F["alpha"] * x1], color=col, lw=1.3, zorder=3)
-        ax.plot([0, x1], [0, -4 / idd * x1], color=col, lw=0.8, ls=(0, (1, 2.5)), zorder=3)
-        label(ax, x1 + 0.03, -F["alpha"] * x1, f"d={d}  α={F['alpha']:.2f}", S, col, fs=8)
-        # upper fan: neighbour counts vs radius (measured), slope d / 4 so both fans share a scale
+        cl = lower_col(d)
+        for sd in range(La.shape[1]):
+            ax.plot(*clip(x, np.log10(La[:, sd] / L0)), color=cl, lw=0.45, alpha=0.3, zorder=2)
+        xx, yy = clip(x, np.log10(L / L0))
+        ax.scatter(xx, yy, s=10, color=cl, lw=0, zorder=4)
+        ray(F["alpha"], cl, -1, f"α = {F['alpha']:.2f}")
         cnt = curve_for(f, d); dd, m = local_d(cnt)
-        ok = cnt > 0.3
-        r = np.log10(radii[ok] / radii[m][0]); c = np.log10(cnt[ok] / cnt[m][0])
-        # compress the count axis by 4 so slope d/4 mirrors alpha = 4/d
-        sel = (r > -0.4) & (r < x1 * 4 / max(dd, 1) + 1)
-        ax.plot(r[sel] * 1.0, c[sel] / (4 * (np.log10(radii[m][-1] / radii[m][0]) / 1.0)) if False else c[sel] / 4 * 1.0, color=col, lw=0.6, alpha=0.6, zorder=2)
-        ax.plot([0, x1], [0, dd / 4 * x1 / 4], color=col, lw=0.0)
-    ax.text(0.02, 2.45, "upper fan: log N(r) / 4 against log r — slopes d/4", fontsize=9, color=S["text"])
-    ax.text(0.02, -2.5, "lower fan: log L against log N — slopes −α; dotted rays −4/d(TwoNN)", fontsize=9, color=S["text"])
-    return save(fig, f"{a.out}/fan_{style}.png", riso=(style == "riso"))
+        cu = upper_col(d)
+        c0 = cnt[m][0]; r0 = radii[m][0]
+        ok = cnt >= c0
+        ax.plot(*clip(np.log10(cnt[ok] / c0), 4 * np.log10(radii[ok] / r0)), color=cu, lw=1.0, alpha=0.75, zorder=2)
+        ray(4 / dd, cu, +1, f"d={d}   4/d̂ = {4 / dd:.2f}")
+    t = S["text"]
+    kw = dict(ha="right", transform=ax.transData)
+    ax.text(3.2, -1.95, "the fan of slopes", fontsize=19, style="italic", color=t, **kw)
+    ax.text(3.2, -2.07, "upper: 4·log r  vs  log N(r) in the student's last hidden layer — slope 4/d",
+            fontsize=8.5, color=upper_col(12) if riso else t, **kw)
+    ax.text(3.2, -2.17, "lower: log test loss  vs  log parameters N — slope −α", fontsize=8.5,
+            color=lower_col(2) if riso else t, **kw)
+    ax.text(3.2, -2.27, "if α = 4/d the two fans mirror each other across the hinge", fontsize=8.5, color=t, alpha=0.8, **kw)
+    ax.text(3.2, -2.45, f"teacher '{f}', d = {', '.join(map(str, dims))}. hinge ruled in decades; curves & rays cut at 2.25 decades. "
+            "thin: per-seed losses (lower), student N(r) (upper); dots: seed medians; rays: fits",
+            fontsize=6.5, color=t, alpha=0.7, **kw)
+    return save(fig, f"{a.out}/fan_{style}.png", riso=riso)
+
+
+# --------------------------------------------------------------------------- agreement plate
+def real_points():
+    path = "cache/real/real.json"
+    if not os.path.exists(path):
+        return []
+    R = json.load(open(path)); out = []
+    for ds, v in R.items():
+        ks = sorted([k for k in v if k.startswith("c")], key=lambda k: v[k]["N"])
+        if len(ks) < 4: continue
+        N = np.array([v[k]["N"] for k in ks]); L = np.array([v[k]["test_loss"] for k in ks])
+        ids = np.array([v[k]["id_twonn"] for k in ks])
+        al = -np.polyfit(np.log(N), np.log(L), 1)[0]
+        rng = np.random.default_rng(0); bs = []
+        for _ in range(2000):
+            ii = np.sort(rng.integers(0, len(N), len(N)))
+            if len(np.unique(ii)) < 3: continue
+            bs.append(-np.polyfit(np.log(N[ii]), np.log(L[ii]), 1)[0])
+        lo, hi = np.percentile(bs, [5, 95])
+        top = ids[-3:]
+        out.append(dict(name=ds, alpha=al, ci=(lo, hi), id=float(np.median(top)), id_rng=(top.min(), top.max()),
+                        pix=v["pixel_id"]["twonn"]))
+    return out
+
+
+def agree(style):
+    fig, S = setup(style, (12, 12), a.dpi)
+    ax = fig.add_axes([0.1, 0.09, 0.84, 0.8])
+    lim = (1.4, 140)
+    log_paper(ax, style, lim, lim)
+    ax.set_aspect("equal")
+    riso = style == "riso"
+    ax.plot(lim, lim, color=S["accent"] if style != "paper" else S["ink"], lw=1.0, ls=(0, (6, 3)), zorder=2)
+    ax.text(100, 118, "4/α = d", rotation=45, fontsize=10, color=S["accent"] if style != "paper" else S["ink"],
+            ha="center", va="center", rotation_mode="anchor")
+    marks = {"relu0": dict(marker="o", filled=True), "relub": dict(marker="s", filled=False)}
+    for f in A["fams"]:
+        for d in dims:
+            F = A["fits"][f"{f}_{d}"]
+            idd, (imin, imax) = id_of(f, d)
+            col = STYLES["riso"]["ink"] if riso else dcolor(style, d, dims)
+            y = F["four_over_alpha"]; ylo, yhi = 4 / F["alpha_ci"][1], 4 / F["alpha_ci"][0]
+            ax.plot([idd, idd], [ylo, yhi], color=col, lw=1.0, zorder=3)
+            ax.plot([imin, imax], [y, y], color=col, lw=1.0, zorder=3)
+            mk = marks[f]
+            ax.scatter([idd], [y], s=60, marker=mk["marker"], facecolor=col if mk["filled"] else S["bg"],
+                       edgecolor=col, lw=1.3, zorder=5)
+            if f == "relu0":
+                ax.text(idd * 0.93, y * 1.07, f"d={d}", fontsize=8, color=col, ha="right")
+    pink = "#ff48b0" if riso else S["accent"] if style != "paper" else S["ink"]
+    for P in real_points():
+        ax.plot([P["id"], P["id"]], [4 / P["ci"][1], 4 / P["ci"][0]], color=pink, lw=1.0, zorder=3)
+        ax.plot(P["id_rng"], [4 / P["alpha"]] * 2, color=pink, lw=1.0, zorder=3)
+        ax.scatter([P["id"]], [4 / P["alpha"]], s=130, marker="*", color=pink, zorder=6, lw=0)
+        ax.scatter([P["pix"]], [4 / P["alpha"]], s=40, marker="D", facecolor=S["bg"], edgecolor=pink, lw=1.0, zorder=5)
+        ax.plot([P["id"], P["pix"]], [4 / P["alpha"]] * 2, color=pink, lw=0.6, ls=":", zorder=3)
+        ax.text(P["pix"] * 1.1, 4 / P["alpha"], f"{P['name']}  (4/α={4 / P['alpha']:.1f})", fontsize=8.5, color=pink, va="center")
+    # GPT-2 from Sharma & Kaplan 2022 (not measured here): 4/alpha ~ 53, first-layer ID 50-80, other layers > 90
+    g = 4 / 0.076
+    ax.plot([50, 80], [g, g], color=S["text"], lw=3.5, alpha=0.35, solid_capstyle="butt", zorder=3)
+    ax.annotate("", xy=(138, g), xytext=(90, g), arrowprops=dict(arrowstyle="-|>", color=S["text"], lw=0.9), zorder=3)
+    ax.text(12, g * 1.2, "GPT-2 small (Sharma & Kaplan 2022, not measured here):\n4/α≈53; first-layer ID 50–80 (bar), other layers > 90 (arrow)",
+            fontsize=8, color=S["text"], alpha=0.85, ha="left")
+    ax.set_xlabel("intrinsic dimension of the learned representation  (TwoNN, student's last hidden layer)", fontsize=10)
+    ax.set_ylabel("4 / α   (from the measured loss scaling exponent)", fontsize=10)
+    fig.text(0.1, 0.945, "the agreement plate", fontsize=19, style="italic", color=S["text"])
+    fig.text(0.1, 0.915, r"Sharma & Kaplan: $\alpha \approx 4/d$ for piecewise-linear regression on a $d$-manifold",
+             fontsize=10.5, color=S["text"])
+    ax.text(0.97, 0.03, "●  teacher/student, zero-bias ReLU teacher        □  teacher with biases\n"
+             "★  CNN on real images (final hidden layer ID)   ◇  pixel-space ID of the same data\n"
+             "bars: 90% bootstrap CI on α (vertical); ID spread over widths & seeds (horizontal)",
+             fontsize=8.5, ha="right", va="bottom", color=S["text"], family="DejaVu Sans", transform=ax.transAxes,
+             bbox=dict(facecolor=S["bg"], edgecolor=S["grid_major"], pad=6))
+    return save(fig, f"{a.out}/agree_{style}.png", riso=riso)
 
 
 os.makedirs(a.out, exist_ok=True)

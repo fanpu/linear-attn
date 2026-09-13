@@ -14,8 +14,8 @@ STYLES = {
     # two spot inks: Federal Blue + Fluorescent Pink on off-white newsprint
     "riso": dict(bg="#f4f0e6", ink="#3255a4", grid_major="#b9c3dc", grid_minor="#dde2ee",
                  text="#3255a4", accent="#ff48b0", font="DejaVu Sans Mono"),
-    "spectral": dict(bg="#fbfaf6", ink="#2b2b2b", grid_major="#d8d4cc", grid_minor="#ece9e2",
-                     text="#2b2b2b", accent="#9e0142", font="DejaVu Sans"),
+    "spectral": dict(bg="#18191f", ink="#ece8dc", grid_major="#3a3c47", grid_minor="#25262e",
+                     text="#d9d4c5", accent="#fdd9a0", font="DejaVu Sans"),
 }
 
 
