@@ -22,6 +22,7 @@ p.add_argument("--data_seeds", type=str, default="598,598,598,598,598,598,598,59
 p.add_argument("--out", type=str, default="cache/run")
 p.add_argument("--eval_every", type=int, default=10)
 p.add_argument("--full_every", type=int, default=200)
+p.add_argument("--print_every", type=int, default=1000)
 args = p.parse_args()
 
 torch.cuda.set_per_process_memory_fraction(0.10)
@@ -61,23 +62,24 @@ for s in init_seeds:
         params[k].append(torch.randn(*sh, generator=g) * std)
 params = {k: torch.nn.Parameter(torch.stack(v).to(dev)) for k, v in params.items()}
 causal = torch.tril(torch.ones(3, 3, dtype=torch.bool, device=dev))
-sidx = torch.arange(S, device=dev)[:, None, None]
 
 
-def forward(X):  # X: (S, B, 3) -> logits at '=' (S, B, P)
-    x = params["W_E"][sidx, X] + params["W_pos"][:, None]                 # S B 3 D
-    q = torch.einsum("sbpd,shde->sbhpe", x, params["W_Q"])
-    k = torch.einsum("sbpd,shde->sbhpe", x, params["W_K"])
-    v = torch.einsum("sbpd,shde->sbhpe", x, params["W_V"])
-    att = q @ k.transpose(-1, -2) / math.sqrt(DH)
+def forward(X):  # X: (S, B, 3) -> logits read at the '=' position, (S, B, P)
+    Sx, B = X.shape[:2]
+    x = torch.gather(params["W_E"], 1, X.reshape(Sx, -1, 1).expand(-1, -1, D)).view(Sx, B, 3, D)
+    x = x + params["W_pos"][:, None]
+    xf = x.reshape(Sx, B * 3, D)
+    def proj(name):  # (S,H,D,DH) -> (S,B,H,3,DH)
+        W = params[name].permute(0, 2, 1, 3).reshape(Sx, D, H * DH)
+        return torch.bmm(xf, W).view(Sx, B, 3, H, DH).transpose(2, 3)
+    q, k, v = proj("W_Q"), proj("W_K"), proj("W_V")
+    att = (q @ k.transpose(-1, -2)) / math.sqrt(DH)
     att = att.masked_fill(~causal, float("-inf")).softmax(-1)
-    z = att @ v                                                           # S B H 3 DH
-    attn_out = torch.einsum("sbhpe,shed->sbpd", z, params["W_O"])
-    r = x + attn_out
-    r = r[:, :, -1]                                                       # only '=' pos is read
-    h = torch.relu(torch.einsum("sbd,sdm->sbm", r, params["W_in"]))
-    r = r + torch.einsum("sbm,smd->sbd", h, params["W_out"])
-    return torch.einsum("sbd,sdv->sbv", r, params["W_U"])
+    z = (att @ v)[:, :, :, -1]                                  # S B H DH: the '=' query row
+    r = x[:, :, -1] + torch.bmm(z.reshape(Sx, B, H * DH), params["W_O"].reshape(Sx, H * DH, D))
+    h = torch.relu(torch.bmm(r, params["W_in"]))
+    r = r + torch.bmm(h, params["W_out"])
+    return torch.bmm(r, params["W_U"])
 
 
 def loss_acc(logits, Y):
@@ -87,7 +89,7 @@ def loss_acc(logits, Y):
     return l, acc
 
 
-opt = torch.optim.AdamW(params.values(), lr=1e-3, weight_decay=1.0, betas=(0.9, 0.98))
+opt = torch.optim.AdamW(params.values(), lr=1e-3, weight_decay=1.0, betas=(0.9, 0.98), fused=True)
 
 # checkpoint schedules
 def emb_step(t):
@@ -114,7 +116,7 @@ for t in range(args.steps + 1):
         with torch.no_grad():
             lt, at = loss_acc(forward(Xte), Yte)
         ev_steps.append(t); te_loss.append(lt.cpu().numpy()); te_acc.append(at.cpu().numpy())
-    if t % 1000 == 0:
+    if t % args.print_every == 0:
         print(f"step {t} {time.time()-t0:.0f}s train {tr_loss[t].round(4).tolist()} test {te_loss[-1].round(3).tolist()}"
               f" test_acc {te_acc[-1].round(3).tolist()}", flush=True)
     if t == args.steps:
