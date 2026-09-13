@@ -64,7 +64,7 @@ def lyap():
     for R in (500, 1000, 2000):
         s = torch.linspace(3, 12, R, dtype=DT); y = torch.linspace(0.15, 0.85, R, dtype=DT)
         Y, S = torch.meshgrid(y, s, indexing='ij')
-        L = lyap_cong1d(S, Y, T0=3000, T1=5000)
+        L = lyap_cong1d(S, Y, T0=1000, T1=2000)
         # smooth threshold: period-1 -> period-2 boundary = sign of (s y*(1-y*) - 2)
         B = L < -0.05  # 'strongly stable' vs near-marginal; also test the analytic curve
         B2 = S.numpy() * Y.numpy() * (1 - Y.numpy()) < 2
@@ -126,8 +126,16 @@ def icmap():
     thr = 5e-3
     res = {}
     for f in sorted(glob.glob('cache/icmap_R400_T2000_eps0.50*.npz')):
-        L = np.load(f)['L'].astype(float)
+        z = np.load(f); L = z['L'].astype(float)
         valid = np.isfinite(L); B = (L > thr)
+        for nm, BB in (('null_energy_level_set', z['energy'] > np.nanmedian(z['energy'][valid])),):
+            E0 = np.zeros_like(valid)
+            for a, b in (((slice(None, -1), slice(None)), (slice(1, None), slice(None))),
+                         ((slice(None), slice(None, -1)), (slice(None), slice(1, None)))):
+                diff = (BB[a] != BB[b]) & valid[a] & valid[b]
+                E0[a] |= diff; E0[b] |= diff
+            N0 = boxcount(E0, [1, 2, 4, 8, 16, 32])
+            res[os.path.basename(f) + '_' + nm] = dict(N=N0.tolist(), D=fit([1, 2, 4, 8, 16, 32], N0, 400))
         E = np.zeros_like(valid)
         for a, b in (((slice(None, -1), slice(None)), (slice(1, None), slice(None))),
                      ((slice(None), slice(None, -1)), (slice(None), slice(1, None)))):
