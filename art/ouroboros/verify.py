@@ -130,8 +130,10 @@ ax[0].set_title("97 × 65 replace phase map")
 if parts:
     rows = [dict(np.load(p)) for p in parts]
     nat = {k: np.concatenate([r[k] for r in rows]) for k in rows[0]}
-    nmax_done = int(nat["n"].max())
-    n_hi = min(96, nmax_done)
+    have = set(int(x) for x in np.unique(nat["n"]))
+    n_hi = 32
+    while n_hi + 1 in have and n_hi < 96:
+        n_hi += 1  # contiguous range from 32
     esc_nat = ((nat["sw2"] - nat["sw2"][:, :1]).max(1) - TAU) > 0
     lut = {(int(n), int(r), int(sd)): e for n, r, sd, e in zip(nat["n"], nat["nr"], nat["seed"], esc_nat)}
     R = 256

@@ -18,9 +18,12 @@ amplitude-adjusted null (residual's own heavy-tailed distribution): D = 1.35 +- 
 local slopes between successive eps (a fractal would hold one value): 1.54, 1.48, 1.70, 1.40, 1.60, 1.32, 1.84
 
 == 4. resolution check: native window n in [32, 96], lambda in [0.03, 0.35]
-columns done: n = 32..41; base-map cells re-measured by the native run agree 100.0% (108 cells)
-phase-map cells  256^2 raster box counts eps=[1, 2, 4, 8, 16, 32, 64]: [1677, 601, 277, 120, 59, 25, 7]; D(1-4 px) = 1.30, D(4-32 px) = 1.14
-native seed 0    256^2 raster box counts eps=[1, 2, 4, 8, 16, 32, 64]: [1984, 805, 321, 153, 71, 27, 9]; D(1-4 px) = 1.31, D(4-32 px) = 1.18
-native seed 1    256^2 raster box counts eps=[1, 2, 4, 8, 16, 32, 64]: [0, 0, 0, 0, 0, 0, 0]; D(1-4 px) = nan, D(4-32 px) = nan
-seed 0 vs seed 1 escape labels disagree on 15.7% of the window, 40.7% within 6 px of either boundary
-first surviving n_r per column, |seed 0 - seed 1| in units of 1/n: median nan, mean nan
+columns done: n = 32..61; base-map cells re-measured by the native run agree 98.9% (270 cells)
+phase-map cells  256^2 raster box counts eps=[1, 2, 4, 8, 16, 32, 64]: [2273, 753, 342, 150, 68, 28, 8]; D(1-4 px) = 1.37, D(4-32 px) = 1.20
+native seed 0    256^2 raster box counts eps=[1, 2, 4, 8, 16, 32, 64]: [4207, 1608, 625, 290, 114, 36, 11]; D(1-4 px) = 1.38, D(4-32 px) = 1.37
+native seed 1    256^2 raster box counts eps=[1, 2, 4, 8, 16, 32, 64]: [1120, 416, 182, 74, 30, 11, 4]; D(1-4 px) = 1.31, D(4-32 px) = 1.34
+seed 0 vs seed 1 escape labels disagree on 19.3% of the window, 38.9% within 6 px of either boundary
+first surviving n_r per column, |seed 0 - seed 1| in units of 1/n: median 4.0, mean 3.8
+
+== 5. accumulate phase map (33 x 33): escaped cells 3.7% vs replace 27.7%; at lambda = 0: accumulate escaped 6% of n columns, replace 98%
+accumulate sliced W2(G)/W2(0): median 1.16, max 3.00; replace median 1.28, max 7.46

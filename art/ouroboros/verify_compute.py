@@ -46,7 +46,8 @@ if job in ("seeds", "all") and not os.path.exists("cache/verify_seeds.npz"):
 
 if job in ("native", "all") and not os.path.exists("cache/verify_native.npz"):
     rows = []
-    for n in range(32, 97):
+    order = range(96, 31, -1) if "--rev" in sys.argv else range(32, 97)  # --rev: 2nd worker from the top
+    for n in order:
         part = f"cache/parts/verify_native_n{n}.npz"
         if os.path.exists(part):
             rows.append(dict(np.load(part))); continue
@@ -58,5 +59,6 @@ if job in ("native", "all") and not os.path.exists("cache/verify_native.npz"):
                  sw2=r["sw2"].astype(np.float32))
         np.savez(part, **d); rows.append(d)
         log(f"native n={n} rows={len(nr)}")
+    rows.sort(key=lambda r: int(r["n"][0]))
     np.savez_compressed("cache/verify_native.npz", **{k: np.concatenate([r[k] for r in rows]) for k in rows[0]})
     log("wrote verify_native")

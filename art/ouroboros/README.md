@@ -54,7 +54,17 @@ Each cell is **one chain** (seed 0) of 80 refits of an 8-component GMM to the ri
 </table>
 
 Also: [phase_ring_gmm_replace_sw2_crameri_lajolla.png](gallery/phase_ring_gmm_replace_sw2_crameri_lajolla.png).
-<!-- ACCUMULATE_DIPTYCH -->
+
+**Replace vs accumulate diptych.** The same field and colour scale, with an accumulate map on the right (33 × 33 chains, nearest-upsampled onto the 97 × 65 layout).
+
+<img src="gallery/phase_ring_gmm_split_sd_spectral.png" width="100%">
+
+<table>
+<tr><td><img src="gallery/phase_ring_gmm_sw2_crameri_batlow.png"></td><td><img src="gallery/phase_ring_gmm_sw2_sepia.png"></td></tr>
+</table>
+
+Also: [aurora/ember](gallery/phase_ring_gmm_split_aurora_ember.png), [Hubble SHO](gallery/phase_ring_gmm_split_hubble_sho.png), [lajolla](gallery/phase_ring_gmm_sw2_crameri_lajolla.png).
+Under **accumulate**, 3.7% of cells escape, against 27.7% under replace. At λ=0 the escaped share is 6% of n columns for accumulate and 98% for replace. The only cells that escape are a few columns at n ≤ 13 plus isolated cells at n=26 and n=38, where the generation-0 fit is already poor. The median $SW_2(80)/SW_2(0)$ is 1.16 for accumulate (max 3.0) and 1.28 for replace (max 7.5). This reproduces Gerstgrasser et al.'s central claim on this toy.
 
 **What to read in it.** Collapse is a small-$n$, small-$\lambda$ phenomenon. The escape boundary runs from λ≈0.75 at n=8 down to λ≈0.05 at n≈128. Above n≈128 only a thin band at λ≲0.05 still escapes within 80 generations. The **staircase** at small n is real, not a rendering artefact: only $\lfloor\lambda n\rfloor$ matters, so at n=8 the 97 rows contain just 9 distinct chains. The faint **vertical streaks** come from CRN: all λ in one column share one real dataset and one noise stream, so a lucky or unlucky column is lucky or unlucky all the way up.
 
@@ -74,7 +84,7 @@ Measured: every tile is 20 000 samples of that generation's model (GMM K=8, n=12
 <tr><td><img src="gallery/ridgeline_ring_gmm_anchored_night.png"></td><td><img src="gallery/ridgeline_ring_gmm_accumulate_night.png"></td></tr>
 </table>
 
-"The tails go first." One ridge per 2 generations, showing the histogram of each model sample's distance to the nearest true mode centre in units of $\sigma$ (log axis). Right margin: share of samples beyond $2\sigma$. Under **replace** the ridge slides left from 1σ to ≈0.15σ by generation 150, and the share beyond 2σ falls from 10.8% (gen 0) to 0.8% (gen 10) to 0.0% (gen 50+). **Anchored** stays at 5–9% and **accumulate** at ≈7.5%. Line art and ground are aesthetic.
+"The tails go first." One ridge per 2 generations, showing the density (per log unit) of each model sample's distance to the nearest centre of the *model's own* mixture components, in units of the true per-mode $\sigma$ (log axis). The dashed ridge on top is the true distribution. Right margin: share of samples beyond $2\sigma$. Under **replace** the ridge slides left from 1σ to ≈0.15σ by generation 150, and the share beyond 2σ falls from 10.8% (gen 0) to 0.8% (gen 10) to 0.0% (gen 50+). **Anchored** stays at 5–9% and **accumulate** at ≈7.5%. Line art and ground are aesthetic.
 
 ### 3.5 Filix ouroborum (fern)
 <table>
