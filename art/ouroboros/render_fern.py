@@ -74,7 +74,7 @@ lab = {"replace": "replaced each generation (λ = 0)", "anchored": "a quarter of
 if a.mode == "sheet":
     cols = 1 + len(gens)
     pw, ph = 520, 900
-    gx, gy = 40, 170
+    gx, gy = 40, 240
     ml, mt = 240, 420
     W = ml + cols * pw + (cols - 1) * gx + 120
     H = mt + len(regs) * ph + (len(regs) - 1) * gy + 260
@@ -103,7 +103,7 @@ if a.mode == "sheet":
             draw_panel(dr, box, X, comps_at(reg, g), INK, 0.9)
             sw = d[f"{reg}/sw2"][g]
             dr.text((Z(xb + 120), Z(yb + ph + 20)), f"gen. {g}", font=ital(34), fill=tuple(INK))
-            dr.text((Z(xb + 120), Z(yb + ph + 62)), f"W₂ {sw:.3f}", font=S.font("mono", 22 * SS), fill=tuple(INK))
+            dr.text((Z(xb + 120), Z(yb + ph + 62)), f"sliced W2 {sw:.3f}", font=S.font("mono", 22 * SS), fill=tuple(INK))
     for j in range(1):
         pass
     im = im.resize((W, H), Image.LANCZOS)

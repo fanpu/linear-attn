@@ -18,7 +18,7 @@ ap.add_argument("--arms", default="replace"); ap.add_argument("--G", type=int, d
 ap.add_argument("--size", type=int, default=3000); ap.add_argument("--r", type=float, default=0.972)
 ap.add_argument("--dtheta", type=float, default=0.30); ap.add_argument("--tile", type=float, default=0.155)
 ap.add_argument("--cmap", default="klimt_gold"); ap.add_argument("--name", default="")
-ap.add_argument("--nocap", action="store_true"); ap.add_argument("--stride", type=int, default=1)
+ap.add_argument("--nocap", action="store_true"); ap.add_argument("--wexp", type=float, default=1.0); ap.add_argument("--stride", type=int, default=1)
 a = ap.parse_args()
 
 d = np.load(a.cache)
@@ -43,12 +43,21 @@ for ai, arm in enumerate(arms):
         px = c[0] + X[:, 0] / S.EXT[1] * half
         py = c[1] - X[:, 1] / S.EXT[1] * half
         ok = (px >= 0) & (px < Wd - 1) & (py >= 0) & (py < Hd - 1)
-        # bilinear splat, weight normalised by tile area so ink density per unit data area is constant
-        w = (60.0 / max(half, 1.0)) ** 2 / len(X) * 4000
+        # bilinear splat into a local patch; blur grows with tile size (sigma ~ half/90 px) and ink per sample
+        # scales as (60/half)^a.wexp (declared tone choice: wexp=2 conserves density per data area, which made the
+        # big outer tiles vanishingly faint; default 1 keeps them legible while inner tiles still read denser)
+        w = (60.0 / max(half, 1.0)) ** a.wexp / len(X) * 4000 * (1.0 + (half / 90.0) ** 2)
         x0, y0 = np.floor(px[ok]).astype(int), np.floor(py[ok]).astype(int)
         fx, fy = px[ok] - x0, py[ok] - y0
+        pad = int(half * 1.1) + 8
+        bx0, by0 = max(int(c[0]) - pad, 0), max(int(c[1]) - pad, 0)
+        bx1, by1 = min(int(c[0]) + pad, Wd), min(int(c[1]) + pad, Hd)
+        patch = np.zeros((by1 - by0, bx1 - bx0))
         for dx, dy, ww in ((0, 0, (1 - fx) * (1 - fy)), (1, 0, fx * (1 - fy)), (0, 1, (1 - fx) * fy), (1, 1, fx * fy)):
-            np.add.at(canvas[ai], (y0 + dy, x0 + dx), w * ww)
+            yy, xx = y0 + dy - by0, x0 + dx - bx0
+            k = (yy >= 0) & (yy < patch.shape[0]) & (xx >= 0) & (xx < patch.shape[1])
+            np.add.at(patch, (yy[k], xx[k]), (w * ww)[k])
+        canvas[ai][by0:by1, bx0:bx1] += gaussian_filter(patch, max(0.0, half / 90.0))
 
 sig = a.size / 3000 * 1.0
 dens = [gaussian_filter(cv, sig) for cv in canvas]
@@ -70,9 +79,7 @@ elif a.style == "paper":
         img = img * (1 - al) + ink * al
     fg, dim = S.INK["iron_gall"], (120, 110, 96)
 else:  # riso: two spot inks multiplied (declared), slight misregistration of the second drum
-    paper = np.array(P_ := S.P.RISO_PAPER if hasattr(S.P, "RISO_PAPER") else "#f4efe4")
-    base = np.array(S.P.hex2rgb(paper) if isinstance(paper.item(), str) else paper, float)
-    base = base * (255 if base.max() <= 1 else 1)
+    base = np.asarray(S.P.hex2rgb(getattr(S.P, "RISO_PAPER", "#f4efe4")), float) * 255
     inks = [np.array([255, 72, 176], float), np.array([0, 120, 191], float)]
     img = np.tile(base, (Hd, Wd, 1))
     for i, (v, ink) in enumerate(zip(V, inks)):
@@ -85,7 +92,7 @@ else:  # riso: two spot inks multiplied (declared), slight misregistration of th
 im = Image.fromarray(np.clip(img, 0, 255).astype(np.uint8))
 # declared guides: the spiral path and each tile's data window (a circle inscribed in the tile)
 gd = ImageDraw.Draw(im)
-guide = tuple(int(0.8 * c + 0.2 * g) for c, g in zip(dim, img[5, 5]))
+guide = tuple(int(0.4 * c + 0.6 * g) for c, g in zip(dim, img[5, 5]))
 for ai in range(len(arms)):
     ii = np.linspace(0, len(range(0, G + 1, a.stride)) - 1, 4000)
     th = np.pi / 2 + np.pi * ai - a.dtheta * ii
@@ -107,7 +114,7 @@ if not a.nocap:
     dr.text((80 * u, 150 * u), f"{MODEL} retrained on its own samples, n = {n}", font=S.font("serif_it", int(34 * u)), fill=dim)
     dr.text((80 * u, 195 * u), f"generation 0 at top; one tile every {a.stride} generation(s), ≈{2*np.pi/a.dtheta:.0f} tiles per turn, scale ×{a.r} per tile, "
             f"to generation {G} at the eye", font=S.font("serif_it", int(28 * u)), fill=dim)
-    dr.text((80 * u, Hd - 110 * u), " · ".join(lab[x] for x in arms) + ("   (second arm: point reflection)" if len(arms) > 1 else ""),
+    dr.text((80 * u, Hd - 110 * u), " · ".join((["fluorescent pink: ", "blue: "][i] if a.style == "riso" else "") + lab[x] for i, x in enumerate(arms)) + ("   (second arm: point reflection)" if len(arms) > 1 else ""),
             font=S.font("serif", int(30 * u)), fill=fg)
 name = a.name or f"spiral_{target}_{model}_{'-'.join(arms)}_{a.style}.png"
 S.save(im, name)
