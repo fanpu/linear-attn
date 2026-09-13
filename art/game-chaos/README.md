@@ -79,7 +79,20 @@ Style variants of the same measured λ (declared palettes: `color-research/palet
 
 ### 2.2 Lyapunov maps: experience-weighted attraction on RPS
 
-RPS_PLACEHOLDER
+Discrete experience-weighted attraction (EWA) on SAF's rock–paper–scissors, largest λ per pixel. **Measured:** λ from tangent propagation, and the minimum strategy probability on the attractor. **Declared colour:** Spectral split with the seam at λ = 3·10⁻³, the finite-time noise floor for quasi-periodic orbits.
+
+<table>
+<tr><td width="50%"><img src="gallery/plate_rps_beta_eps_a0.30.png" width="100%"></td><td width="50%"><img src="gallery/rps_beta_eps_a0.30_zoom_spectral.png" width="100%"><br>Zoom β ∈ [2.5, 9], ε ∈ [−0.6, 0.6] (independent 1000² run; 8.2% chaotic here). The moth's wings are periodic "horns" (blue) cutting into chaotic lobes (orange).</td></tr>
+</table>
+
+In the (β, ε) plane at α = 0.3, chaos (red/orange) occupies only **2.9%** of the pixels. It sits in a mirror-symmetric "moth" around ε = 0, 3 < β < 9, inside a sea of quasi-periodic motion (blue) and near-pure best-response cycling (pale green, 67% of pixels, where strategies come within 10⁻⁶ of the simplex edge).
+* **Coexisting attractors cause the straight vertical cuts.** Every pixel starts from the same (x₀, y₀). I checked with 8 random starts per β at ε = 0.15:
+  * β = 5.4: 3 starts chaotic (λ = 0.046–0.087), 5 periodic (λ = −0.008).
+  * β = 7.4 and 7.6: chaos (λ ≈ 0.015–0.05) coexists with a cycle at λ = −0.357.
+* **The fine ripples at large β are not resolution-checked** (see §4) and may be partly aliased.
+
+<table><tr><td><img src="gallery/rps_beta_eps_a0.30_indigo.png" width="100%"></td><td><img src="gallery/rps_beta_eps_a0.30_zoom_dark.png" width="100%"></td><td><img src="gallery/rps_beta_eps_a0.30_zoom_indigo.png" width="100%"></td></tr>
+<tr><td>indigo / madder split (declared)</td><td>dark berlin diverging, seam at λ = 3·10⁻³</td><td>indigo / madder, zoom</td></tr></table>
 
 ### 2.3 Simplex trajectories and Poincaré sections (continuous learning, SAF)
 
@@ -116,7 +129,9 @@ RPS_PLACEHOLDER
 * The histogram of log λ is **cleanly bimodal**, so the λ = 5·10⁻³ seam sits in a real gap, not at an arbitrary cut.
 * Chaos hugs the simplex edge, where energy is high. Filaments of chaos also reach into the regular core along separatrices.
 
-ICMAP_PLACEHOLDER
+<table><tr><td width="50%"><img src="gallery/icmap_spectral.png" width="100%"></td><td width="50%"><img src="gallery/icmap_zoom_spectral.png" width="100%"></td></tr>
+<tr><td>Bare print, Spectral split, equilateral simplex (R bottom-left, P bottom-right, S top).</td><td><b>10× zoom</b> (x_P ∈ [0.33, 0.43], x_S ∈ [0.03, 0.13]; 160,000 fresh runs). Red chaotic tongues interleave with regular fans. The woven dot texture in the regular region is <b>moiré</b>: the finite-time λ of a regular orbit oscillates with its torus phase at t = T, and that phase varies faster than the pixel grid. Do not read the dots as structure; the claim is only the red/green boundary.</td></tr>
+<tr><td><img src="gallery/icmap_cyanotype.png" width="100%"></td><td>Cyanotype / Van Dyke split variant (declared palette from <code>color-research</code>).</td></tr></table>
 
 **Discrete MWU basin maps: a negative result.** See §4.
 
@@ -141,19 +156,111 @@ COMPUTED_PLACEHOLDER
 
 ## 4. Verification and honesty
 
-VERIFY_PLACEHOLDER
+### 4.1 Did chaos actually show up? Yes, in the three settings the literature predicts, and I measured it.
+
+**SAF Table I reproduction.** Same initial conditions, T = 10⁵, RK4 h = 0.01 in logits. λ₁ is given ×10³:
+
+| ε | k = 1 | 2 | 3 | 4 | 5 |
+|---|---|---|---|---|---|
+| 0.25, ours | **49.3** | **25.3** | **20.3** | 0.09 | 0.09 |
+| 0.25, SAF | **49.0** | **35.3** | **16.6** | 0.4 | 0.4 |
+| 0.50, ours | **55.6** | **39.2** | **21.9** | **8.4** | 0.10 |
+| 0.50, SAF | **61.6** | **35.0** | **28.1** | **12.1** | 0.2 |
+| 0.00, ours | 0.10 | 0.09 | 0.09 | 0.09 | 0.09 |
+
+* **The same orbits are chaotic as in SAF** (bold): k ≤ 3 at ε = 0.25 and k ≤ 4 at ε = 0.5.
+* Magnitudes agree to within the scatter expected for finite-time exponents of sticky Hamiltonian orbits.
+* At ε = 0 every orbit is regular: λ decays as 1/T ([convergence plot](gallery/verify_lyap_convergence.png)).
+* Energy H is conserved to 3·10⁻⁹ over T = 10⁵.
+
+**Congestion-game map.** λ > 0 on **42.1%** of the full (s, y*) plane (max λ = 0.586 nats/iteration). On the row y* = 0.5 (fully symmetric costs), λ ≤ −0.006 for all s ≤ 100, which is Chotibut et al.'s "unless the game is fully symmetric".
+* **Iteration check:** on the 500² shrimp window, the sign of λ agrees on **99.87%** of pixels between 5,000 and 20,000 averaging iterations (correlation 0.999).
+
+**EWA on RPS.** Chaos is present but sparse: 2.9% of the (β, ε) plane at α = 0.3, max λ = 0.154.
+
+**Self-play.** Discrete MWU at small η keeps λ/η ≈ 0.06–0.09, matching the continuous λ₁ = 0.056. At large η the dynamics are no longer chaotic; the players are thrown onto the simplex edge instead (§2.5).
+
+### 4.2 Fractal / self-similarity claims (fractals doc §11)
+
+**(i) The chaos/order seam in the congestion Lyapunov plane.**
+* **Setup.** The boundary set is pixels whose 4-neighbourhood contains both λ > 0 and λ ≤ 0. The window is the z4 shrimp (s ∈ [23.2, 24.4], y* ∈ [0.4145, 0.4215]), computed independently at 500², 1000² and 2000².
+* **Box counting** (box side 1–64 px, i.e. ε from 1/2000 to 1/31, 1.8 decades):
+
+  | resolution | 500² | 1000² | 2000² |
+  |---|---|---|---|
+  | **D** | 1.38 | 1.40 | 1.33 |
+
+* **Resolution scaling.** Boundary-pixel fraction is 9.7% → 7.4% → 5.5% per doubling. That implies D = 2 + slope ≈ **1.6**. A smooth curve would halve per doubling (D = 1).
+* **Null model 1** (same pipeline on an analytic smooth curve, the period-doubling line s·y*(1−y*) = 2): D = 1.09 / 1.07 / 1.07, and the fraction halves per doubling.
+* **Null model 2** (same pipeline on a smooth Lyapunov contour, λ = −0.05 in s ∈ [3, 12]): D = 1.22 / 1.17 / 1.11. It trends to 1 with resolution, which shows the pixel pipeline adds about 0.1–0.2 at low resolution.
+* **Verdict.** The seam is clearly rougher than a smooth curve at every resolution, and new windows keep appearing on zoom (×1240, figure above). The two estimators disagree (1.33–1.40 vs 1.6), so I report "**D between about 1.3 and 1.6, non-integer**" rather than a single number.
+  * Chaotic regions of such maps are expected to contain dense periodic windows, so the true boundary may be a fat fractal whose box dimension creeps toward 2 with resolution.
+  * This makes shrimps self-similar in the statistical sense (the same morphology recurs at every scale) but not exactly self-similar.
+* **Precision floor.** float64. At the deepest frame the pixel spacing is 4·10⁻⁵ in s and 1.6·10⁻⁷ in y*, ten decades above machine ε, so precision is not a limit here. Zooming further would need more iterations, because windows become narrower than the finite-time λ noise.
+
+**(ii) The regular/chaotic boundary in the initial-condition map (§2.4).**
+* **Setup.** The boundary is λ = 5·10⁻³, which sits in the gap of a bimodal histogram.
+* **Box counting** (1–32 px, 1.5 decades):
+  * full simplex, 400²: **D = 1.28**
+  * independent 10× zoom, 400²: **D = 1.37**
+* **Null** (same pipeline on a smooth level set of the energy H in the same pixels): D = 1.09 (full) and 1.18 (zoom).
+* **Verdict.** The chaos boundary is rougher than a smooth curve by about 0.2, consistently at both scales. The fit range is short (§11 wants more than one decade; this is 1.5), and the null is not exactly 1, so I call it **suggestive, not proven, fractal**. That is the expected KAM picture of islands around islands.
+
+**(iii) Discrete MWU basin boundaries.** BASIN_VERIFY
+
+### 4.3 What didn't work (negative results)
+
+* **Fractal basins for discrete MWU in small coordination / anti-coordination games: not found.**
+  * 2×2 coordination games (MWU and EWA, s up to 60) give smooth basins.
+  * A GPU random search over 300 random 2×2 bimatrix games, with and without memory loss (η up to 60), found no boundary that refined like a fractal between 256² and 1024². Every candidate was either D ≈ 1 or speckle from chaotic attractors that I had mislabelled as distinct.
+  * **In 2×2 anti-coordination/congestion games the ordering sign(u − v) is invariant** (d′ = d + s(σ(u) − σ(v)) keeps its sign), so the basin boundary is exactly the diagonal. That diagonal is also where Palaiopanos et al.'s chaos lives. I show analytically that the diagonal attractor is always transversally unstable (|1 + sσ′| > |1 − sσ′|).
+  * **The chaos they prove is a chaotic saddle of the full two-agent game.** Any asymmetry between the players' starts, however small, eventually sends them to a pure asymmetric equilibrium.
+* **Three-link congestion game, symmetric start.** At η = 24–40 there is one chaotic attractor. At η ≥ 56 the "attractors" are float-saturated best-response cycles (softmax exactly 0/1). I did not trust those basin maps and did not render them.
+* **Discrete RPS without memory loss (α = 0).** MWU drives strategies to the simplex boundary (Bailey–Piliouras). λ there is dominated by numerical saturation, so I did not show those planes.
+* **EWA plane textures.** Fine ripple textures at large β in the EWA planes were not resolution-checked. Treat them as texture, not structure.
 
 ---
 
 ## 5. Caveats
 
-CAVEATS_PLACEHOLDER
+* **"Learning is chaotic" needs conditions.** It holds for (a) a *perturbed* zero-sum RPS under continuous replicator learning (Hamiltonian chaos, which is conservative, not an attractor); (b) *large-step* MWU in a congestion game *with both agents starting identically*; (c) EWA with memory loss in narrow parameter regions. Plain RPS (ε = 0) is integrable. Plain GDA on bilinear games spirals or cycles.
+* **Symmetric start (hero map).** Both agents begin from the same mixed strategy, which is the setting of the Palaiopanos et al. and Chotibut et al. proofs. In the full two-agent game that invariant line is transversally unstable, so real asymmetric learners leave the chaos and converge to a pure asymmetric equilibrium.
+* **Cheung & Piliouras's "Lyapunov chaos"** is volume expansion in the cumulative-payoff space of MWU in zero-sum games, with Lyapunov time O(1/η²). It is not a positive Lyapunov exponent on a bounded attractor, and the primal strategies drift to the boundary. My self-play plate shows both faces.
+* **Finite-time exponents.** Every λ here is a finite-time estimate.
+  * Regular Hamiltonian orbits give λ ~ 1/T rather than 0.
+  * Sticky chaotic orbits can masquerade as regular for a long time.
+  * Thresholds (5·10⁻³ for continuous time, 3·10⁻³ for EWA) are declared and chosen from histogram gaps.
+* **2-D slices** (fractals doc §14.2). Every map is a slice through a larger space (initial conditions of player 2, the third payoff parameter, α). Structure in a slice is evidence; smoothness in a slice is weak evidence.
+* **Deflationary reading** (§14.1). Shrimps and period-doubling are what *any* two-parameter family of maps with two critical points does. The learning rule here is such a map, and nothing about it is special to games. The caption this deserves is "this is what iteration near an instability looks like, and a learning rule is iteration near an instability".
+* **Rank normalisation** (Spectral split) equalises the histogram on each side. Colour differences inside a side show *rank*, not magnitude; only the seam position is absolute.
+* **Not neural networks.** The "policies" are three logits each. The self-play framing is literal but minimal.
 
 ---
 
 ## 6. Ideas explored / not pursued
 
-IDEAS_PLACEHOLDER
+Brainstorm, ranked by what I built:
+
+1. **Initial-condition λ map of continuous learning** ("which first move leads to chaos"). *Built* (§2.4). It is the strongest intricate-boundary piece, since discrete MWU basins turned out smooth.
+2. **Discretisation plate for self-play** (policy gradient vs MWU, λ per unit learning time vs η). *Built* (§2.5).
+3. **Wide bifurcation cascades** under the Lyapunov strip. *Built* (§2.1).
+4. **Butterfly small multiples** (16 learners 10⁻⁹ apart). *Built*.
+5. **ε-series of Poincaré sections** (tori breaking). *Built*.
+6. **Galla–Farmer phase diagram** for random N = 50 games (Γ vs α/β, coloured by attractor dimension). *Not pursued*: it is a different object (high-dimensional chaos, not a picture), and a faithful version needs many payoff draws per pixel.
+7. **Multistability map** (s, u₀) for the congestion map, to find Cantor-like basins in one dimension. *Explored at 512²*: coexisting attractors exist only in thin s-bands (e.g. s ≈ 20.8, 24.2), and almost everywhere the attractor does not depend on u₀. It was not a good image. The started 12-start multistability sweep was stopped to free the GPU.
+8. **3-D torus sculpture / STL** of a KAM torus in (x_R, x_P, y_R). *Not pursued* (no fabrication pipeline here).
+9. **Sonification** of the chaotic orbit (players as two voices). *Not pursued*.
+
+**Critique rounds** (each image was viewed, then fixed):
+* Round 1:
+  * Poincaré dark variant: the chaotic sea was invisible, so it now uses a copper/ice two-colour scheme.
+  * Plotter drawing: the full orbit was a grey mass, so it now shows t ≤ 1200, centred.
+  * Bifurcation ink was too faint; label overlap fixed.
+  * Self-play plate had overflowing text and a wrong axis range.
+* Round 2:
+  * Zoom-sequence boxes were invisible, so they are now thicker black+white.
+  * Riso simplices had an empty top band, now cropped.
+  * EWA plate caption had raw dict text and a large gap.
 
 ---
 
