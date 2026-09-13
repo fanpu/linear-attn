@@ -12,6 +12,7 @@ from compute_graphs import CACHE
 from layout import component_layout
 
 FORMATS = ["FP8_E5M2", "FP8_E4M3", "float16", "bfloat16"]
+ORDER, ALPHA = "center", 0.75   # declared layout choices (see layout.py)
 
 
 def cell_widths(vals):
@@ -47,7 +48,7 @@ def main():
                 cyc.append(x)
                 x = int(succ[x])
             mask = basin == k
-            lay = component_layout(mask, succ, depth, root, np.array(cyc), vals, dr=1.0)
+            lay = component_layout(mask, succ, depth, root, np.array(cyc), vals, dr=1.0, order=ORDER, alpha=ALPHA)
             out[f"c{k}_nodes"] = lay["nodes"]
             out[f"c{k}_theta"] = lay["theta"]
             out[f"c{k}_r"] = lay["r"]

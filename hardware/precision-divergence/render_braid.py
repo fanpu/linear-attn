@@ -206,13 +206,20 @@ def delta(style="paper", proto="A", k=48, nmax=64, mode="linear"):
                 # |error| on a log2 scale, rising upward: 2^-56 at the baseline, 1 at the top of the row
                 dev = np.clip((np.log2(np.maximum(np.abs(dev), 2.0 ** -80)) + 56) / 56, 0, 1) * 0.9 / amp - 0.45 / amp
             ns = int(D[f"nstar_{f}_{proto}_0.1"][s])
-            # fused part: thick shared strand
+            # fused part: thick bright shared strand; after the split: thin, fading over ~8 steps
             m = min(ns, nmax)
-            ax.plot(n[: m + 1], y0 + amp * dev[: m + 1], color=st["cols"][f], lw=3.2 if f == "bfloat16" else 2.2,
-                    alpha=0.35 if mode == "linear" else 0.8, solid_capstyle="round", zorder=1)
+            # nested widths (bf16 widest, fp64 core) so the fused cable shows every format as a band
+            wmul = {"bfloat16": 4, "float16": 3, "float32": 2, "float64": 1}[f]
+            ax.plot(n[: m + 1], y0 + amp * dev[: m + 1], color=st["cols"][f], lw=(2.6 if mode == "linear" else 1.3) * wmul,
+                    alpha=1.0, solid_capstyle="butt", zorder=2 + FMTS.index(f) * 0.1)
             if ns <= nmax:
-                ax.plot(n[ns - 1:], y0 + amp * dev[ns - 1:], color=st["cols"][f], lw=0.9, alpha=0.95, zorder=2,
-                        solid_joinstyle="round")
+                from matplotlib.collections import LineCollection
+                xs = n[ns:]
+                ys = y0 + amp * dev[ns:]
+                seg = np.stack([np.stack([xs[:-1], ys[:-1]], 1), np.stack([xs[1:], ys[1:]], 1)], 1)
+                a_ = np.maximum(0.9 * np.exp(-(xs[:-1] - ns) / 8.0), 0.06)
+                cols = np.array([matplotlib.colors.to_rgba(st["cols"][f], a) for a in a_])
+                ax.add_collection(LineCollection(seg, colors=cols, linewidths=0.9, zorder=1))
             z = np.flatnonzero((o == 0) & (np.arange(len(o)) > 0))
             if len(z) and np.all(o[z[0]:] == 0):
                 ax.plot([z[0]], [y0 + amp * dev[z[0]]], marker="x", ms=6, mew=1.4, color=st["cols"][f], zorder=3)
@@ -228,7 +235,7 @@ def delta(style="paper", proto="A", k=48, nmax=64, mode="linear"):
     fig.text(0.04, 0.935, f"{k} seeds of x -> 4x(1-x). Each strand is x_n(format) - x_n(1024-bit reference): fused to the row's "
                           "centre line while the format tells the truth, loose once it doesn't.", family=SERIF, fontsize=17,
              style="italic", color=st["ink"])
-    fig.text(0.04, 0.922, "bfloat16 · float16 · float32 · float64 (inks as in the braid). Thick: before |error| > 0.1. "
+    fig.text(0.04, 0.922, "bfloat16 · float16 · float32 · float64 (inks as in the braid). Thick: before |error| > 0.1; thin and fading after. "
                           "x: the orbit landed exactly on the fixed point 0 and died there. Rows sorted by bfloat16's split.",
              family=MONO, fontsize=12, color=st["ink"])
     fig.text(0.97, 0.015, STACK, family=MONO, fontsize=10, color=st["ink"], ha="right")
@@ -243,5 +250,5 @@ def delta(style="paper", proto="A", k=48, nmax=64, mode="linear"):
 
 if __name__ == "__main__" and len(sys.argv) > 1 and sys.argv[1] == "delta":
     for s_ in sys.argv[2:] or ["paper", "observatory", "riso"]:
-        delta(s_, k=32)
-        delta(s_, k=32, mode="log")
+        delta(s_, k=24)
+        delta(s_, k=24, mode="log")

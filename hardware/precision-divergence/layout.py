@@ -6,7 +6,7 @@ their representable value x (so neighbouring angles are neighbouring numbers whe
 import numpy as np
 
 
-def component_layout(nodes_mask, succ, depth, root, cycle_nodes, vals, R0=None, dr=1.0, gamma=1.0, order="value"):
+def component_layout(nodes_mask, succ, depth, root, cycle_nodes, vals, R0=None, dr=1.0, gamma=1.0, order="value", alpha=1.0):
     """Returns dict node -> (x, y) arrays for nodes in the component, plus edges (child, parent)."""
     idx = np.flatnonzero(nodes_mask)
     n_local = len(idx)
@@ -26,13 +26,13 @@ def component_layout(nodes_mask, succ, depth, root, cycle_nodes, vals, R0=None, 
     L = len(cycle_nodes)
     if R0 is None:
         R0 = 0.0 if L == 1 else max(1.0, L * dr * 0.25)
-    tot = sum(leaves[int(c)] for c in cycle_nodes)
+    tot = sum(leaves[int(c)] ** alpha for c in cycle_nodes)
     theta = {}
     span = {}
     a = 0.0
     for c in cycle_nodes:
         c = int(c)
-        w = 2 * np.pi * leaves[c] / tot
+        w = 2 * np.pi * leaves[c] ** alpha / tot
         span[c] = (a, a + w)
         theta[c] = a + w / 2
         a += w
@@ -46,13 +46,21 @@ def component_layout(nodes_mask, succ, depth, root, cycle_nodes, vals, R0=None, 
                 continue
             if order == "value":
                 ch = sorted(ch, key=lambda k: vals[k])
+            elif order == "center":
+                # heaviest subtree in the middle, lighter ones alternating outward: keeps the parent's angle
+                # on its main branch so small side branches sit next to it (no long 'rungs')
+                srt = sorted(ch, key=lambda k: (-leaves[k], vals[k]))
+                left, right = [], []
+                for i, k in enumerate(srt):
+                    (right if i % 2 == 0 else left).append(k)
+                ch = left[::-1] + right
             else:
                 ch = sorted(ch, key=lambda k: -leaves[k])
             s0, s1 = span[p]
-            totp = sum(leaves[k] for k in ch)
+            totp = sum(leaves[k] ** alpha for k in ch)
             b = s0
             for k in ch:
-                w = (s1 - s0) * leaves[k] / totp
+                w = (s1 - s0) * leaves[k] ** alpha / totp
                 span[k] = (b, b + w)
                 theta[k] = b + w / 2
                 b += w

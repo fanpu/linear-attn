@@ -40,13 +40,19 @@ def comp_geometry(L, k):
 
 def draw_component(ax, L, k, style, layer=None):
     nodes, pos, edges, cyc_edges = comp_geometry(L, k)
+    # centre the drawing on its bounding box and fit it (declared framing choice)
+    if len(pos) > 1:
+        lo_, hi_ = pos.min(0), pos.max(0)
+        pos = pos - (lo_ + hi_) / 2
+        rmax = (hi_ - lo_).max() / 2
+    else:
+        rmax = 1.0
+    scale = 1.0 / max(rmax, 1e-9)
     tr = L["traffic"][nodes]
     child = edges[:, 0]
     segs = np.stack([pos[edges[:, 0]], pos[edges[:, 1]]], 1)
     t = tr[child]
     tn = t / L["traffic"].max()
-    rmax = np.abs(pos).max() if len(pos) > 1 else 1.0
-    scale = 1.0 / max(rmax, 1e-9)
     if style == "rivers":
         lt = np.log10(np.maximum(t, 1e-30))
         lo, hi = np.log10(np.percentile(L["cell"], 5)), 0.0
@@ -158,6 +164,60 @@ def graph(fmt, style):
     print("wrote", p)
 
 
+def hero_plate(fmt, k, style, layer=None):
+    """Single basin, square print: one cycle with every tree that drains into it."""
+    L = load(fmt)
+    vals = L["vals"]
+    bg = "white" if layer else BG[style]
+    ink = "black" if layer else INK[style]
+    fig = plt.figure(figsize=(16, 17.5), dpi=300, facecolor=bg)
+    ax = fig.add_axes([0.02, 0.08, 0.96, 0.96 * 16 / 17.5])
+    ax.set_facecolor(bg)
+    draw_component(ax, L, k, style, layer)
+    if layer in (None, "B"):
+        name = fmt.replace("FP8_", "FP8 ")
+        c = L[f"c{k}_cycle"]
+        title = (f"{name}: the {len(c)}-cycle" if len(c) > 1 else f"{name}: the fixed point {vals[c[0]]:g}")
+        fig.text(0.03, 0.965, title, family=SERIF, fontsize=40, color=ink, va="center")
+        fig.text(0.03, 0.94, "x -> round(4x(1-x)) on every representable x in [0,1]. Edges point toward the cycle; "
+                 "radius = steps remaining; width = share of random real seeds flowing through.",
+                 family=MONO, fontsize=11, color=ink, va="center")
+        fig.text(0.03, 0.05, component_caption(L, k, vals), family=MONO, fontsize=14, color=ink, va="center")
+        others = []
+        ncyc = int(L["cycle_id"].max()) + 1
+        for j in range(ncyc):
+            if j == k:
+                continue
+            cj = L[f"c{j}_cycle"]
+            others.append(f"{len(cj)}-cycle at {vals[cj].min():.4g}: {len(L[f'c{j}_nodes'])} values, "
+                          f"{100 * L['basin_measure'][j]:.2f}% of seeds")
+        fig.text(0.97, 0.05, "the other basins of " + name + ":\n" + "\n".join(others), family=MONO, fontsize=11,
+                 color=ink, va="center", ha="right")
+        fig.text(0.97, 0.012, STACK, family=MONO, fontsize=9, color=ink, ha="right")
+    return fig
+
+
+def hero(fmt, k, style):
+    if style == "riso":
+        A = fig_cov(hero_plate(fmt, k, style, "A"))
+        B = fig_cov(hero_plate(fmt, k, style, "B"))
+        B = np.roll(np.roll(B, 6, 0), -5, 1)
+        paper = np.array(matplotlib.colors.to_rgb(BG["riso"]))
+        out = np.ones(A.shape + (3,)) * paper
+        for cov, col in ((A * 0.9, "#ff4f8b"), (B * 0.95, "#1f5fbf")):
+            c = np.array(matplotlib.colors.to_rgb(col))
+            out *= 1 - cov[..., None] * (1 - c)
+        from PIL import Image
+        p = GALLERY / f"hero_{fmt}_c{k}_riso.png"
+        Image.fromarray((np.clip(out, 0, 1) * 255).astype(np.uint8)).save(p, optimize=True)
+    else:
+        fig = hero_plate(fmt, k, style)
+        p = GALLERY / f"hero_{fmt}_c{k}_{style}.png"
+        fig.savefig(p, facecolor=fig.get_facecolor())
+        plt.close(fig)
+    print("wrote", p)
+
+
 def number_line(fmt, style="plotter"):
     """Every representable x in [0,1]: a vertical line of height = steps to its cycle, coloured by basin.
     Top: linear x. Bottom: log2 x (the tiny values that dominate the count)."""
@@ -166,9 +226,8 @@ def number_line(fmt, style="plotter"):
     bg, ink = BG[style if style != "rivers" else "rivers"], INK[style if style != "rivers" else "rivers"]
     fig = plt.figure(figsize=(26, 13), dpi=300, facecolor=bg)
     ncyc = int(basin.max()) + 1
-    for row, (xs, lab, rng_) in enumerate([(vals, "x (linear)", (0, 1)),
-                                           (np.log2(np.maximum(vals, vals[vals > 0].min() / 2)), "log2 x", None)]):
-        ax = fig.add_axes([0.05, 0.53 - row * 0.45, 0.93, 0.36])
+    for row, (xs, lab, rng_) in enumerate([(np.log2(np.maximum(vals, vals[vals > 0].min() / 2)), "log2 x  (x = 0 drawn at the left edge)", None)]):
+        ax = fig.add_axes([0.05, 0.1, 0.93, 0.76])
         ax.set_facecolor(bg)
         for b in range(ncyc):
             s = basin == b
@@ -204,6 +263,11 @@ def number_line(fmt, style="plotter"):
 
 if __name__ == "__main__":
     what = sys.argv[1] if len(sys.argv) > 1 else "graph"
+    if what == "hero":
+        # python render_graph.py hero float16 1 rivers plotter riso
+        for s_ in sys.argv[4:] or ["rivers", "plotter", "riso"]:
+            hero(sys.argv[2], int(sys.argv[3]), s_)
+        sys.exit(0)
     args = sys.argv[2:]
     styles = [a for a in args if a in ("rivers", "plotter", "riso")] or ["rivers", "plotter", "riso"]
     fmts = [a for a in args if a not in styles] or ["float16", "bfloat16"]
