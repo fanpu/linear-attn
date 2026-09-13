@@ -5,12 +5,8 @@
 **No project has a `gallery/` or `README.md` yet.** What exists is compute code (often tested), paper reads, and a few toy runs.
 
 **Update:** resumed with at most 5 agents at a time; the other agents keep their context and continue where they stopped.
-- **Done:** attention-textile, gd-bifurcation, depth-roughness, grokking, game-chaos, color-research, outcome-basins, signal-propagation, ouroboros; hardware: dither, posterize, float-ruler, precision-divergence, block-quant.
-- **Running agents:** diffusion-basins (CPU toy first).
-- **Waiting on compute before successor (check NOTES.md in each):** trainability-fractal (GPU jobs ~21:15), neural-collapse (training), edge-of-stability (main4), hessian-spectrum (C10 + film), scaling-dimension (ts sweep), weight-spectrum (bs16_s1 CPU ~16:15), mode-connectivity (planes + fmnist).
-- **Queued compute without agent:** loss-landscape (4 ResNet trainings via gpu_run, 40 epochs; see its NOTES.md).
-- **Not started:** decode-map (needs sampler speedup + GPU; start when slots free).
-- GPU is the bottleneck (8/8 slots, ~10 queued). Handoff rule: ~50 tool calls or ~120k context.
+- **ALL PROJECTS COMPLETE.** art (19): attention-textile, color-research, decode-map, depth-roughness, diffusion-basins, edge-of-stability, game-chaos, gd-bifurcation, grokking, hessian-spectrum, loss-landscape, mode-connectivity, neural-collapse, ouroboros, outcome-basins, scaling-dimension, signal-propagation, trainability-fractal, weight-spectrum. hardware Part I (5): block-quant, dither, float-ruler, posterize, precision-divergence.
+- Gallery index: `art/README.md`. Not done: hardware Part II (§6–§12: timing/sensor pieces need an idle GPU or physical sensors).
 
 ## Shared setup (done, reusable)
 
