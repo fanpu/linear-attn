@@ -1,24 +1,28 @@
 # weight-spectrum NOTES (living handoff)
 
-## State (2026-09-13 ~14:40, agent 1 handed off at context budget)
-- GPU saturated -> all training on CPU, single-threaded processes (1 thread is FASTER than 6 under load ~35).
-- Model: MLP 784-1024-1024-1024-10 ReLU, Glorot normal, FashionMNIST (global mean/std norm), SGD lr .01 mom .9, no wd, 30 epochs.
-- `train.py` additions: `--device cpu --threads`, `--n_lin` (extra linearly spaced ckpts), shuffled-entries null ESD
-  (`<layer>/lam_shuf`), fine loss trace. `cache/<run>.npz` is written only at the END of a run; full W in `cache/<run>_W/`.
+## State (2026-09-13 ~16:30, agent 2): ESSENTIALLY COMPLETE
+- ALL training runs finished (bs8..1024 seed 0; bs16..1024 seed 1; main art run mlp_bs16_s1). No background processes left.
+  (The `train.py --depth 56` processes visible in ps belong to another agent.)
+- All CPU; GPU time 0. Total CPU wall ~20,000 s.
+- Final pieces rendered from mlp_bs16_s1 FC1 (38 files in gallery/), README.md fully written (hero, gallery, table, verification, caveats, refs).
+- Model: MLP 784-1024-1024-1024-10 ReLU, Glorot normal, FashionMNIST, SGD lr .01 mom .9, no wd, 30 epochs.
 
-### Runs (logs/*.log; all nohup, safe to leave running; check `tail -qn1 logs/*.log`)
-| run | status | notes |
-|---|---|---|
-| mlp_bs32/64/128/256_s0 | done | 60 log ckpts, 6 full W |
-| mlp_bs16_s0 | done (2480 s) | 120 log ckpts, 24 full W |
-| mlp_bs8_s0 | running (ETA ~16:00) | 80 log ckpts, 12 full W |
-| mlp_bs512_s0, mlp_bs1024_s0 | running (short) | from `run_series.sh` |
-| mlp_bs16_s1 | running (ETA ~16:15) | **MAIN ART RUN**: 150 linear + 50 log ckpts (197), 12 full W |
-| mlp_bs{1024,512,256,128,64,32}_s1 | queued by `run_seed1_queue.sh` (keeps <=5-6 procs) | replicates for error bars |
-- A test render `render_ridge_film.py mlp_bs32_s0 FC1 joy` was running in background (log logs/render_ridgefilm_bs32.log) — check
-  gallery/ridge_film_mlp_bs32_s0_FC1_joy.mp4/gif; re-render with the main run later.
+### Agent-2 changes
+- `render_verify.py`: batch sheet grouped by bs (dots = seeds, line = mean, hollow alpha where n_out<5); caveat scatter with Spearman
+  (rho(mean alpha, test acc) = -0.16 over 13 reliable runs, 0.00 for bs16-256; gap rho 0.45); CCDF xlim clipped.
+- `render_ridgeline.py`: style suffix `_log` (e.g. `joy_log`) forces log-spaced rows -> `..._<style>_logtime.png`. joy_logtime = HERO
+  (58 unique ckpts, cleaner than 80 linear rows). Caption now states linear/log row spacing.
+- `render_plate.py`: title glyph fix (serif font lacked U+1D40; now mathtext $W^{T}W/N$).
+- GIF re-encode (frames kept in cache/frames/ridge_mlp_bs16_s1_FC1_{joy,gold}, esd_...night):
+  `ffmpeg -framerate 30 -i cache/frames/ridge_mlp_bs16_s1_FC1_joy/%05d.png -vf "fps=10,scale=480:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=8:stats_mode=diff[p];[b][p]paletteuse=dither=none:diff_mode=rectangle"`
+  (max_colors=32 for gold). joy 8.6 MB, gold 13.7 MB. Default frames_to_video GIFs were 42 MB.
+- Bigger picture (bs8_s0): alpha FC1 1.70 but test acc .886 / train .947 (too noisy to fit); bs1024 under-trained (.860/.884), FC1 lmax at MP edge.
 
-## Key numbers so far (seed 0, final ckpt; `python render_verify.py` prints them + writes cache/metrics_table.json)
+## Optional next steps (not required)
+- seed-1 for bs8 (60 min CPU) to complete the replicate table; ink/gold ridge film styles for the ESD film (`render_esd_film.py ... ink` if the style exists).
+- After committing, frames in cache/frames can be deleted (~2k PNGs).
+
+## Key numbers (seed 0, final ckpt; full table with seeds + bs8/512/1024 in README; `python render_verify.py` prints them + writes cache/metrics_table.json)
 | bs | test acc | alpha FC1/FC2/FC3 | lmax/MP edge FC1/FC2/FC3 | eigs above null edge FC1/FC2/FC3 |
 |---|---|---|---|---|
 | 32 | .8975 | 2.26 / 2.98 / 3.57 | 6.2 / 4.7 / 3.7 | 46 / 39 / 25 |
@@ -53,16 +57,3 @@
 - `render_verify.py [main_run]` — over-training sheet, CCDF+fit, batch series, caveat scatter.
 - NB: editing these files with sed made tool noise; use the Edit tool.
 
-## Next steps
-1. When bs16_s0 / bs8_s0 / bs16_s1 finish: `render_verify.py mlp_bs16_s1`; stills for FC1 (and FC2/FC3 plates):
-   ridgeline (all 5 styles) on mlp_bs16_s1 and mlp_bs8_s0; plate magma/paper/riso/bio; riso plate 3 ink pairs; departure; garments; ipr.
-2. Films (use <=3 workers while training runs): `render_ridge_film.py mlp_bs16_s1 FC1 joy` (+gold), `render_esd_film.py mlp_bs16_s1 FC1 night` (+ink).
-   GIFs must be <15 MB (reduce gif_width/fps if not).
-3. After seed-1 replicates finish: batch sheet with mean±range over seeds (edit sheet_batch to group by bs).
-4. Review every image downscaled; iterate on ridgeline + plate (the strongest).
-5. Finish README.md (skeleton exists with __HERO__/__GALLERY__ placeholders): gallery with captions (measured vs declared),
-   what was computed + exact commands (`run_series.sh`, `run_seed1_queue.sh`, bs8/bs16_s1 commands in this file's run table:
-   `train.py --name mlp_bs16_s1 --data fmnist --widths 1024,1024,1024 --bs 16 --lr 0.01 --momentum 0.9 --epochs 30 --n_ckpt 50 --n_lin 150 --n_full 12 --k_vec 32 --seed 1 --device cpu --threads 1`;
-   bs8: same with `--bs 8 --n_ckpt 80 --n_full 12 --seed 0`, no n_lin), verification table, null-mean gotcha, caveats
-   (contested generalization, confounded batch series, alpha estimator bias with Q and n_tail, fixed lr), references. No fractal claims.
-6. Commit: `/home/fzeng/ml/research/art/_shared/commit.sh weight-spectrum "..."`. GPU time used: 0 (all CPU).
