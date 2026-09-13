@@ -112,7 +112,7 @@ def semantic():
             continue
         w = load(name)
         M = w['M']
-        for style, fn in [('magma', S.dark_magma), ('riso', lambda m: S.riso_two_ink(m, scale=2)),
+        for style, fn in [('spectral', S.spectral), ('magma', S.dark_magma), ('riso', lambda m: S.riso_two_ink(m, scale=2)),
                           ('line', lambda m: S.line_boundary(m, scale=2))]:
             img = fn(M)
             lines = [f'x centre {w["c0"]:.3f}, half-width {w["hw"]:.2f} decades;  '
@@ -127,20 +127,21 @@ def semantic():
 
 
 # --------------------------------------------------------------------------- steps
-def steps(name, fps=12):
+def steps(name, fps=12, style='spectral'):
+    colf = {'spectral': S.spectral, 'magma': S.dark_magma}[style]
     w = load(name)
     MT = w['measure_T'].astype(np.float64)
     cps = w['checkpoints']
     # normalise by T so frames are comparable: mean v (converged) / mean 1/v (diverged)
     MTn = MT / cps[:, None, None]
     ref = MTn[-1]
-    frames_dir = f'cache/frames_{name}'
+    frames_dir = f'cache/frames_{name}_{style}'
     os.makedirs(frames_dir, exist_ok=True)
     N = 1080
     idx = 0
     E_prev = None
     for i, T in enumerate(cps):
-        img = S.dark_magma(MTn[i], ref)
+        img = colf(MTn[i], ref)
         im = Image.fromarray(img).resize((N, N), Image.NEAREST)
         canvas = Image.new('RGB', (N, N + 120), (14, 12, 16))
         canvas.paste(im, (0, 0))
@@ -152,10 +153,10 @@ def steps(name, fps=12):
         hold = 3 if i < len(cps) - 1 else 36
         for _ in range(hold):
             canvas.save(f'{frames_dir}/f_{idx:05d}.png'); idx += 1
-    mp4 = f'gallery/steps_{name}.mp4'
+    mp4 = f'gallery/steps_{name}_{style}.mp4'
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-framerate', str(fps), '-i', f'{frames_dir}/f_%05d.png',
                     '-vf', 'pad=ceil(iw/2)*2:ceil(ih/2)*2', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '16', mp4], check=True)
-    gif = f'gallery/steps_{name}.gif'
+    gif = f'gallery/steps_{name}_{style}.gif'
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', mp4, '-vf',
                     'fps=8,scale=540:-1:flags=neighbor,split[a][b];[a]palettegen=max_colors=160[p];[b][p]paletteuse=dither=none',
                     gif], check=True)
@@ -168,9 +169,9 @@ def steps(name, fps=12):
     for j, s in enumerate(sel[:10]):
         r, c = divmod(j, 5)
         x = pad + c * (T + pad); y = pad + r * (T + pad + 50)
-        sheet.paste(Image.fromarray(S.dark_magma(MTn[s], ref)).resize((T, T), Image.NEAREST), (x, y))
+        sheet.paste(Image.fromarray(colf(MTn[s], ref)).resize((T, T), Image.NEAREST), (x, y))
         dd.text((x, y + T + 8), f'T = {cps[s]}', font=font(MONO, 28), fill=(220, 210, 200))
-    sheet.save(f'gallery/steps_{name}_multiples.png')
+    sheet.save(f'gallery/steps_{name}_{style}_multiples.png')
     print('steps', mp4, os.path.getsize(mp4) / 1e6, 'MB', gif, os.path.getsize(gif) / 1e6, 'MB')
 
 
@@ -199,7 +200,7 @@ if __name__ == '__main__':
     elif cmd == 'semantic':
         semantic()
     elif cmd == 'steps':
-        steps(sys.argv[2])
+        steps(sys.argv[2], style=sys.argv[3] if len(sys.argv) > 3 else 'spectral')
     elif cmd == 'styles':
         styles_set(sys.argv[2], sys.argv[3])
 

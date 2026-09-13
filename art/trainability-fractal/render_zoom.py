@@ -62,7 +62,17 @@ def colour(M, ref=None):
         return S.dark_magma(M, ref)
     if args.style == 'fireice':
         return S.dark_fire_ice(M)
-    raise ValueError
+    if args.style == 'riso':
+        return S.riso_two_ink(M, scale=4, period=4.0, misreg=(2, -1))
+    if args.style == 'line':
+        return S.line_boundary(M, scale=4, weight=1.0)
+    if args.style == 'relief':
+        return S.hillshade(M)
+    # boundary-split pairings from color-research/palettes.py (declared aesthetic variants)
+    import sys
+    sys.path.insert(0, '/home/fzeng/ml/research/art/color-research')
+    import palettes as P
+    return (np.clip(P.render_split(M, args.style, near_boundary='large')[::-1], 0, 1) * 255 + 0.5).astype(np.uint8)
 
 
 # ------------------------------------------------------------------ plates
@@ -107,7 +117,7 @@ if args.plates:
     T = 384; pad = 24; top = 90
     sheet = Image.new('RGB', (cols * (T + pad) + pad, rows * (T + pad + 40) + pad + top), (244, 240, 230))
     dd = ImageDraw.Draw(sheet)
-    dd.text((pad, 30), f'Trainability boundary, zoom sequence "{args.tag}": one plate per half-decade',
+    dd.text((pad, 30), f'Trainability boundary, zoom sequence "{args.tag}": one plate per keyframe',
             font=font(SERIF_B, 40), fill=(28, 26, 30))
     for i, t in enumerate(thumbs):
         r, c = divmod(i, cols)
