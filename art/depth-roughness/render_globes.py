@@ -39,6 +39,11 @@ def shade_style(f, mask, Z, c, style, ss, levels=None):
         ln = lines(c)
         rgb = mix(rgb, np.array([1.0, 0.84, 0.52]), np.clip(ln * 1.5, 0, 0.8) * (0.4 + 0.6 * np.clip(Zd, 0, 1)))
         return rgb
+    if style == "spectral":
+        fd = downsample(np.where(mask, f, c), ss)
+        rgb = spectral_split(fd, c, mask=md > 0.999, mode="seam")
+        rgb = mix(np.array([0.08, 0.08, 0.1]), rgb, md)
+        return rgb
     if style == "gold":
         # flat lighting: the field is a quiet dark relief, the level set (gold) is the dominant mark
         fd = downsample(np.where(mask, f, np.nan).astype(np.float32), ss)

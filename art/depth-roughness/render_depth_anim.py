@@ -56,21 +56,20 @@ for i, (L, tau) in enumerate(schedule):
     panels = cache[key]
     img = to_img(np.ones((1080, 1920, 3)) * bg)
     dr = ImageDraw.Draw(img)
-    x0s = [60, 1920 - 60 - P]
-    for x0, pn, a in zip(x0s, panels, ["Heaviside", "ReLU"]):
-        img.paste(to_img(pn), (x0, 60))
-        dr.text((x0, 60 + P + 22), a, font=font(40), fill=fg)
-    Ls = f"L = {L}" if tau == 0 else f"L = {L} → {L+1}"
-    dr.text((960 - 70, 80), "depth", font=font(30, "italic"), fill=dim)
-    dr.text((960 - 70, 118), Ls if tau == 0 else f"{L}→{L+1}", font=font(54), fill=fg)
+    img.paste(to_img(panels[0]), (40, 30)); img.paste(to_img(panels[1]), (1000, 30))
+    dr.text((40, 925), "Heaviside", font=font(40), fill=fg)
+    dr.text((1000, 925), "ReLU", font=font(40), fill=fg)
     if tau == 0:
         k = f"heaviside_L{L}"
-        s, cnt = np.array(bc[k]["sizes"]), np.array(bc[k]["counts"])
-        D = fit_dim(s, cnt, 4, 64)[0]
+        D = fit_dim(np.array(bc[k]["sizes"]), np.array(bc[k]["counts"]), 4, 64)[0]
         ce = cal[f"tile_H{2.0**-L:.5f}"]["D_meas"]
-        tx = [f"dimH  {2-2.0**-L:.3f}", f"box D {D:.2f}", f"(exp. {ce:.2f})"]
-        dr.text((60 + 300, 60 + P + 28), "   ".join(tx), font=font(30, "mono"), fill=fg)
-        dr.text((x0s[1] + 200, 60 + P + 28), "dimH 1   E len x1.00", font=font(30, "mono"), fill=fg)
+        dr.text((40 + P, 937), f"dimH {2-2.0**-L:.3f}   box D {D:.2f} (exp. {ce:.2f})", font=font(27, "mono"), fill=fg, anchor="ra")
+        dr.text((1000 + P, 937), "dimH 1   E len x1.00", font=font(27, "mono"), fill=fg, anchor="ra")
+        lab = f"depth  L = {L}"
+    else:
+        lab = f"depth  L = {L} → {L+1}"
+    dr.text((960, 1030), lab, font=font(46), fill=fg if tau == 0 else dim, anchor="ms")
+    dr.text((40, 1030), "same random draw, infinite width, 82° patch of S²", font=font(24, "italic"), fill=dim, anchor="ls")
     img.save(path)
     if i % 50 == 0:
         print(i, len(schedule), flush=True)

@@ -39,6 +39,10 @@ if style == "topo":
         cov = np.maximum(cov, lines(q, 3 if i == 4 else 1) * (1.0 if i == 4 else 0.8))
     rgb = mix(PAPER, np.array([0.42, 0.2, 0.09]), np.clip(np.maximum(cov * 1.8, edge), 0, 1))
     rgb *= grain((Hp, Wp), 9, 0.01)[..., None]
+elif style.startswith("spectral"):
+    fd = downsample(f, SS)
+    rgb = spectral_split(fd, c, mask=md > 0.999, mode="seam" if style == "spectral" else "colab")
+    rgb = mix(np.array([0.08, 0.08, 0.1]), rgb, md)
 else:
     fd = downsample(f.astype(np.float32), SS)
     lo, hi = np.percentile(vals[::7], [1, 99])

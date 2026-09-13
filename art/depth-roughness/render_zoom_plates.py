@@ -10,16 +10,16 @@ kernel, seed, style = sys.argv[1], sys.argv[2], sys.argv[3]
 d = np.load(f"cache/multiscale_{kernel}_s{seed}.npz")
 u = float(d["u"]); js = list(d["j"]); Fs = d["F"]
 L = int(kernel.split("_L")[1])
-PL, GAP, COLS = (768 if style == "dark" else 1024), 70, 4
+PL, GAP, COLS = (768 if style in ("dark", "spectral") else 1024), 70, 4
 FS = PL / 1024
 rows = (len(js) + COLS - 1) // COLS
 W = COLS * PL + (COLS + 1) * GAP
 TOP = 400
 H = TOP + rows * (PL + 130) + 215
-bg = DARK if style == "dark" else PAPER
-fg = (226, 222, 212) if style == "dark" else (27, 27, 34)
-dimc = (150, 146, 138) if style == "dark" else (115, 110, 100)
-img = to_img(np.ones((H, W, 3)) * bg * (1 if style == "dark" else grain((H, W), 3, 0.01)[..., None]))
+bg = DARK if style in ("dark", "spectral") else PAPER
+fg = (226, 222, 212) if style in ("dark", "spectral") else (27, 27, 34)
+dimc = (150, 146, 138) if style in ("dark", "spectral") else (115, 110, 100)
+img = to_img(np.ones((H, W, 3)) * bg * (1 if style in ("dark", "spectral") else grain((H, W), 3, 0.01)[..., None]))
 dr = ImageDraw.Draw(img)
 dr.text((GAP, 60), f"Twelve windows into one coastline", font=font(84), fill=fg)
 dr.text((GAP, 170), f"Heaviside network, infinite width, depth L = {L} (dimH = {2-2.0**-L:.4g}). Each window is 1/4 the side of the last;"
@@ -41,6 +41,8 @@ for i, j in enumerate(js):
         t = np.clip(0.5 + 0.5 * (g - u) / sd, 0, 1)            # diverging about the level, per-plate stretch
         rgb = cmc.berlin(t)[..., :3]
         rgb = mix(rgb, np.array([1.0, 0.95, 0.85]), np.clip(ink_coverage(f, u, 2) * 1.5, 0, 0.9))
+    elif style == "spectral":
+        rgb = spectral_split(downsample(f, 2), u, mode="seam")   # per-window rank normalisation
     elif style == "riso":
         up = downsample((f > u).astype(np.float32), 2)
         ln = ink_coverage(f, u, 2, weight=2)
@@ -51,7 +53,7 @@ for i, j in enumerate(js):
     di = ImageDraw.Draw(im)
     if i < len(js) - 1:
         a = PL * 3 // 8
-        di.rectangle([a, a, PL - a - 1, PL - a - 1], outline=(200, 40, 40) if style != "dark" else (255, 200, 120), width=3)
+        di.rectangle([a, a, PL - a - 1, PL - a - 1], outline=(200, 40, 40) if style not in ("dark", "spectral") else (255, 255, 255), width=3)
     img.paste(im, (x, y))
     s, cnt = d["sizes"], d["counts"][i]
     D = fit_dim(s, cnt, 8, 64)[0]

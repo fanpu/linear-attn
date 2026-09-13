@@ -186,7 +186,7 @@ At the same physical box size, the RBF null gives identical counts at 2048² (l 
 
 <img src="gallery/verify_width_cutoff.png" width="95%">
 
-Local box-counting slopes of finite depth-2 Heaviside networks (n = 256 … 16,384), from nested windows around a boundary point found by bisection to 10⁻¹⁵. Every finite width falls to slope 1 (piecewise-flat arcs) while the GP limit stays rough across 7 decades. Plotted against ε·n, the curves collapse. The slope crosses 1.3 at **ε·n = 3.6, 3.2, 4.0, 5.1** for n = 256, 1024, 4096, 16384. That is a 64× range of widths with the crossover constant to within a factor 1.6, so **the roughness cutoff is ε* ≈ 4/n rad**. Depth-1 networks show the same collapse, more noisily: the slope falls below 1.2 at ε·n between 2.4 and 13 for n = 256 … 16,384.
+Local box-counting slopes of finite depth-2 Heaviside networks (n = 256 … 65,536), from nested windows around a boundary point found by bisection to 10⁻¹⁵. Every finite width falls to slope 1 (piecewise-flat arcs) while the GP limit stays rough across 7 decades. Plotted against ε·n, the curves collapse. The slope crosses 1.3 at **ε·n = 3.6, 3.2, 4.0, 5.1, 3.9** for n = 256, 1024, 4096, 16384, 65536. That is a 256× range of widths with the crossover constant to within a factor 1.6, so **the roughness cutoff is ε* ≈ 4/n rad**. Depth-1 networks show the same collapse, more noisily: the slope falls below 1.2 at ε·n between 2.4 and 13 for n = 256 … 16,384.
 
 ### 4.5 Kac–Rice branch (the smooth side of the theorem)
 

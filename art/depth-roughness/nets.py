@@ -34,6 +34,8 @@ class HeavisideNet:
     def _cols(self, layer, idx):
         """W_layer[:, idx] as float32 [n, len(idx)]."""
         idx = torch.as_tensor(idx, device=self.dev)
+        if self.n <= 16384:
+            return self._full(layer)[:, idx]
         out = torch.empty(self.n, len(idx), device=self.dev, dtype=torch.float32)
         blocks = torch.unique(idx // BLOCK)
         for b in blocks.tolist():
@@ -43,6 +45,8 @@ class HeavisideNet:
 
     def _matvec_all(self, layer, a):
         """W_layer @ a for a single float vector a [n]."""
+        if self.n <= 16384:
+            return self._full(layer).double() @ a.double()
         out = torch.zeros(self.n, device=self.dev, dtype=torch.float64)
         for b in range((self.n + BLOCK - 1) // BLOCK):
             blk = self._block(layer, b)
@@ -53,6 +57,32 @@ class HeavisideNet:
         if layer not in self._deep:
             self._deep[layer] = torch.cat([self._block(layer, b) for b in range((self.n + BLOCK - 1) // BLOCK)], 1)
         return self._deep[layer]
+
+    @torch.no_grad()
+    def _call_dedupe(self, X, base, J, chunk=200000):
+        """Depth 2, exact: pixels sharing a layer-1 cell share the output; evaluate once per cell."""
+        W0J = self.W0[J]
+        k = len(J)
+        nw = (k + 62) // 63
+        wts = (2 ** torch.arange(63, device=self.dev, dtype=torch.int64))
+        keys = torch.empty(X.shape[0], nw, dtype=torch.int64, device=self.dev)
+        for i in range(0, X.shape[0], chunk):
+            bits = ((X[i:i + chunk] @ W0J.T) >= 0)
+            pad = torch.zeros(bits.shape[0], nw * 63 - k, dtype=torch.bool, device=self.dev)
+            bb = torch.cat([bits, pad], 1).view(bits.shape[0], nw, 63).long()
+            keys[i:i + chunk] = (bb * wts).sum(-1)
+        uniq, inv = torch.unique(keys, dim=0, return_inverse=True)
+        # recover the bits of each unique cell
+        ub = ((uniq[:, :, None] >> torch.arange(63, device=self.dev)) & 1).view(uniq.shape[0], nw * 63)[:, :k].float()
+        h2base = (self._matvec_all(1, base.float()) * self.scale)
+        WJ = self._cols(1, J).double()
+        d = ub.double() - base[J].double()
+        out = torch.empty(uniq.shape[0], dtype=torch.float64, device=self.dev)
+        cs = max(1, int(1.5e8) // (self.n + k))
+        for i in range(0, uniq.shape[0], cs):
+            h = h2base[None] + self.scale * (d[i:i + cs] @ WJ.T)
+            out[i:i + cs] = (h >= 0).double() @ self.v
+        return out[inv] * self.scale
 
     @torch.no_grad()
     def __call__(self, V, chunk_elems=int(1.5e8)):
@@ -68,9 +98,18 @@ class HeavisideNet:
             return (T * self.scale).cpu().numpy().reshape(shp)
         base = (X[0] @ self.W0.T) >= 0
         vary = torch.zeros(n, dtype=torch.bool, device=self.dev)
-        for i in range(0, M, cs):
-            vary |= (((X[i:i + cs] @ self.W0.T) >= 0) != base).any(0)
+        if V.ndim == 3 and self.L == 2:
+            # a great circle meets a small connected window iff its sign changes along the window's border
+            Hh, Ww = V.shape[:2]
+            B = np.concatenate([V[0], V[-1], V[:, 0], V[:, -1]])
+            Bt = torch.as_tensor(B, dtype=torch.float64, device=self.dev)
+            vary = (((Bt @ self.W0.T) >= 0) != base).any(0)
+        else:
+            for i in range(0, M, cs):
+                vary |= (((X[i:i + cs] @ self.W0.T) >= 0) != base).any(0)
         J = torch.nonzero(vary).flatten()
+        if self.L == 2 and 0 < len(J) <= 4096:
+            return self._call_dedupe(X, base, J).cpu().numpy().reshape(shp)
         h2base = (self._matvec_all(1, base.float()) * self.scale).float()
         WJ = self._cols(1, J) if len(J) else None
         W0J = self.W0[J]

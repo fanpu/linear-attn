@@ -89,3 +89,33 @@ def write_video(frames_dir, out_mp4, fps=30, gif=None, gif_width=540, gif_fps=15
                         vf + ",palettegen=max_colors=128:stats_mode=diff", pal], check=True)
         subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", out_mp4, "-i", pal, "-lavfi",
                         vf + " [x]; [x][1:v] paletteuse=dither=sierra2_4a", gif], check=True)
+
+
+def spectral_split(f, level, mask=None, mode="seam", buffer=0.25):
+    """Sohl-Dickstein 'Spectral' split colouring of a signed quantity f - level (declared aesthetic).
+    Each side is rank (CDF) normalised separately.
+    mode 'seam'  (user-requested): dark ends meet at the level set. f<level: pale yellow (far) ->
+                 green -> blue -> purple #5e4fa2 (at the boundary); f>level: pale yellow (far) ->
+                 orange -> deep red #9e0142 (at the boundary).
+    mode 'colab' (exactly cdf_img in github.com/Sohl-Dickstein/fractal, readout='loss'): negatives by
+                 rank to [-1,-buffer], non-negatives to [buffer,1], y = -v, Spectral on [-1,1]; dark
+                 ends at the extremes, pastel jump at the boundary."""
+    import matplotlib
+    cmap = matplotlib.colormaps["Spectral"]
+    x = np.asarray(f, dtype=np.float64) - level
+    sel = np.ones(x.shape, bool) if mask is None else mask
+    vals = x[sel]
+    lo = np.sort(vals[vals < 0]); hi = np.sort(vals[vals >= 0])
+    t = np.full(x.shape, 0.5)
+    neg = sel & (x < 0); pos = sel & (x >= 0)
+    q_lo = np.searchsorted(lo, x[neg], side="right") / max(len(lo), 1)     # 0 far below -> 1 at boundary
+    q_hi = np.searchsorted(hi, x[pos], side="left") / max(len(hi), 1)      # 0 at boundary -> 1 far above
+    if mode == "seam":
+        t[neg] = 0.5 + 0.5 * q_lo
+        t[pos] = 0.5 * q_hi
+    else:
+        v_neg = -1 + (1 - buffer) * q_lo           # -1 far below ... -buffer at boundary
+        v_pos = buffer + (1 - buffer) * q_hi       # buffer at boundary ... 1 far above
+        t[neg] = (1 - v_neg) / 2                   # y = -v, then [-1,1] -> [0,1]
+        t[pos] = (1 - v_pos) / 2
+    return cmap(t)[..., :3]
