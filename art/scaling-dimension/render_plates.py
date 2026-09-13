@@ -212,6 +212,10 @@ def agree(style):
             col = STYLES["riso"]["ink"] if riso else dcolor(style, d, dims)
             y = F["four_over_alpha"]; ylo, yhi = 4 / F["alpha_ci"][1], 4 / F["alpha_ci"][0]
             ax.plot([idd, idd], [ylo, yhi], color=col, lw=1.0, zorder=3)
+            Lm = np.log(np.array(F["L"])[order]); lx = np.log(Ns)      # fit-range sensitivity (faint wide bar)
+            r_lo = 4 / -np.polyfit(lx[:6], Lm[:6], 1)[0]; r_hi = 4 / -np.polyfit(lx[4:], Lm[4:], 1)[0]
+            ax.plot([idd * (1.012 if f == "relub" else 0.988)] * 2, [r_lo, r_hi], color=col, lw=5, alpha=0.18, zorder=2,
+                    solid_capstyle="butt")
             ax.plot([imin, imax], [y, y], color=col, lw=1.0, zorder=3)
             mk = marks[f]
             ax.scatter([idd], [y], s=60, marker=mk["marker"], facecolor=col if mk["filled"] else S["bg"],
@@ -239,7 +243,8 @@ def agree(style):
              fontsize=10.5, color=S["text"])
     ax.text(0.97, 0.03, "●  teacher/student, zero-bias ReLU teacher        □  teacher with biases\n"
              "★  CNN on real images (final hidden layer ID)   ◇  pixel-space ID of the same data\n"
-             "bars: 90% bootstrap CI on α (vertical); ID spread over widths & seeds (horizontal)",
+             "thin bars: 90% bootstrap CI on α over seeds (vertical), ID spread over widths & seeds (horizontal)\n"
+             "faint wide bars: 4/α refit on the small-N half vs the large-N half of the sweep",
              fontsize=8.5, ha="right", va="bottom", color=S["text"], family="DejaVu Sans", transform=ax.transAxes,
              bbox=dict(facecolor=S["bg"], edgecolor=S["grid_major"], pad=6))
     return save(fig, f"{a.out}/agree_{style}.png", riso=riso)
