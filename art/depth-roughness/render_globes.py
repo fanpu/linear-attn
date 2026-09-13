@@ -39,6 +39,16 @@ def shade_style(f, mask, Z, c, style, ss, levels=None):
         ln = lines(c)
         rgb = mix(rgb, np.array([1.0, 0.84, 0.52]), np.clip(ln * 1.5, 0, 0.8) * (0.4 + 0.6 * np.clip(Zd, 0, 1)))
         return rgb
+    if style == "gold":
+        # flat lighting: the field is a quiet dark relief, the level set (gold) is the dominant mark
+        fd = downsample(np.where(mask, f, np.nan).astype(np.float32), ss)
+        lo, hi = np.nanpercentile(fd, [1, 99])
+        t = np.clip((np.nan_to_num(fd, nan=lo) - lo) / (hi - lo), 0, 1)
+        rgb = cmc.oslo(0.08 + 0.32 * t)[..., :3]
+        rgb = mix(DARK, rgb, md)
+        rgb = mix(rgb, np.array([0.55, 0.55, 0.6]), rim * 0.6)
+        ln = lines(c)
+        return mix(rgb, np.array([1.0, 0.80, 0.38]), np.clip(ln * 2.2, 0, 1))
     if style == "riso":
         up = downsample(((ff > c) & mask).astype(np.float32), ss)
         up = np.pad(up, ((2, 0), (0, 3)), mode="edge")[:-2, 3:]     # declared misregistration

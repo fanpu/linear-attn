@@ -10,10 +10,11 @@ kernel, seed, style = sys.argv[1], sys.argv[2], sys.argv[3]
 d = np.load(f"cache/multiscale_{kernel}_s{seed}.npz")
 u = float(d["u"]); js = list(d["j"]); Fs = d["F"]
 L = int(kernel.split("_L")[1])
-PL, GAP, COLS = 1024, 70, 4
+PL, GAP, COLS = (768 if style == "dark" else 1024), 70, 4
+FS = PL / 1024
 rows = (len(js) + COLS - 1) // COLS
 W = COLS * PL + (COLS + 1) * GAP
-TOP = 330
+TOP = 400
 H = TOP + rows * (PL + 130) + 215
 bg = DARK if style == "dark" else PAPER
 fg = (226, 222, 212) if style == "dark" else (27, 27, 34)
@@ -25,6 +26,9 @@ dr.text((GAP, 170), f"Heaviside network, infinite width, depth L = {L} (dimH = {
         f" the square marks the next.", font=font(36, "italic"), fill=dimc)
 dr.text((GAP, 220), f"From {Fs[0]:.3g} rad to {Fs[-1]:.2g} rad across: 6.6 decades. Level u = {u:.4f}, fixed for every window.",
         font=font(36, "italic"), fill=dimc)
+dr.multiline_text((GAP, 280), "One fixed realisation: each deeper window adds the next octave of the same random field, sampled once and shared by all windows and the video;\n"
+        "those fine octaves exist only near the zoom path (the whole sphere at 1e-7 rad was never computed). Per-window D varies with how much coastline a window holds.",
+        font=font(30), fill=dimc, spacing=8)
 for i, j in enumerate(js):
     f = d[f"f{j}"].astype(np.float64)
     x = GAP + (i % COLS) * (PL + GAP); y = TOP + (i // COLS) * (PL + 130)
@@ -42,6 +46,8 @@ for i, j in enumerate(js):
         ln = ink_coverage(f, u, 2, weight=2)
         rgb = multiply_ink(PAPER, [(RISO_TEAL, 0.75 * up), (RISO_PINK, 0.95 * np.clip(ln * 1.3, 0, 1))])
     im = to_img(rgb)
+    if im.size[0] != PL:
+        im = im.resize((PL, PL), Image.LANCZOS)
     di = ImageDraw.Draw(im)
     if i < len(js) - 1:
         a = PL * 3 // 8
@@ -49,8 +55,8 @@ for i, j in enumerate(js):
     img.paste(im, (x, y))
     s, cnt = d["sizes"], d["counts"][i]
     D = fit_dim(s, cnt, 8, 64)[0]
-    dr.text((x, y + PL + 16), f"{chr(65+i)}   {Fs[i]:.2e} rad   x{4**i:,}", font=font(34, "mono"), fill=fg)
-    dr.text((x, y + PL + 60), f"box D {D:.2f} (8-64 px)   fraction above u {d['frac'][i]:.2f}", font=font(26, "mono"), fill=dimc)
+    dr.text((x, y + PL + 16), f"{chr(65+i)}   {Fs[i]:.2e} rad   x{4**i:,}", font=font(int(34*FS**0.5), "mono"), fill=fg)
+    dr.text((x, y + PL + 60), f"box D {D:.2f} (8-64 px)   above u {d['frac'][i]:.2f}", font=font(int(26*FS**0.5), "mono"), fill=dimc)
 dr.multiline_text((GAP, H - 190),
     "Windows A-B: exact spherical-harmonic sample (l <= 8192) on the sphere (A resolves to 1/1020 of its side, the rest to 1/256). From C on, flat-sky Gaussian bands\n"
     "(l up to 8192*4^10) are added, one per window, from the flat-sky limit of the same kernel spectrum.\n"
