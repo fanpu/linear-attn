@@ -1,0 +1,7 @@
+cache/*.npz
+cache/*.pdf
+cache/*.txt
+cache/zoom/
+cache/atlas/
+__pycache__/
+logs/
