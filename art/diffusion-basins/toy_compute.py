@@ -469,6 +469,51 @@ def task_verify():
     json.dump(out, open(f"{CACHE}/verify_toy.json", "w"), indent=1)
 
 
+# ----------------------------------------------------------------------------- DDPM: which noise decides?
+def ddpm_noise_slice(layout="scatter12", n_steps=1000, R=512, hw=math.pi / 2, seed=11, z_seed=3):
+    """DDPM ancestral sampling from ONE fixed start z; the plane is a norm-preserving great-sphere slice
+    (exp-map coords, radius sqrt(2 n)) through the 2n-dim space of injected noise sequences."""
+    from common import alpha_bar, orthonormal_triple
+    g = GMM(layout, DEV)
+    eps = analytic_eps_fn(g)
+    dim = 2 * n_steps
+    e0, u, v = orthonormal_triple(dim, seed, DEV, F64)
+    e0, u, v = (w.reshape(n_steps, 2) for w in (e0, u, v))
+    P = grid(0, 0, hw, R)
+    rho = P.norm(dim=1)
+    ca, sa = torch.cos(rho), torch.where(rho > 0, torch.sin(rho) / rho.clamp(min=1e-300), torch.ones_like(rho))
+    rad = math.sqrt(dim)
+    z = torch.randn(1, 2, generator=torch.Generator().manual_seed(z_seed), dtype=F64).to(DEV).expand(len(P), 2)
+    ts = np.linspace(1.0, 0.0, n_steps + 1)
+    x = z.clone()
+    for i in range(n_steps):
+        ab, abn = alpha_bar(float(ts[i])), alpha_bar(float(ts[i + 1]))
+        a = ab / abn; beta = 1 - a
+        e = eps(x / math.sqrt(ab), math.sqrt((1 - ab) / ab))
+        mean = (x - beta / math.sqrt(1 - ab) * e) / math.sqrt(a)
+        if i < n_steps - 1:
+            nz = rad * (ca[:, None] * e0[i] + sa[:, None] * (P[:, :1] * u[i] + P[:, 1:] * v[i]))
+            x = mean + math.sqrt((1 - abn) / (1 - ab) * beta) * nz
+        else:
+            x = mean
+    return g.label(x).reshape(R, R).cpu().numpy().astype(np.uint8), x.reshape(R, R, 2).cpu().numpy().astype(np.float32)
+
+
+def task_ddpm():
+    t0 = time.time()
+    out = {}
+    for n in [10, 30, 100, 1000]:
+        lab, x0 = basin_map("scatter12", "analytic", f"ddpm{n}s0", R=1024)
+        out[f"z_ddpm{n}_lab"], out[f"z_ddpm{n}_x0"] = lab, x0
+        print(f"ddpm z-plane n={n}: label hist {np.bincount(lab.ravel(), minlength=12)} {time.time()-t0:.0f}s", flush=True)
+    for n in [30, 1000]:
+        lab, x0 = ddpm_noise_slice(n_steps=n)
+        out[f"noise_ddpm{n}_lab"], out[f"noise_ddpm{n}_x0"] = lab, x0
+        sizes, counts = box_count(boundary_mask(lab))
+        print(f"ddpm noise-slice n={n}: hist {np.bincount(lab.ravel(), minlength=12)} D[2,128]={fit_dimension(sizes, counts, 2, 128)[0]:.3f} {time.time()-t0:.0f}s", flush=True)
+    np.savez_compressed(f"{CACHE}/ddpm_scatter12.npz", **out)
+
+
 if __name__ == "__main__":
     what = sys.argv[1]
     if what == "maps":
@@ -481,5 +526,7 @@ if __name__ == "__main__":
     elif what == "zoom":
         for tag in sys.argv[2:]:
             task_zoom(tag)
+    elif what == "ddpm":
+        task_ddpm()
     elif what == "verify":
         task_verify()

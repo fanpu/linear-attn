@@ -7,6 +7,17 @@
 - Running (CPU, 2 threads each, logs/): toyA = iter hero -> verify -> iter gamma; toyB = maps analytic -> steps analytic -> zoom ode_scatter12; toyC = zoom iter_ring8 iter_ring6.
 - Queued on gpu_run.sh (logs/mnist_memo.log, mnist_ddpm.log, toy_train_scatter12.log): mnist.py memo --steps 12000 --bs 64; clf+ddpm --steps 15000 --bs 128; toy.py train scatter12.
 
+### Session 2 results so far
+- box counting 2048^2 (fit 2-256 px): ODE scatter12 D=1.094+-0.015, DDIM50 1.093, DDIM10 1.087; nulls: circle 1.061, ring8 exact rays 1.070, iter gamma=1 1.070; iter ring8 g=2.12 D=1.571+-0.021 (1.47 @1-16px, 1.73 @32-512px), iter ring6 1.408; Newton z^3-1 control 1.470 (flat across windows).
+- resolution check (boundary px at 256/512/1024/2048): ODE 1157/2349/4747/9578 (x2.0 = smooth), iter_ring8 window (2.2,1.1,hw .3) 851/1728/3494/7192 (x2.03, locally smooth there!), Newton 3708/10241/27891/75877 (x2.7).
+- uncertainty exponent: DDIM50 scatter12 alpha=1.017 (D=0.98). Others: see cache/verify_toy.json when done.
+- ODE RK4 convergence: label mismatch 100 vs 400 steps 7.6e-6.
+- stretch: log10 sigma_max of ODE sampler Jacobian ranges -0.97..2.0; det<0 fraction 6e-5 (finite-diff noise) -> invertible, smooth but stretched.
+- DDPM frozen noise: z-plane map is a SINGLE label for n=10,30,100,1000 steps (x_T coefficient ~0.015 -> start noise irrelevant). New task `toy_compute.py ddpm` maps a great-sphere slice through the injected-noise sequence instead (cache/ddpm_scatter12.npz, log logs/toyD_ddpm.log). Needs a render function (not written yet).
+- iterated heroes: ring8 = nested flowers (best image); ring6 flowers only at 6-fold junctions; scatter12 nearly Voronoi + a few tongues.
+- zooms: iter_ring8 centre (2.83511,2.83511), level 32 (hw 9.3e-10) still 19.5k boundary px at 768^2; iter_ring6 centre found at the origin (6-fold junction).
+- Rendered so far: gallery/iterated/*, gallery/toy/atlas_analytic_*, hero_*, stretch_*, gallery/diptych/*. Viewed: iter ring8 confidence+spectral (strong), atlas confidence (DDPM column trivial -> replace by noise-slice), stretch fire (good), diptych spectral (good).
+
 ## Session 1 (previous handoff)
 
 Stopped on coordinator request (token budget). All background jobs were killed. The GPU slots were full for most of the session, so almost nothing heavy has run yet.
