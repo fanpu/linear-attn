@@ -5,12 +5,13 @@ Reproduces the Cohen et al. 2021 (arXiv:2103.00065) fc-tanh setup:
   3072-200-200-10 tanh MLP, PyTorch default init, MSE loss 0.5*||f(x)-onehot||^2 averaged
   over examples, constant step size eta, full batch.
 
-Every step we log:
+Every step we log (eigenpairs refreshed every --eig-every steps; in between the last
+eigenvectors are reused, i.e. per-window eigenvectors; default float32, see README):
   * top-k Hessian eigenpairs by warm-started block subspace iteration + Rayleigh-Ritz on
     Hessian-vector products (forward-over-reverse autodiff, no explicit Hessian);
   * residual norms ||H u - lambda u|| so the estimate can be audited;
   * loss, accuracy, gradient norm, gradient components along u1, u2;
-  * the oscillation coordinate x_t = <theta_t - thetabar_t, u1_t> (and y_t along u2_t),
+  * the oscillation coordinate x_t = <theta_t - thetabar_t, u1_t> (y_t, z_t along u2_t, u3_t),
     thetabar_t a centred moving average over 2*half+1 steps (ring buffer);
   * <theta_t - theta_{t-1}, u1_t>;
   * a count-sketch of theta_t - theta_0 (float64) for sliding-window trajectory PCA;
@@ -33,15 +34,17 @@ p = argparse.ArgumentParser()
 p.add_argument("--inv", type=float, required=True, help="2/eta, i.e. the stability threshold")
 p.add_argument("--n", type=int, default=5000)
 p.add_argument("--steps", type=int, default=4000)
-p.add_argument("--k", type=int, default=4, help="block size for subspace iteration")
-p.add_argument("--iters", type=int, default=2, help="subspace iterations per GD step")
+p.add_argument("--k", type=int, default=3, help="block size for subspace iteration")
+p.add_argument("--eig-every", type=int, default=1, help="refresh eigenpairs every E steps (per-window eigenvectors)")
+p.add_argument("--save-every", type=int, default=500)
+p.add_argument("--iters", type=int, default=1, help="subspace iterations per GD step")
 p.add_argument("--half", type=int, default=10, help="moving-average half window")
 p.add_argument("--sketch", type=int, default=1024)
 p.add_argument("--lanczos-every", type=int, default=250)
 p.add_argument("--lanczos-m", type=int, default=40)
 p.add_argument("--snap-every", type=int, default=50)
 p.add_argument("--ref-every", type=int, default=500)
-p.add_argument("--dtype", default="float64")
+p.add_argument("--dtype", default="float32")
 p.add_argument("--seed", type=int, default=0)
 p.add_argument("--act", default="tanh")
 p.add_argument("--out", required=True)
@@ -102,7 +105,12 @@ def hvp(th, v):
     return jvp(gonly, (th,), (v,))[1]
 
 
-hvp_batch = vmap(hvp, in_dims=(None, 0))
+def hvp_batch(th, V):
+    """Reverse-over-reverse HVPs sharing one double-backward graph (faster than vmap(jvp))."""
+    t = th.detach().requires_grad_(True)
+    g = torch.autograd.grad(loss_fn(t)[0], t, create_graph=True)[0]
+    return torch.stack([torch.autograd.grad(g, t, v, retain_graph=(i < len(V) - 1))[0]
+                        for i, v in enumerate(V)])
 
 
 def lanczos_top(th, m):
@@ -143,8 +151,9 @@ L = {
     "evals": np.zeros((T_, k)), "resid": np.zeros((T_, k)),
     "g_u1": np.zeros(T_), "g_u2": np.zeros(T_),
     "dtheta_u1": np.full(T_, np.nan), "u1_overlap_prev": np.full(T_, np.nan),
-    "x": np.full(T_, np.nan), "y": np.full(T_, np.nan),
-    "sketch": np.zeros((T_, args.sketch)),
+    "x": np.full(T_, np.nan), "y": np.full(T_, np.nan), "z": np.full(T_, np.nan),
+    "eig_fresh": np.zeros(T_, bool), "u1_sketch": np.zeros((T_, args.sketch), np.float32),
+    "sketch": np.zeros((T_, args.sketch), np.float32),
     "wnorm": np.zeros(T_),
 }
 nref = T_ // args.ref_every + 1
@@ -156,7 +165,7 @@ snap_steps, snaps = [], []
 
 W = 2 * args.half + 1
 ring_th = torch.zeros(W, P, dtype=dt, device=dev)
-ring_u = torch.zeros(W, 2, P, dtype=dt, device=dev)
+ring_u = torch.zeros(W, 3, P, dtype=dt, device=dev)
 ring_sum = torch.zeros(P, dtype=dt, device=dev)
 theta0 = theta.clone()
 
@@ -165,33 +174,53 @@ V = torch.linalg.qr(torch.randn(P, k, dtype=dt, device=dev))[0].T  # (k,P)
 for _ in range(50):
     Wm = hvp_batch(theta, V)
     Tm = V @ Wm.T
-    ev, Qm = torch.linalg.eigh(0.5 * (Tm + Tm.T))
+    ev, Qm = [a.to(dev, dt) for a in torch.linalg.eigh((0.5 * (Tm + Tm.T)).cpu().double())]  # tiny k x k: CPU (GPU eigh is ~0.2 s here)
     V = torch.linalg.qr(Wm.T)[0].T
+def save(t, final=False):
+    S = torch.stack(snaps)
+    gram = (S @ S.T).abs().numpy()
+    done = t + (0 if diverged else 1)
+    np.savez_compressed(
+        args.out, **L, ref_steps=np.array(ref_steps), lanc_steps=np.array(lanc_steps),
+        lanc_vals=np.array(lanc_vals), snap_steps=np.array(snap_steps), u1_gram=gram,
+        eta=eta, inv=args.inv, diverged=diverged, steps_done=done, final=final,
+        meta=json.dumps(vars(args) | {"P": P, "wall_s": time.time() - t0}),
+    )
+
+
 prev_u1 = None
+res = torch.zeros(k)
 t0 = time.time()
 diverged = False
 for t in range(T_):
     # ---- eigenpairs at theta_t ----
-    for it in range(args.iters):
+    fresh = (t % args.eig_every == 0)
+    for it in range(args.iters if fresh else 0):
         Wm = hvp_batch(theta, V)
         Tm = V @ Wm.T
-        ev, Qm = torch.linalg.eigh(0.5 * (Tm + Tm.T))
+        ev, Qm = [a.to(dev, dt) for a in torch.linalg.eigh((0.5 * (Tm + Tm.T)).cpu().double())]  # tiny k x k: CPU (GPU eigh is ~0.2 s here)
         order = torch.argsort(ev, descending=True)
         ev, Qm = ev[order], Qm[:, order]
         V = Qm.T @ V
         Wm = Qm.T @ Wm
         if it < args.iters - 1:
             V = torch.linalg.qr(Wm.T)[0].T
-    res = (Wm - ev[:, None] * V).norm(dim=1)
-    u = V[:2].clone()
+    if fresh:
+        res = (Wm - ev[:, None] * V).norm(dim=1)
+        u = V[:3].clone()
+    else:
+        u = prev_u1.clone()
+    L["eig_fresh"][t] = fresh
     if prev_u1 is not None:
         if torch.dot(u[0], prev_u1[0]) < 0:
             u[0] = -u[0]
-        if torch.dot(u[1], prev_u1[1]) < 0:
-            u[1] = -u[1]
+        for j in (1, 2):
+            if torch.dot(u[j], prev_u1[j]) < 0:
+                u[j] = -u[j]
         L["u1_overlap_prev"][t] = torch.dot(u[0], prev_u1[0]).abs().item()
         L["dtheta_u1"][t] = torch.dot(theta - prev_theta, u[0]).item()
-    V = torch.linalg.qr(Wm.T)[0].T  # warm start for next step (one free power step)
+    if fresh:
+        V = torch.linalg.qr(Wm.T)[0].T  # warm start for next step (one free power step)
     # keep sign continuity in the warm start too
     # ---- gradient ----
     gr, (lv, out) = gv(theta)
@@ -207,11 +236,12 @@ for t in range(T_):
     L["g_u1"][t] = torch.dot(gr, u[0]).item()
     L["g_u2"][t] = torch.dot(gr, u[1]).item()
     L["sketch"][t] = sketch(theta - theta0).cpu().numpy()
+    L["u1_sketch"][t] = sketch(u[0]).cpu().numpy()
     L["wnorm"][t] = theta.norm().item()
     # ---- frozen-reference projections ----
     if t % args.ref_every == 0:
         r = len(ref_steps)
-        ref_U[r] = u
+        ref_U[r] = u[:2]
         ref_steps.append(t)
     nr = len(ref_steps)
     L["refproj"][t, :nr] = (ref_U[:nr] @ theta).cpu().numpy()
@@ -225,6 +255,7 @@ for t in range(T_):
         thc = ring_th[c % W]
         L["x"][c] = torch.dot(thc - tb, ring_u[c % W][0]).item()
         L["y"][c] = torch.dot(thc - tb, ring_u[c % W][1]).item()
+        L["z"][c] = torch.dot(thc - tb, ring_u[c % W][2]).item()
     # ---- occasional checks ----
     if t % args.lanczos_every == 0:
         lv3 = lanczos_top(theta, args.lanczos_m)
@@ -233,6 +264,8 @@ for t in range(T_):
     if t % args.snap_every == 0:
         snap_steps.append(t)
         snaps.append(u[0].float().cpu())
+    if t % args.save_every == 0 and t > 0:
+        save(t)
     prev_u1 = u
     prev_theta = theta
     # ---- GD step ----
@@ -243,13 +276,5 @@ for t in range(T_):
               f"(2/eta={args.inv}) res={res[0].item():.2e} lanczos={lanc_vals[-1][0]:.2f} "
               f"x={L['x'][max(c if t >= W - 1 else 0, 0)]:.2e} {el:.0f}s", flush=True)
 
-S = torch.stack(snaps)
-gram = (S @ S.T).abs().numpy()
-wall = time.time() - t0
-np.savez_compressed(
-    args.out, **L, ref_steps=np.array(ref_steps), lanc_steps=np.array(lanc_steps),
-    lanc_vals=np.array(lanc_vals), snap_steps=np.array(snap_steps), u1_gram=gram,
-    eta=eta, inv=args.inv, diverged=diverged, steps_done=t + (0 if diverged else 1),
-    meta=json.dumps(vars(args) | {"P": P, "wall_s": wall}),
-)
-print("saved", args.out, f"wall={wall:.0f}s")
+save(t, final=True)
+print("saved", args.out, f"wall={time.time() - t0:.0f}s")
