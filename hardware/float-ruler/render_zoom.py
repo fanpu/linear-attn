@@ -45,6 +45,8 @@ def self_similar(fmt, k):
     v = DATA[fmt.name]["v"]
     a = v[(v <= 2.0 ** k) & (v >= 2.0 ** (k - 6))] / 2.0 ** k
     b = v[(v <= 2.0 ** (k - 1)) & (v >= 2.0 ** (k - 7))] / 2.0 ** (k - 1)
+    if len(a) == 0:
+        return None
     return len(a) == len(b) and np.array_equal(a, b)
 
 
@@ -90,7 +92,9 @@ def frame(t, style="observatory", W=1920, H=1080):
     for f, yb in zip(FMTS, rows_y):
         ss = self_similar(f, kk)
         dr.text((X0, yb - 225), f"{f.name}", font=f_m, fill=col)
-        dr.text((X1, yb - 225), "ticks in [W/64, W] identical to one octave ago" if ss else "differs from one octave ago: top of range / subnormal floor",
+        dr.text((X1, yb - 225), ("ticks in [W/64, W] identical to one octave ago" if ss else
+                                ("no values in [W/64, W]: below the floor" if ss is None else
+                                 "differs from one octave ago: top of range / subnormal floor")),
                 font=f_m, fill=col, anchor="ra")
         for q, lab in ((0, "0"), (0.5, "W/2"), (1, "W")):
             dr.text((X0 + q * (X1 - X0), yb + 12), lab, font=f_m, fill=col, anchor="ma")

@@ -66,9 +66,9 @@ def draw_spiral(ax, v, h, sub, frac, style, R_in=0.12, R_out=1.0, lw=0.6, alpha=
     if show_path:
         tt = np.linspace(lo, hi if vmax_reveal is None else min(hi, vmax_reveal), 4000)
         rr = R_in + (R_out - R_in) * (tt - lo) / span
-        ax.plot(rr * np.cos(2 * np.pi * tt), rr * np.sin(2 * np.pi * tt), color=st["faint"], lw=0.35, alpha=0.6)
+        ax.plot(rr * np.cos(2 * np.pi * tt), rr * np.sin(2 * np.pi * tt), color=st["faint"], lw=0.2, alpha=0.35, zorder=0)
     # dense formats: opacity follows the tick's ruler rank (h), so the coarse spokes read through the fine ones
-    a_i = alpha * (0.3 + 0.7 * np.clip((h - 0.06) / 0.94, 0.0, 1.0) ** 0.6) if len(v) > 1000 else np.full(len(v), alpha)
+    a_i = alpha * (0.55 + 0.45 * np.clip((h - 0.06) / 0.94, 0.0, 1.0) ** 0.6) if len(v) > 1000 else np.full(len(v), alpha)
     if cmap is not None:
         cols = cmap(frac)
         cols[:, 3] = a_i
@@ -90,8 +90,8 @@ SHEET = [
     ("FP4 E2M1", FP4_E2M1, None, 3.2, 1.0),
     ("FP8 E5M2", FP8_E5M2, None, 2.0, 1.0),
     ("FP8 E4M3FN", FP8_E4M3, None, 1.6, 1.0),
-    ("float16", FP16, None, 0.5, 1.0),
-    ("bfloat16", BF16, None, 0.7, 1.0),
+    ("float16", FP16, None, 0.45, 1.0),
+    ("bfloat16", BF16, None, 0.9, 1.0),
 ]
 
 
@@ -104,6 +104,9 @@ def sheet(style):
         ax = fig.add_axes([x0 + 0.01, y0 + 0.02, 0.21, 0.37])
         ax.set_facecolor(st["bg"])
         v, h, sub, frac = spiral_data(fmt, nb, window=(-24, 16) if fmt is BF16 else None)
+        if fmt is not None and fmt.M >= 7:
+            lev = np.log(np.clip((h - 0.06) / 0.94, 1e-12, 1)) / np.log(0.55)
+            h = 0.3 + 0.7 * 0.65 ** lev   # dense formats: longer fine ticks so the spoke sunburst reads (declared)
         draw_spiral(ax, v, h, sub, frac, style, lw=lw, alpha=alpha, cmap=cmap)
         L = np.log2(v)
         ns = spokes(v[~sub])
