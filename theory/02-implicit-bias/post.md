@@ -83,7 +83,7 @@ To check this literally, I integrated the gradient flow in *log-time*, $s = \log
 
 <figure class="full">
 <img src="figures/soudry_crawl.png" alt="Three panels: residual converging to closed-form w tilde; angle times log t flattening; margin-gap rates for GD and normalized GD">
-<figcaption><b>(a)</b> 2D hero data. The residual $w(t) - \hat w \ln t$ converges to the $\tilde w$ computed from the SVM dual variables, shown dashed. Dots are discrete GD with $\eta = 0.1$, plotted at flow time $\eta k$. <b>(b)</b> $d = 50$, $n = 40$, random labels, 8 datasets. Solid lines: GD for $10^8$ steps in float64. Dotted lines: the same gradient flow continued in log-time to $10^{100}$. <b>(c)</b> The gap between the current normalized margin and the best achievable margin. Plain GD follows the $1/\ln t$ guide. Normalizing the step (constant step, or $\eta_t \propto 1/\sqrt t$) makes the gap fall polynomially, consistent with the rates of Nacson et al. (2019) and Ji & Telgarsky (2021). Thin lines are individual datasets; thick lines are medians.</figcaption>
+<figcaption><b>(a)</b> 2D hero data. The residual $w(t) - \hat w \ln t$ converges to the $\tilde w$ computed from the SVM dual variables, shown dashed. Dots are discrete GD with $\eta = 4/\sigma_{\max}^2$ (half the theorem's step-size limit) for $10^7$ steps, plotted at flow time $\eta k$. <b>(b)</b> $d = 50$, $n = 40$, random labels, 8 datasets. Solid lines: GD for $10^8$ steps in float64. Dotted lines: the same gradient flow continued in log-time to $10^{100}$. <b>(c)</b> The gap between the current normalized margin and the best achievable margin. Plain GD follows the $1/\ln t$ guide. Normalizing the step (constant step, or $\eta_t \propto 1/\sqrt t$) makes the gap fall polynomially, consistent with the rates of Nacson et al. (2019) and Ji & Telgarsky (2021). Thin lines are individual datasets; thick lines are medians.</figcaption>
 </figure>
 
 The numbers make the creep concrete. On the 2D data the angle to the SVM direction is 15.5° at $t = 1$, 4.5° at $t = 10^4$, 2.3° at $10^{10}$, 1.1° at $10^{20}$ and 0.23° at $10^{100}$. The residual matches the predicted $\tilde w$ to $10^{-8}$. In $d = 50$, after $10^8$ full-batch steps in float64, GD's direction is still on average **3.9°** from the SVM, and its normalized margin is 95.4% of the best possible. Normalized GD with a constant step gets within 0.001° in $10^7$ steps.
@@ -114,7 +114,7 @@ The same experiment at scale ($d = 50$, eight datasets) shows that each method s
 
 <figure class="wide">
 <img src="figures/geometry_margins.png" alt="Normalized margins in L2 and Linf over time for GD, normalized GD and sign GD">
-<figcaption>Left: $L_2$-normalized margin as a fraction of the best possible. Right: the same in $L_\infty$. GD and normalized GD approach 1 on the left (GD slowly) and saturate at the dotted level on the right. Sign GD does the opposite. $d = 50$, $n = 40$, 8 datasets; thick lines are medians.</figcaption>
+<figcaption>Left: $L_2$-normalized margin as a fraction of the best possible. Right: the same in $L_\infty$. GD and normalized GD approach 1 on the left (GD slowly) and saturate at the dotted level on the right. Sign GD does the opposite. Sign GD ends slightly <em>above</em> its dotted line on the left. Its $L_\infty$ margin is optimal to $4\cdot10^{-5}$, but on half the datasets its direction stays 0.3–5° from the LP solution cvxpy returns. On one dataset, a direction 5.2° away has an $L_\infty$ margin within 0.05% of the optimum. The $L_\infty$ problem is nearly degenerate, which is exactly the non-uniqueness caveat in the theorem. $d = 50$, $n = 40$, 8 datasets; thick lines are medians.</figcaption>
 </figure>
 
 ## 4. Change the parameterization: diagonal linear networks <span class="tag lit">literature</span>
@@ -242,7 +242,37 @@ anchored at any early time $t_a$ in the exponential phase. The $L_\infty$ phase 
 
 ### 6b. Spectral descent and Muon on a linear multiclass classifier
 
-{{MUON}}
+**What is known.** For a linear $k$-class classifier $W \in \mathbb{R}^{k\times d}$ trained with cross-entropy, Fan, Schmidt & Thrampoulidis (2025) prove the following for normalized steepest descent with respect to any entrywise or Schatten-$p$ norm, with step $\eta_t = \Theta(t^{-1/2})$: the margin measured in that norm approaches its maximum at rate $O\big((\log t + n)/\sqrt t\big)$. The spectral norm gives **spectral descent**, $W \leftarrow W - \eta\, UV^\top$ where $\nabla L = U\Sigma V^\top$. Their momentum version covers **Muon** with *exact* SVD orthogonalization. It does not cover what people actually run: a constant learning rate, Nesterov-style momentum, and the orthogonalization approximated by five Newton–Schulz iterations.
+
+**Question.** Does practical Muon reach the spectral-norm max-margin solution, and does anything change when the SVD is replaced by Newton–Schulz?
+
+**Method.** 4 classes, $d = 24$, $n = 40$ random Gaussian points with random labels, 6 datasets. Every run uses 10⁶ full-batch steps in float64 with the log-scale gradient trick. Constant $\eta = 0.01$ except where noted. Muon uses Nesterov momentum 0.95 on raw gradients, and Newton–Schulz uses Keller Jordan's quintic $(3.4445, -4.7750, 2.0315)$. The max-margin solutions under the Frobenius, max-entry, spectral and nuclear norms come from cvxpy.
+
+<figure class="full">
+<img src="figures/spectral.png" alt="Spectral-norm margin vs steps for many optimizers; table of final margins in four norms; Newton-Schulz singular value response">
+<figcaption><b>(a)</b> Spectral-norm margin as a fraction of the best possible (median of 6 datasets). <b>(b)</b> After $10^6$ steps, the margin in each of four norms as a fraction of that norm's optimum. Boxes mark the norm each method is steepest descent for. <b>(c)</b> What five Newton–Schulz steps do to one singular value, as a function of its ratio to the largest one. The output wanders inside a band instead of converging to 1. Dots are the actual ratios in the Muon update at the end of training.</figcaption>
+</figure>
+
+**Result 1: exact geometry is confirmed, even off-theory.** Every method with an exact steepest-descent direction maximizes its own norm's margin, and the constant-step versions do it fastest:
+
+- GD and normalized GD maximize the Frobenius margin (0.998 for normalized GD).
+- Sign GD maximizes the max-entry margin (0.999).
+- Spectral descent maximizes the spectral margin (0.9985).
+- Muon with an exact polar factor and Nesterov momentum also reaches 0.9985, so momentum doesn't change the limit.
+
+The decaying-step schedule the theory analyses is slower in this range (0.922 at $10^6$, still rising).
+
+**Result 2: Newton–Schulz Muon does not reach the spectral max-margin.** With five Newton–Schulz steps, Muon's spectral margin is 0.892 at $10^5$ steps and 0.917 at $10^6$. With 10 or 20 steps it stalls at 0.930, identical from $10^5$ to $10^6$. Its Frobenius margin (0.978) is *higher* than that of exact spectral descent (0.970): the implicit bias sits between the spectral and Frobenius geometries.
+
+The reason is in panel (c). Jordan's coefficients are tuned to push singular values into a band quickly, not to converge to 1. I measured the band as 0.68–1.13; more iterations make the output hop around inside it rather than settle. The update is therefore $U\,\mathrm{diag}(\phi_i)\,V^\top$, where the $\phi_i \ne 1$ depend on the gradient's singular-value ratios. That is steepest descent in a slightly different, state-dependent geometry. Dropping momentum changes nothing: the no-momentum variant ends within $10^{-5}$ of the momentum run.
+
+**Caveats.** This is one small linear multiclass problem. For hidden layers of real networks the relevant notion is layerwise, and nets aren't linear. Whether a 7% margin shortfall matters for generalization is a separate question I did not test. The 5-step curve was still rising slowly at $10^6$; the 10- and 20-step curves were flat. I did not test a Newton–Schulz variant that converges exactly (for example cubic iterations run to convergence), which should behave like the exact polar factor.
+
+<div class="callout">
+
+**Summary of the build-on.** The classical theorem, "steepest descent picks its own norm's margin", holds robustly for Adam with $\varepsilon = 0$, sign GD, spectral descent and exact-polar Muon. Two details of real implementations change the answer. Adam's $\varepsilon$ ends the $L_\infty$ phase after a predictable $t_\times \propto \ln(1/\varepsilon)$ steps, after which Adam crawls toward $L_2$. Muon's Newton–Schulz approximation leaves it short of the spectral-norm solution and tilted toward Frobenius.
+
+</div>
 
 ## 7. Where it breaks
 
@@ -251,11 +281,12 @@ The four reproductions matched their theorems quantitatively. The places where t
 - **"Eventually" can mean never.** The $1/\log t$ rate is a mathematical statement, not a practical one: after $10^8$ steps GD is still 3.9° from the SVM in $d = 50$. Early stopping, learning-rate schedules, or finite float precision will end training long before the implicit bias has finished acting.
 - **Near-support vectors slow everything down.** The residual converges to $\tilde w$ only after points *just outside* the margin stop contributing. A point at normalized margin $1 + \delta$ fades like $t^{-\delta}$. In my first attempt at the hero dataset, one point sat at margin 1.002. At $t = 10^{300}$ the residual was still 0.3 away from its limit, because $10^{-300\cdot 0.002} \approx 0.25$. The $d = 50$ datasets have near-support vectors at margins 1.006 to 1.17, which is why the curves in panel (b) keep drifting until $t \sim 10^{30}$.
 - **The step-size condition matters, but only for the path.** My first discrete-GD check on the 2D data used $\eta = 0.1$, which is 5.7× the theorem's limit $2\beta^{-1}\sigma_{\max}^{-2}$. GD still converged to the same $\tilde w$, but it approached from the other side, along a visibly different path from gradient flow. At half the limit (the figure) GD and flow agree.
+- **Margin converges; direction may not.** Gunasekar et al. only promise the direction when the max-margin solution is unique. $L_\infty$ problems are often nearly degenerate. Sign GD reached 99.996% of the optimal $L_\infty$ margin in $d = 50$, yet on one dataset its direction stalled 5.2° from the LP optimum, at a point whose margin is within 0.05% of it.
 - **Discrete GD is not gradient flow for diagonal nets.** With constant step $\eta = c/(8\lambda_{\max}\|w_{\text{BP}}\|_\infty)$, the solution GD lands on moves away from $\arg\min Q_\alpha$ roughly in proportion to $c$. At $\alpha = 0.1$ the gap is $4\cdot10^{-4}$, $1.6\cdot10^{-3}$, $4.0\cdot10^{-3}$ and $6.4\cdot10^{-3}$ for $c = 0.05, 0.2, 0.5, 0.8$. The shift is always toward a slightly *larger* $L_1$ norm: finite steps make GD a little less sparse than its flow. (Even, Pesme, Gunasekar & Flammarion (2023) analyse this effect for (S)GD.)
 - **The rich regime is expensive.** Getting within $10^{-3}$ of basis pursuit needed $\alpha \approx 10^{-4}$. The flow then spends time $\propto \log(1/\alpha)$ on the saddle at the origin before it moves, and float64 precision bounds how small $\alpha$ can usefully be.
 - **Balancedness is an assumption.** The singular-value equation is exact only for balanced factors. From a random init of scale $10^{-3}$, the factors are not balanced while $\sigma_r \lesssim 10^{-3}$. There the measured change was on average 1.09× (depth 2) and 1.37× (depth 3) the prediction. Above that scale the ratio was 1.0001 and 1.0000.
 - **Float64 tunnels through a barrier the flow can't cross.** In the Razin–Cohen example the exact flow keeps $\det W > 0$ forever. Numerically, $\sigma_2(W)$ fell to $10^{-16}$ (depth 2, by $t \approx 80$) and $10^{-18}$ (depth 3, by $t \approx 3\cdot10^9$), after which round-off flipped the sign of the determinant and the solver found a finite zero-loss completion. The theorem describes an exact dynamical system; finite precision breaks its invariant.
-- **Where the classical story stops for modern optimizers.** Adam with a realistic $\varepsilon$ is neither the $L_\infty$ nor the $L_2$ story. It follows one, then the other, with a handover time set by $\varepsilon$ and $\beta_2$ (§6a). {{MUON_BREAK}}
+- **Where the classical story stops for modern optimizers.** Adam with a realistic $\varepsilon$ is neither the $L_\infty$ nor the $L_2$ story. It follows one, then the other, with a handover time set by $\varepsilon$ and $\beta_2$ (§6a). Muon with Newton–Schulz is neither the spectral nor the Frobenius story: its approximate orthogonalization changes the limit (§6b).
 
 ## Reproduce it
 
