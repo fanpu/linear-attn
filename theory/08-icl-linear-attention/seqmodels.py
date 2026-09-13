@@ -51,6 +51,27 @@ def delta_ref(q, k, v, beta, log_alpha=None):
     return torch.stack(out, 1)
 
 
+def delta_par(q, k, v, beta, log_alpha=None):
+    """Exact parallel form of the (gated) delta rule via a triangular solve (the 'UT transform' view).
+    S_t = sum_{i<=t} beta_i g_{t,i} u_i k_i^T  with  g_{t,i} = prod_{m=i+1..t} alpha_m  and pseudo-values
+    u_t = v_t - sum_{i<t} beta_i g_{t,i} (k_t.k_i) u_i   =>   (I + M) U = V,  O = C U,
+    M[t,i] = beta_i g_{t,i} k_t.k_i (i<t),  C[t,i] = beta_i g_{t,i} q_t.k_i (i<=t).  Few kernels; fast at small T."""
+    B, T, H, _ = q.shape
+    qh, kh, vh = q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2)            # [B,H,T,*]
+    bh = beta.transpose(1, 2)                                                       # [B,H,T]
+    G = bh[:, :, None, :].expand(B, H, T, T)
+    if log_alpha is not None:
+        cum = log_alpha.transpose(1, 2).cumsum(-1)
+        G = G * torch.exp(torch.clamp(cum[..., :, None] - cum[..., None, :], max=0.0))
+    tril = torch.tril(torch.ones(T, T, device=q.device, dtype=torch.bool))
+    strict = tril.logical_and(~torch.eye(T, dtype=torch.bool, device=q.device))
+    M = torch.where(strict, G * (kh @ kh.transpose(-1, -2)), 0.0)
+    I = torch.eye(T, device=q.device, dtype=q.dtype)
+    U = torch.linalg.solve_triangular(I + M, vh, upper=False, unitriangular=True)
+    C = torch.where(tril, G * (qh @ kh.transpose(-1, -2)), 0.0)
+    return (C @ U).transpose(1, 2)
+
+
 def delta_fast(q, k, v, beta, log_alpha=None):
     from fla.ops.gated_delta_rule import chunk_gated_delta_rule
     dt = q.dtype
@@ -62,9 +83,9 @@ def delta_fast(q, k, v, beta, log_alpha=None):
 
 # ------------------------------------------------------------------------------------------------ mixers
 class Mixer(nn.Module):
-    def __init__(self, kind, width, heads, fast=True):
+    def __init__(self, kind, width, heads):
         super().__init__()
-        self.kind, self.h, self.hd, self.fast = kind, heads, width // heads, fast
+        self.kind, self.h, self.hd, self.impl = kind, heads, width // heads, "par"
         self.q = nn.Linear(width, width, bias=False)
         self.k = nn.Linear(width, width, bias=False)
         self.v = nn.Linear(width, width, bias=False)
@@ -91,7 +112,7 @@ class Mixer(nn.Module):
             la = None
             if self.kind == "gdelta":
                 la = -self.A_log.exp() * F.softplus(self.a(x) + self.dt_bias)
-            o = (delta_fast if self.fast else delta_ref)(q, k, v, beta, la)
+            o = {"par": delta_par, "fla": delta_fast, "ref": delta_ref}[self.impl](q, k, v, beta, la)
         return self.o(o.reshape(B, T, -1))
 
 
@@ -110,9 +131,9 @@ class ICLModel(nn.Module):
         self.lnf = nn.LayerNorm(width)
         self.out = nn.Linear(width, 1)
 
-    def set_fast(self, fast):
+    def set_impl(self, impl):
         for b in self.blocks:
-            b["mix"].fast = fast
+            b["mix"].impl = impl
 
     def forward(self, X, y, xq=None):
         """X [B,n,d], y [B,n].  Returns predictions for every y_t from pairs < t, shape [B,n].

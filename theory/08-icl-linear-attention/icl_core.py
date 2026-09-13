@@ -163,20 +163,26 @@ def lms_prefix_w(X, y, beta, normalize=True):
     return torch.stack(out, 1)
 
 
-def dmmse_prefix_w(X, y, tasks, sigma):
+def dmmse_prefix_w(X, y, tasks, sigma, max_elems=6e7):
     """Posterior mean of w under a uniform prior on `tasks` [T,d] (Raventos et al. eq. 2).
-    Returns W [B, M+1, d] for prefixes 0..M. Chunked over tasks for memory."""
+    Returns W [B, M+1, d] for prefixes 0..M. Chunked over batch and tasks to bound memory."""
     B, M, d = X.shape
     T = tasks.shape[0]
-    # residual^2 of every task on every point: [B, T, M]
-    logl = torch.zeros(B, T, M + 1, dtype=X.dtype, device=X.device)
-    chunk = max(1, int(2e8 // max(1, B * M * d)))
-    for s in range(0, T, chunk):
-        tk = tasks[s:s + chunk]
-        r = y[:, None, :] - torch.einsum("bmd,td->btm", X, tk)
-        logl[:, s:s + chunk, 1:] = -(r**2).cumsum(-1) / (2 * sigma**2)
-    p = torch.softmax(logl, dim=1)                                 # [B, T, M+1]
-    return torch.einsum("btm,td->bmd", p, tasks)
+    bs = max(1, int(max_elems // (T * (M + 1))))
+    outs = []
+    for b0 in range(0, B, bs):
+        Xb, yb = X[b0:b0 + bs], y[b0:b0 + bs]
+        nb = Xb.shape[0]
+        logl = torch.zeros(nb, T, M + 1, dtype=X.dtype, device=X.device)
+        chunk = max(1, int(max_elems // max(1, nb * M * d)))
+        for s in range(0, T, chunk):
+            tk = tasks[s:s + chunk]
+            r = yb[:, None, :] - torch.einsum("bmd,td->btm", Xb, tk)
+            logl[:, s:s + chunk, 1:] = -(r**2).cumsum(-1) / (2 * sigma**2)
+        p = torch.softmax(logl, dim=1)                             # [nb, T, M+1]
+        outs.append(torch.einsum("btm,td->bmd", p, tasks))
+        del logl, p
+    return torch.cat(outs, 0)
 
 
 # ----------------------------------------------------------------------------------------------

@@ -1,7 +1,9 @@
 """Reproduce Zhang, Frei & Bartlett (2024): one-layer LSA trained from their balanced init converges to W*.
 
 Trains the FULL (d+1)x(d+1) matrices W_PV and W_KQ (every entry free) by large-batch SGD on fresh prompts
-(a Monte-Carlo stand-in for gradient flow on the population loss), float64, d=20, N=40.
+with Adam + cosine decay, float64, d=20, N=40.  (Plain SGD at learning rates that finish in reasonable time blows up:
+heavy-tailed minibatch gradients kick the off-manifold blocks, whose curvature ~ E|x|^4 is large.  The exact
+population gradient flow lives in lsa_gradflow.py.)
 Saves snapshots for the hero animation and the final weights.
 
   .venv/bin/python 08-icl-linear-attention/train_lsa1.py --cov ar1 --steps 6000
@@ -17,7 +19,8 @@ p.add_argument("--d", type=int, default=20)
 p.add_argument("--N", type=int, default=40)
 p.add_argument("--steps", type=int, default=6000)
 p.add_argument("--batch", type=int, default=16384)
-p.add_argument("--lr", type=float, default=0.02)
+p.add_argument("--lr", type=float, default=1e-3)
+p.add_argument("--opt", default="adam")
 p.add_argument("--seed", type=int, default=0)
 p.add_argument("--nsnap", type=int, default=240)
 a = p.parse_args()
@@ -80,21 +83,23 @@ risk_star = 0.5 * risk_precond_gd1(torch.linalg.inv(Gam), Lam, N).item() if a.co
 
 snap_steps = sorted(set([0] + list(np.unique(np.round(np.geomspace(1, a.steps, a.nsnap)).astype(int)))))
 snaps = dict(step=[], Wpv=[], Wkq=[], loss=[])
-opt = torch.optim.SGD([Wpv, Wkq], lr=a.lr)
+opt = torch.optim.Adam([Wpv, Wkq], lr=a.lr) if a.opt == "adam" else torch.optim.SGD([Wpv, Wkq], lr=a.lr)
+sched = torch.optim.lr_scheduler.LambdaLR(opt, lambda s: 0.5 * (1 + math.cos(math.pi * s / a.steps)))
 t0 = time.time()
 for step in range(a.steps + 1):
     if step in snap_steps:
         snaps["step"].append(step); snaps["loss"].append(eval_loss())
         snaps["Wpv"].append(Wpv.detach().cpu().numpy().copy()); snaps["Wkq"].append(Wkq.detach().cpu().numpy().copy())
     if step % 500 == 0:
-        err = (torch.linalg.norm(Wkq.detach().cpu() - Wkq_star) / torch.linalg.norm(Wkq_star)).item()
+        Beff = effective_preconditioner(Wpv.detach().cpu(), Wkq.detach().cpu(), d)
+        err = (torch.linalg.norm(Beff - Wpv_star[d, d] * Wkq_star[:d, :d]) / torch.linalg.norm(Wpv_star[d, d] * Wkq_star[:d, :d])).item()
         print(f"step {step:6d}  loss {snaps['loss'][-1] if snaps['step'][-1]==step else float('nan'):.5f}  "
-              f"L(W*) {risk_star:.5f}  relerr(W_KQ) {err:.4f}  {time.time()-t0:.0f}s", flush=True)
+              f"L(W*) {risk_star:.5f}  relerr(B_eff) {err:.4f}  {time.time()-t0:.0f}s", flush=True)
     if step == a.steps:
         break
     X, y, xq, yq = batch(a.batch, N)
     loss = 0.5 * ((lsa_predict(embed(X, y, xq), Wpv, Wkq) - yq) ** 2).mean()
-    opt.zero_grad(); loss.backward(); opt.step()
+    opt.zero_grad(); loss.backward(); opt.step(); sched.step()
 
 out = pathlib.Path(__file__).parent / "cache" / f"lsa1_{a.cov}_d{d}_N{N}_s{a.seed}.npz"
 np.savez(out, steps=np.array(snaps["step"]), Wpv=np.array(snaps["Wpv"]), Wkq=np.array(snaps["Wkq"]),

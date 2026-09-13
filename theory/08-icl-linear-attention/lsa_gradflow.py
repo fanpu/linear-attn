@@ -23,9 +23,30 @@ p.add_argument("--nsnap", type=int, default=400)
 a = p.parse_args()
 torch.set_default_dtype(torch.float64)
 d, N = a.d, a.N
-Lam = make_cov(a.cov, d)
-Gam = zfb_gamma(Lam, N)
-Wpv_star, Wkq_star = zfb_global_min(Lam, N)
+if a.cov == "randexp":
+    # ZFB Sec. 4.3: every prompt has its own diagonal covariance with i.i.d. Exponential(1) entries.
+    # Population loss = average of the fixed-covariance closed form over a large fixed sample of covariances.
+    lam_s = torch.distributions.Exponential(torch.ones(d)).sample((200_000,))
+    Lam = torch.eye(d)
+    Gam = zfb_gamma(2 * Lam, N)  # only used for the init-scale bound
+    Gt = (N + 1) / N * lam_s + lam_s.sum(-1, keepdim=True) / N
+    blk = torch.diag((lam_s**2).mean(0) / (Gt * lam_s**2).mean(0))          # E[Gam Lam^2]^-1 E[Lam^2]  (ZFB 4.12)
+    cst = torch.linalg.norm(blk) ** 0.5
+    Wpv_star = torch.zeros(d + 1, d + 1); Wpv_star[d, d] = cst
+    Wkq_star = torch.zeros(d + 1, d + 1); Wkq_star[:d, :d] = blk / cst
+else:
+    Lam = make_cov(a.cov, d)
+    Gam = zfb_gamma(Lam, N)
+    Wpv_star, Wkq_star = zfb_global_min(Lam, N)
+
+
+def risk_diag_batch(A, lam, M):
+    """risk_precond_gd1 for diagonal covariances lam [K,d], averaged over K (w ~ N(0,I), x_q ~ N(0,Lam))."""
+    A2 = A**2                                                     # A2[k,i] = A_ki^2
+    Bii = lam @ A2                                                # [K,d]  diag of B = A^T Lam A
+    trL = lam.sum(-1)
+    r = trL - 2 * (lam**2 * torch.diagonal(A)[None]).sum(-1) + (1 + 1 / M) * (lam**2 * Bii).sum(-1) + (lam * Bii).sum(-1) * trL / M
+    return r.mean()
 
 Theta = torch.randn(d, d, generator=torch.Generator().manual_seed(a.seed))
 TT = Theta @ Theta.T
@@ -35,6 +56,8 @@ sig = 0.5 * math.sqrt(2 / (torch.linalg.matrix_norm(Gam, 2).item() * math.sqrt(d
 
 def loss(theta):
     u, V = theta[0], theta[1:].view(d, d)
+    if a.cov == "randexp":
+        return 0.5 * risk_diag_batch(u * V.T, lam_s, N)
     return 0.5 * risk_precond_gd1(u * V.T, Lam, N)
 
 
@@ -50,7 +73,7 @@ sol = solve_ivp(rhs, (0, a.T), th0, t_eval=ts, method="LSODA", rtol=1e-9, atol=1
 U = sol.y[0]
 V = sol.y[1:].T.reshape(-1, d, d)
 L = np.array([loss(torch.tensor(sol.y[:, i])).item() for i in range(len(ts))])
-Lstar = 0.5 * risk_precond_gd1(torch.linalg.inv(Gam), Lam, N).item()
+Lstar = loss(torch.cat([Wpv_star[d, d:d+1], Wkq_star[:d, :d].flatten()])).item()
 Wkq = np.zeros((len(ts), d + 1, d + 1)); Wkq[:, :d, :d] = V
 Wpv = np.zeros((len(ts), d + 1, d + 1)); Wpv[:, d, d] = U
 err_kq = np.linalg.norm(Wkq - Wkq_star.numpy(), axis=(1, 2)) / np.linalg.norm(Wkq_star.numpy())

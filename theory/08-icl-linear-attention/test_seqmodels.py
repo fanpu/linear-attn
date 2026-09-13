@@ -3,7 +3,7 @@ DeltaNet <-> online-SGD identity.  Run: .venv/bin/python 08-icl-linear-attention
 import os; os.environ.setdefault("TRITON_F32_DEFAULT", "ieee")  # Triton tl.dot defaults to TF32 otherwise
 import torch
 import torch.nn.functional as F
-from seqmodels import linear_attn_ref, linear_attn_par, delta_ref, delta_fast
+from seqmodels import linear_attn_ref, linear_attn_par, delta_ref, delta_fast, delta_par
 from icl_core import lms_prefix_w
 
 torch.manual_seed(0)
@@ -38,6 +38,9 @@ for gated in (False, True):
     ins = [qq, kk, vv, beta] + ([la] if gated else [])
     o1 = delta_fast(qq, kk, vv, beta, la)
     g1 = torch.autograd.grad((o1 * torch.cos(o1)).sum(), ins)
+    o3 = delta_par(*[x.double() for x in ins[:4]], None if la is None else la.double())
+    o4 = delta_ref(*[x.double() for x in ins[:4]], None if la is None else la.double())
+    check(f"{'gated delta' if gated else 'delta'}: parallel triangular-solve form == recurrence (float64)", o3, o4, 1e-10)
     o2 = delta_ref(qq, kk, vv, beta, la)
     g2 = torch.autograd.grad((o2 * torch.cos(o2)).sum(), ins)
     nm = "gated delta" if gated else "delta"

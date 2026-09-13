@@ -3,3 +3,6 @@ _preview/
 refs/
 __pycache__/
 *.pyc
+logs/
+_frames/
+_wtest*

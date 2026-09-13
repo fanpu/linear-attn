@@ -28,6 +28,7 @@ p.add_argument("--seed", type=int, default=0)
 p.add_argument("--tag", type=str, default="small")
 p.add_argument("--eval_every", type=int, default=5000)
 p.add_argument("--bench", action="store_true")
+p.add_argument("--compile", type=int, default=1)
 a = p.parse_args()
 
 torch.cuda.set_per_process_memory_fraction(0.08)
@@ -137,17 +138,35 @@ def evaluate(P, nb=4, B=1024):
 
 # ----------------------------------------------------------------------------------------------- train
 P = init_params()
-opt = torch.optim.Adam(P.values(), lr=a.lr)
+opt = torch.optim.Adam(P.values(), lr=a.lr, fused=True)
 warm = a.steps // 2
 sched = torch.optim.lr_scheduler.LambdaLR(opt, lambda s: min(s / warm, max(0.0, (a.steps - s) / (a.steps - warm))) if s > 0 else 1e-3)
-lossf = lambda P, x, y: ((forward(P, tokens(x, y)) - y) ** 2).mean((1, 2)).sum()  # sum over models
+def lossf(P, x, y):
+    with torch.autocast("cuda", dtype=torch.bfloat16):
+        return ((forward(P, tokens(x, y)).float() - y) ** 2).mean((1, 2)).sum()  # sum over models
+
+
+if a.compile:
+    lossf = torch.compile(lossf)
 out = pathlib.Path(__file__).parent / "cache" / f"taskdiv_{a.tag}_s{a.seed}.json"
 hist = {"args": vars(a), "evals": []}
 t0 = time.time()
-for step in range(1, a.steps + 1):
+start = 1
+ck = out.with_suffix(".ckpt")
+if ck.exists():
+    c = torch.load(ck)
+    with torch.no_grad():
+        for k in P:
+            P[k].copy_(c["P"][k].to(dev))
+    opt.load_state_dict(c["opt"])
+    for _ in range(c["step"]):
+        sched.step()
+    start = c["step"] + 1
+    hist = json.load(open(out))
+    print("resumed from", c["step"])
+for step in range(start, a.steps + 1):
     x, y, _ = sample(a.batch)
-    with torch.autocast("cuda", dtype=torch.bfloat16):
-        loss = lossf(P, x, y)
+    loss = lossf(P, x, y)
     opt.zero_grad(set_to_none=True)
     loss.backward()
     opt.step(); sched.step()
@@ -165,5 +184,6 @@ for step in range(1, a.steps + 1):
         print("  true MSE/D  PT:", np.round(m("pt", "true"), 3), "\n  ridge:", np.round(m("ridge", "true"), 3),
               "\n  dmmse:", np.round(m("dmmse", "true"), 3), flush=True)
         json.dump(hist, open(out, "w"))
+        torch.save({"P": {k: v.detach().cpu() for k, v in P.items()}, "opt": opt.state_dict(), "step": step}, out.with_suffix(".ckpt"))
 torch.save({k: v.detach().cpu() for k, v in P.items()}, out.with_suffix(".pt"))
 print("saved", out)
