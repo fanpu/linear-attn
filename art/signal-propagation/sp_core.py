@@ -66,13 +66,15 @@ def _step_fn(act):
 @torch.no_grad()
 def frontier_grid(sw, sb, N, D, seed=0, act="erf", dtype=torch.float64, chunk=65536,
                   n_avg=20, record_layers=(), device="cuda", layers=None, log=None,
-                  input_perturb=0.0):
+                  input_perturb=0.0, tau_hit=None, hit_every=5):
     """Pixelwise L^l = |x1^l - x2^l|^2 with x = h / sqrt(N) (the paper's convention).
 
     sw, sb: 1D float64 arrays (length P) of sigma_w, sigma_b per pixel.
     Returns dict with L_D (last layer), L_avg (mean over last n_avg layers, as in the
     paper's text) and L_rec (len(record_layers), P).
-    input_perturb: relative Gaussian perturbation of the inputs (roundoff proxy)."""
+    input_perturb: relative Gaussian perturbation of the inputs (roundoff proxy).
+    tau_hit: if set, also return t_hit = first checked layer (every hit_every) with L < tau_hit
+             (D+1 if never): the ordered-side 'convergence depth'."""
     step = _step_fn(act)
     P = len(sw)
     layers = layers or LayerCache(seed, N, D, device, dtype)
@@ -87,6 +89,7 @@ def frontier_grid(sw, sb, N, D, seed=0, act="erf", dtype=torch.float64, chunk=65
     inv = 1.0 / math.sqrt(N)
     chunk = min(chunk, P)
     Wts = {}
+    t_hit = np.full(P, D + 1, dtype=np.int32)
     for s in range(0, P, chunk):
         e = min(P, s + chunk)
         n = e - s
@@ -97,6 +100,7 @@ def frontier_grid(sw, sb, N, D, seed=0, act="erf", dtype=torch.float64, chunk=65
         w2 = torch.cat([w, w]); bb2 = torch.cat([bbv, bbv])
         h = torch.cat([X0[0].expand(chunk, N), X0[1].expand(chunk, N)]).contiguous()
         acc = torch.zeros(chunk, device=device, dtype=torch.float64)
+        hit = torch.full((chunk,), D + 1, device=device, dtype=torch.int32)
         for l in range(1, D + 1):
             W, b = layers(l)
             if layers.store is not None:
@@ -106,6 +110,9 @@ def frontier_grid(sw, sb, N, D, seed=0, act="erf", dtype=torch.float64, chunk=65
             else:
                 Wt = (W.T * inv).contiguous()
             h = step(h, Wt, b, w2, bb2)
+            if tau_hit is not None and l % hit_every == 0:
+                dd = ((h[:chunk] - h[chunk:]) ** 2).sum(1) / N
+                hit = torch.where((hit > D) & (dd < tau_hit), torch.full_like(hit, l), hit)
             if l > D - n_avg or l in rec_idx:
                 d = ((h[:chunk] - h[chunk:]) ** 2).sum(1).double() / N
                 if l > D - n_avg:
@@ -114,9 +121,10 @@ def frontier_grid(sw, sb, N, D, seed=0, act="erf", dtype=torch.float64, chunk=65
                     L_rec[rec_idx[l], s:e] = d[:n].cpu().numpy()
         L_D[s:e] = d[:n].cpu().numpy()
         L_avg[s:e] = (acc / n_avg)[:n].cpu().numpy()
+        t_hit[s:e] = hit[:n].cpu().numpy()
         if log:
             log(f"  chunk {e}/{P}")
-    return dict(L_D=L_D, L_avg=L_avg, L_rec=L_rec)
+    return dict(L_D=L_D, L_avg=L_avg, L_rec=L_rec, t_hit=t_hit)
 
 
 def grid_axes(x0, x1, y0, y1, res):
@@ -156,3 +164,51 @@ def meanfield_erf_L(sw, sb, D, c0=0.0, n_avg=20):
             acc += L
         q, q12 = sw2 * Ephi2 + sb2, sw2 * Ephiphi + sb2
     return L, acc / n_avg
+
+
+# ----------------------------------------------------------------- geometry
+def boundary_mask(B):
+    """Boundary pixels of a binary image: a 2x2 cell containing both classes marks all its
+    pixels (same rule as the paper's extract_edges on a signed field), output same shape."""
+    B = B.astype(bool)
+    m = np.zeros_like(B)
+    c = (B[1:, 1:] != B[:-1, 1:]) | (B[1:, 1:] != B[1:, :-1]) | (B[1:, 1:] != B[:-1, :-1])
+    m[1:, 1:] |= c; m[:-1, 1:] |= c; m[1:, :-1] |= c; m[:-1, :-1] |= c
+    return m
+
+
+def edge_cells(B):
+    """Paper's extract_edges: (H-1, W-1) mask of 2x2 cells containing both classes."""
+    B = B.astype(bool)
+    Y = np.stack((B[1:, 1:], B[:-1, 1:], B[1:, :-1], B[:-1, :-1]), -1)
+    return Y.any(-1) & ~Y.all(-1)
+
+
+def box_counts(E, sizes):
+    """Number of occupied s x s boxes of a boolean image for each s (trailing partial boxes kept)."""
+    out = []
+    for s in sizes:
+        H, W = E.shape
+        ph, pw = (-H) % s, (-W) % s
+        Ep = np.pad(E, ((0, ph), (0, pw)))
+        out.append(int(Ep.reshape(Ep.shape[0] // s, s, Ep.shape[1] // s, s).any((1, 3)).sum()))
+    return np.array(out)
+
+
+def pick_zoom_center(B, frac, margin=0.25):
+    """Choose the sub-window (side = frac * window) with the strongest ordered/chaotic mixing:
+    score = (#boundary pixels) * 4 p (1-p), p = chaotic fraction, restricted away from edges.
+    Returns centre in fractional image coords (cx, cy) in [0,1]."""
+    H, W = B.shape
+    k = max(2, int(round(frac * W)))
+    E = boundary_mask(B).astype(np.float64)
+    Bf = B.astype(np.float64)
+    from scipy.ndimage import uniform_filter
+    eb = uniform_filter(E, k, mode="constant")
+    pb = uniform_filter(Bf, k, mode="constant")
+    score = eb * 4 * pb * (1 - pb)
+    lo_y, hi_y = int(margin * H), int((1 - margin) * H)
+    lo_x, hi_x = int(margin * W), int((1 - margin) * W)
+    sub = score[lo_y:hi_y, lo_x:hi_x]
+    iy, ix = np.unravel_index(np.argmax(sub), sub.shape)
+    return (ix + lo_x + 0.5) / W, (iy + lo_y + 0.5) / H
