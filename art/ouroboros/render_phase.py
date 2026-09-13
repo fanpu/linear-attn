@@ -18,7 +18,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument("target"); ap.add_argument("model")
 ap.add_argument("--tag", default=""); ap.add_argument("--G", type=int, default=0)
 ap.add_argument("--tau", type=float, default=0.25); ap.add_argument("--cell", type=int, default=0)
-ap.add_argument("--only", default="")
+ap.add_argument("--only", default=""); ap.add_argument("--regimes", default="replace,accumulate")
 a = ap.parse_args()
 
 
@@ -56,18 +56,18 @@ def fields(D, G):
     return sw, E, T, signed
 
 
-R, A = load("replace"), load("accumulate")
+sets = [(k, load(k)) for k in a.regimes.split(",")]
+R = sets[0][1]
 G = a.G or (R["sw2"].shape[-1] - 1)
 lams, ns = R["lams"], R["ns"]
-sets = [("replace", R), ("accumulate", A)]
 F = {k: fields(D, min(G, D["sw2"].shape[-1] - 1)) for k, D in sets}
 L_, N_ = len(lams), len(ns)
 
 
-def to_img(field_rgb, cell):
+def to_img(field_rgb, cy, cx):
     """[L, Nn, 3] with row 0 = lambda 0 -> image with lambda increasing upward, nearest upsample."""
     im = np.flipud(field_rgb)
-    return np.kron(im, np.ones((cell, cell, 1)))
+    return np.kron(im, np.ones((cy, cx, 1)))
 
 
 def upsample_to(rgb, shape_cells):
@@ -80,9 +80,11 @@ def upsample_to(rgb, shape_cells):
 
 def plate(panels, style, name, title, sub, cbar=None):
     cell = a.cell or max(8, 1200 // max(L_, N_))
-    pw, ph = N_ * cell, L_ * cell
+    cx = cell * 2 if len(panels) == 1 else cell  # single panel: declared 2:1 cell aspect
+    pw, ph = N_ * cx, L_ * cell
     ml, mr, mt, mb, gap = 210, 90, 290, 250, 120
-    W = ml + 2 * pw + gap + mr
+    npan = len(panels)
+    W = ml + npan * pw + (npan - 1) * gap + mr
     H = mt + ph + mb
     dark = style == "dark"
     img = np.tile(np.array(S.INK["night"] if dark else S.INK["paper"], float), (H, W, 1)) if dark else S.paper_texture(H, W)
@@ -92,10 +94,13 @@ def plate(panels, style, name, title, sub, cbar=None):
         x = ml + i * (pw + gap)
         if rgb.shape[:2] != (L_, N_):
             rgb = upsample_to(rgb, (L_, N_))
-        img[mt:mt + ph, x:x + pw] = to_img(rgb, cell)
+        img[mt:mt + ph, x:x + pw] = to_img(rgb, cell, cx)
     im = Image.fromarray(img.astype(np.uint8))
     dr = ImageDraw.Draw(im)
     ft, fs, fl, fa = S.font("serif", 54), S.font("serif_it", 30), S.font("serif", 36), S.font("serif", 26)
+    tsz = 54
+    while ft.getlength(title) > W - ml - 40 and tsz > 30:
+        tsz -= 2; ft = S.font("serif", tsz)
     dr.text((ml, 60), title, font=ft, fill=fg)
     dr.text((ml, 140), sub, font=fs, fill=dim)
     for i, (lab, _) in enumerate(panels):
@@ -104,7 +109,7 @@ def plate(panels, style, name, title, sub, cbar=None):
         dr.rectangle([x - 1, mt - 1, x + pw, mt + ph], outline=dim, width=1)
         for nt in [8, 16, 32, 64, 128, 256, 512, 1024]:
             if ns[0] <= nt <= ns[-1]:
-                xx = x + (np.log(nt) - np.log(ns[0])) / (np.log(ns[-1]) - np.log(ns[0])) * (pw - cell) + cell / 2
+                xx = x + (np.log(nt) - np.log(ns[0])) / (np.log(ns[-1]) - np.log(ns[0])) * (pw - cx) + cx / 2
                 dr.line([xx, mt + ph, xx, mt + ph + 12], fill=dim, width=2)
                 dr.text((xx - 18, mt + ph + 18), str(nt), font=fa, fill=dim)
         dr.text((x + pw / 2 - 170, mt + ph + 60), "n, samples per generation (log)", font=fa, fill=dim)
@@ -127,7 +132,7 @@ def plate(panels, style, name, title, sub, cbar=None):
 
 
 MODEL = {"gmm": "Gaussian mixture (K = 8, EM)", "kde": "Gaussian KDE (LOO-CV bandwidth)"}[a.model]
-base = f"phase_{a.target}_{a.model}{a.tag}"
+base = f"phase_{a.target}_{a.model}{a.tag}" + ("_" + a.regimes.replace(",", "-") if len(sets) == 1 else "")
 lab = {"replace": "replace: train on λ·n real + (1−λ)·n fresh samples", "accumulate": "accumulate: keep every sample ever made"}
 
 # ---- 1. sequential: log sliced W2 at generation G, shared scale
@@ -140,8 +145,8 @@ if not a.only or "seq" in a.only:
             Lut = Lut[::-1] if Lut[0].sum() < Lut[-1].sum() else Lut
         pans = [(lab[k], S.apply_lut((logs_[k] - lo) / (hi - lo), Lut)) for k, _ in sets]
         plate(pans, style, f"{base}_sw2_{cmap}.png", f"Where the snake eats its tail — {MODEL}",
-              f"how much worse than its own generation-0 fit after {G} generations: sliced W₂(G) / sliced W₂(0), log colour.\nEach cell is one chain of {G} refits (seed 0, common random numbers across cells).",
-              cbar=(Lut[::8], f"×{10**lo:.2f}", f"×{10**hi:.1f}", f"W₂ ratio, generation {G} vs 0"))
+              f"how much worse than its own generation-0 fit after {G} generations: sliced W2(G) / sliced W2(0), log colour.\nEach cell is one chain of {G} refits (seed 0, common random numbers across cells).",
+              cbar=(Lut[::8], f"×{10**lo:.2f}", f"×{10**hi:.1f}", f"W2 ratio, generation {G} vs 0"))
 
 # ---- 2. split: escaped (red side, coloured by how late) vs survived (purple side, by how close it came)
 if not a.only or "split" in a.only:
@@ -152,4 +157,4 @@ if not a.only or "split" in a.only:
             rgb = S.P.render_split(F[k][3], pairing, near_boundary="small", ref=ref) * 255
             pans.append((lab[k], rgb))
         plate(pans, "dark", f"{base}_split_{pairing}.png", f"Escape-time map of self-consumption — {MODEL}",
-              f"red side: sliced W₂ rose more than τ = {a.tau} above generation 0 within {G} generations (paler = earlier).\npurple side: never did (paler = further below τ). Each side rank-normalised, shared across panels; declared mapping.")
+              f"red side: sliced W2 rose more than τ = {a.tau} above generation 0 within {G} generations (paler = earlier).\npurple side: never did (paler = further below τ). Each side rank-normalised, shared across panels; declared mapping.")
