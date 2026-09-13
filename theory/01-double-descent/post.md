@@ -214,6 +214,24 @@ The spike sits where the number of features $N$ equals the number of samples $n$
 
 CNN_SECTION_PLACEHOLDER
 
+### 6.2 Let the first layer learn
+
+Section 5's formula describes a network whose first layer is frozen. What happens when both layers are trained? Take the same data model (inputs on a sphere in $d = 20$ dimensions, a linear target plus noise, $n = 400$ samples). Train a two-layer ReLU network from the random-features initialization, with the output weights starting at zero. Use full-batch Adam for 30,000 steps with no regularization of any kind. Then compare it, width by width and seed by seed, with the min-norm random-features fit on the same first-layer draw.
+
+<figure class="wide">
+<img src="figures/twolayer.png" alt="Test error vs hidden units for frozen and trained two-layer networks">
+<figcaption>Top: test error against the number of hidden units $N$. Purple: first layer frozen (exact min-norm fit), with the Mei–Montanari formula for $\psi_2 = n/d = 20$. Orange: both layers trained. Dots are medians over 6 seeds; bars span min–max. Bottom: the trained network's final training error. The solid gold line marks $N = n$, the random-features threshold. The dashed gold line marks $N d = n$, where the number of trainable first-layer weights equals the number of samples.</figcaption>
+</figure>
+
+The two models have their spikes in completely different places.
+
+- **The frozen network** peaks at $N = n = 400$, exactly where §5 says. The median test error there is about 3,000.
+- **The trained network** doesn't notice $N = 400$ at all (test error 0.21). Its spike is at $N = 22$, where it reaches 1.05, above the null risk. $N = 22$ is also the first width at which training drives the training error to zero (median MSE below $10^{-6}$). At that width it has $N d = 440$ first-layer weights and $N(d+1) = 462$ parameters in total, about $1.1\,n$.
+- **The spike is where the trained model first interpolates**, not where the features match the samples. This is exactly the shape of Nakkiran et al.'s effective-model-complexity rule, which we test more carefully on the CNNs above.
+- **The Mei–Montanari formula still tracks the frozen network** for $N < n$ (0.17 measured vs 0.20 predicted at $N = 73$). Beyond the spike it is increasingly optimistic: at $N = 2{,}000$ it predicts 0.08, and we measure 0.26. The formula is a $d \to \infty$ limit with $n/d$ fixed. Here $d = 20$ and $n = 400 = d^2$, which is a different scaling regime: the random features can also represent quadratic functions of $x$, and the formula doesn't account for them.
+
+Two more things to notice. Trained networks with just 2–5 hidden units are the best models in the whole figure (test error 0.03–0.11), because two ReLUs can represent a linear function exactly. And far beyond the spike, the trained network settles at 0.19–0.26, beating the frozen one, even though its first layer moved by only about 25–40% of its initial norm.
+
 ## 7. Where it breaks
 
 **Finite size moves the spike's height, not its location.** Asymptotic formulas predict an infinite spike; any real experiment has a finite, noisy one. In the linear model the exact finite-$n$ mean is infinite for $|p - n| \le 1$, and the individual draws at $p = n \pm 2$ scatter over two orders of magnitude (the $n = 50$ panel in §2). In random features the theory underestimates the height of the spike at small $d$. At $N = 0.95\,n$, 20 draws averaged 10.0 at $d = 50$ and 10.4 at $d = 100$, against a $d = \infty$ prediction of 7.4 and 8.0. At $d = 200$ they agree (8.0 vs 8.0). Away from the threshold, the relative gap shrinks steadily with $d$: a median of 3.1% at $d = 50$, 1.8% at $d = 100$, 0.9% at $d = 200$.
@@ -229,7 +247,6 @@ CNN_SECTION_PLACEHOLDER
 
 It doesn't. For all four exponents, both theory and simulation put the peak at $p = n$ to within the grid resolution ($p = 198$ or $202$). The height of the theory's peak falls from 96 ($\alpha = 0$) to 9 ($\alpha = 1.5$). The underparameterized dip moves, and at $\alpha = 1.5$ a real classical sweet spot appears around $p \approx 50$. In linear least squares the spike is a *rank* event: $X_p$ becomes square, whatever the covariance. The one requirement is that the columns are in general position, which Gaussian data guarantees. A small fixed ridge ($\lambda = 10^{-3}$ or $10^{-2}$) doesn't move it either; it only lowers it. So when the peak *does* move, as it does for the CNNs of §6, the reason must lie elsewhere: in what training can fit, not in the rank of a matrix.
 
-**What we did not test.** The prompt for this project asked whether the random-features formula still tracks a two-layer network once its first layer learns. We ran out of room for it. Feature learning breaks Gaussian equivalence in known ways, so the formula is not expected to hold quantitatively there.
 
 ## Reproduce it
 
