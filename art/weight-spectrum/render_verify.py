@@ -84,7 +84,7 @@ def sheet_ccdf(run):
         lp = mp_edges(r[f'{L}/elem_var'][-1], N / M)[1]
         a.axvline(lp, color='#2b4a6f', lw=0.8, ls='-.', label='MP edge λ₊ (final σ²)')
         a.set_title(f'{L} ({N}×{M}) CCDF of eigenvalues', fontsize=10); a.legend(fontsize=6.5, frameon=False)
-        a.set_xlabel('λ', fontsize=9); style_ax(a)
+        a.set_xlabel('λ', fontsize=9); style_ax(a); a.set_xlim(np.percentile(r[f'{L}/lam'][[0, -1]], 2) * 0.7, None)
     axs[0].set_ylabel('P(Λ ≥ λ)')
     fig.tight_layout()
     return R.save(fig, f'verify_ccdf_{run}.png', dpi=150)
@@ -109,7 +109,7 @@ def sheet_batch(rows):
         series(axs[2], f'{L}_n_out', LC[L], L)
     series(axs[3], 'test_acc', '#1b1a17', 'test')
     series(axs[3], 'train_acc', '#8a847a', 'train (10k subset)')
-    axs[0].axhspan(2, 4, color='#c9962b', alpha=0.08, lw=0); axs[0].text(9, 2.1, 'MM "heavy-tailed" 2<α<4', fontsize=7, color='#7a5a10')
+    axs[0].axhspan(2, 4, color='#c9962b', alpha=0.08, lw=0); axs[0].text(9, 2.1, 'reference band 2<α<4', fontsize=7, color='#7a5a10')
     t = ['final power-law α of ESD tail (hollow: <5 eigs above null edge)', 'λmax / null bulk edge',
          '# eigenvalues above null bulk edge', 'accuracy after 30 epochs']
     for a, tt in zip(axs, t):
