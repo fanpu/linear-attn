@@ -27,9 +27,15 @@ def load(tag="main", n=10000, noise=20, use_logs=True):
                 test_loss=get("test_loss"), fit_noisy=get("fit_noisy"))
 
 
-def smooth_epochs(A, w=2):
-    """Running mean over +-w neighbouring evaluations (evals are log-spaced in epoch), per width row."""
-    out = np.empty_like(A)
+def smooth_epochs(A, w=2, epochs=None, sigma_dec=0.07):
+    """Smooth each width's history in training time. With `epochs`, a Gaussian kernel in log10(epoch) of width
+    sigma_dec decades (causal-free, symmetric); otherwise a running mean over +-w neighbouring evaluations."""
+    out = np.empty_like(A, dtype=float)
+    if epochs is not None:
+        le = np.log10(np.asarray(epochs, float))
+        W = np.exp(-0.5 * ((le[:, None] - le[None, :]) / sigma_dec) ** 2)
+        W /= W.sum(1, keepdims=True)
+        return A @ W.T
     for j in range(A.shape[1]):
         lo, hi = max(0, j - w), min(A.shape[1], j + w + 1)
         out[:, j] = A[:, lo:hi].mean(1)

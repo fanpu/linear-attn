@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FixedLocator, NullFormatter, NullLocator
 import cmcrameri.cm as cmc
+from sklearn.isotonic import IsotonicRegression
 
 import cnn_data as cd
 import style as S
@@ -11,6 +12,7 @@ import style as S
 HERE = pathlib.Path(__file__).resolve().parent
 FIG = HERE / "figures"
 EPS = 0.10
+MIN_BUMP = 0.015
 
 
 def edges_log(v):
@@ -41,21 +43,33 @@ def analysis(d, eps=EPS, kmin_peak=3):
     sel = ks >= kmin_peak
     kpk, kem = [], []
     for j in range(len(E)):
-        # a double-descent peak: a width whose test error exceeds the best smaller AND the best larger width.
-        # take the most prominent one; require prominence >= 0.01 (about 2x the epoch-to-epoch eval noise)
+        # a double-descent bump = excess of test error over the best non-increasing (isotonic) fit in width.
+        # peak width = argmax of that excess (parabolic refinement in log k); require excess >= MIN_BUMP
         col = te[:, j]
-        prom = np.full(len(ks), -np.inf)
-        for i in range(1, len(ks) - 1):
-            prom[i] = col[i] - max(col[:i].min(), col[i + 1:].min())
-        i = int(np.argmax(prom))
-        if prom[i] >= 0.01 and ks[i] >= kmin_peak:
+        exc = col - IsotonicRegression(increasing=False).fit(np.log(ks), col).predict(np.log(ks))
+        i = int(np.argmax(exc))
+        if exc[i] >= MIN_BUMP and ks[i] >= kmin_peak:
             lo, hi = max(0, i - 1), min(len(ks), i + 2)
-            kp, _ = cd.peak_location(ks[lo:hi], col[lo:hi])
+            kp, _ = cd.peak_location(ks[lo:hi], exc[lo:hi])
             kpk.append(kp)
         else:
             kpk.append(np.nan)
         kem.append(cd.crossing(ks, tr[:, j], eps))
     return te, tr, np.array(kpk), np.array(kem)
+
+
+def bump_height(d):
+    te = cd.smooth_epochs(d["test_err"], 2)
+    ks = d["k"]
+    return np.array([np.max(te[:, j] - IsotonicRegression(increasing=False).fit(np.log(ks), te[:, j]).predict(np.log(ks)))
+                     for j in range(te.shape[1])])
+
+
+def eval_noise(d):
+    """Epoch-to-epoch eval jitter: std of test error around its 5-point running mean, widths >= 24, epochs >= 100."""
+    te = d["test_err"]; sm = cd.smooth_epochs(te, 2)
+    sel = d["k"] >= 24; late = d["epoch"] >= 100
+    return float(np.std((te - sm)[np.ix_(sel, late)]))
 
 
 def fig_heat(d):
