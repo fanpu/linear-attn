@@ -12,3 +12,15 @@
    overlap of top eigenvectors with span of class-mean gradients.
 3. Pieces: class-count plate stack (emission / absorption), barcode, spectrograph-over-training (waterfall + mp4),
    Spectral signed split variant, palettes.py variant.
+
+## Key numbers so far (final checkpoints, per_class=500 Hessian subset)
+- exact (mlps, 10x10 MNIST, P~4.4k): top eigvecs in span{d_c} (overlap>0.5): C=2:1, 3:2, 4:3, 5:4, 7:6  => C-1 lines.
+  widest-log-gap count agrees for C<=5, ambiguous at C=7 (k=7 gap 1.47 vs k=2 1.46). So plates use the
+  eigenvector-overlap count ("structural lines"), gap count reported in verify table.
+- Lanczos (mlp 784-128-128, P~118k, m=200): C=2:1, 3:2, 4:3, 5:4 (gap count says 1), 7:6 by overlap.
+- Papyan G1 eigenvalues are ~10-30x smaller than the H outliers (directions match, magnitudes don't:
+  within-class gradient variance adds along the same directions at low loss).
+## Decisions
+- Plates: symlog tau=2e-3 (render_plates.py --tau), photographic exposure model 1-exp(-density/0.7), every
+  eigenvalue a Gaussian line sigma=1.3px. Hue by x-position (declared spectroscope idiom).
+## Jobs (nohup, logs/): run_exact_series.sh, run_lanczos_series.sh, run_film.sh (waits for exact series)

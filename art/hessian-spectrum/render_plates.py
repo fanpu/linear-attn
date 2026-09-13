@@ -8,13 +8,15 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from render_common import (SERIES, slog, islog, load_exact, load_lanczos, exposure_profile, log_density,
-                           wavelength_rgb, hexrgb, GAL)
+                           wavelength_rgb, hexrgb, GAL, n_structural)
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--styles', default='emission,absorption,silver,negative')
 ap.add_argument('--src', default='exact')
 ap.add_argument('--W', type=int, default=2400)
+ap.add_argument('--tau', type=float, default=2e-3)
 args = ap.parse_args()
+import render_common; render_common.set_tau(args.tau)
 
 STY = {
     'emission': dict(ground='#050505', ink='#d9d4c7', faint='#6b665c', hue=True, absorb=False),
@@ -26,15 +28,20 @@ STY = {
 
 specs = []
 for C in SERIES:
+  try:
     if args.src == 'exact':
         d = load_exact(C)
-        lam, k = d['H_eig'], int(d['count_H'][0])
+        lam = d['H_eig']
         desc = f'MNIST digits 0–{C - 1}  ·  MLP 100-32-32-{C}  ·  P = {int(d["P"]):,}  ·  exact spectrum'
     else:
         d = load_lanczos(C)
-        lam, k = d['H_ritz'], int(d['count_H'][0])
+        lam = d['H_ritz']
         desc = f'MNIST digits 0–{C - 1}  ·  MLP 784-128-128-{C}  ·  P = {int(d["P"]):,}  ·  Lanczos Ritz values'
-    specs.append(dict(C=C, lam=lam, k=k, desc=desc, loss=float(d['loss']), acc=float(d['acc'])))
+    k = n_structural(d)
+    specs.append(dict(C=C, lam=lam, k=k, kgap=int(d['count_H'][0]), desc=desc, loss=float(d['loss']),
+                      acc=float(d['acc'])))
+  except (IndexError, FileNotFoundError):
+    print('missing', C)
 
 allS = np.concatenate([slog(s['lam']) for s in specs])
 x0, x1 = np.floor(allS.min() * 4) / 4 - 0.25, np.ceil(allS.max() * 4) / 4 + 0.25
@@ -68,7 +75,7 @@ for style in args.styles.split(','):
     st = STY[style]
     plt.rcParams.update({'font.family': 'P052', 'text.color': st['ink']})
     nrow = len(specs)
-    H_in = 3.1 * nrow + 2.6
+    H_in = 3.1 * nrow + 2.9
     fig = plt.figure(figsize=(W / 100, H_in), dpi=100, facecolor=st['ground'])
     L, R = 0.155, 0.93
     fig.text(0.5, 1 - 0.55 / H_in, 'BULK AND OUTLIERS', ha='center', va='top', fontsize=44, color=st['ink'])
@@ -103,8 +110,8 @@ for style in args.styles.split(','):
         fig.text(L, top - 2.42 / H_in, s['desc'], fontsize=12, color=st['faint'], va='center',
                  family='Nimbus Mono PS')
     # ruler: eigenvalue scale
-    axR = fig.add_axes([L, 0.35 / H_in, R - L, 0.25 / H_in], facecolor='none')
-    ticks = [-1e-2, -1e-3, 0, 1e-3, 1e-2, 1e-1, 1, 10]
+    axR = fig.add_axes([L, 0.6 / H_in, R - L, 0.25 / H_in], facecolor='none')
+    ticks = [-1e-1, -1e-2, 0, 1e-2, 1e-1, 1, 10] if args.tau >= 1e-3 else [-1e-2, -1e-3, 0, 1e-3, 1e-2, 1e-1, 1, 10]
     tk = [t for t in ticks if x0 <= slog(t) <= x1]
     axR.set_xlim(x0, x1); axR.set_ylim(0, 1)
     for sp in ['top', 'left', 'right']:
@@ -117,8 +124,8 @@ for style in args.styles.split(','):
     minor = np.concatenate([minor, -minor])
     axR.set_xticks(slog(minor[(slog(minor) > x0) & (slog(minor) < x1)]), minor=True)
     axR.tick_params(colors=st['faint'], which='both', direction='in')
-    fig.text(R + 0.008, 0.45 / H_in, 'λ (symlog, τ=1e-4)', fontsize=12, color=st['faint'],
-             family='Nimbus Mono PS', va='center')
+    fig.text(0.5, 0.12 / H_in, f'Hessian eigenvalue λ  (symmetric-log axis, linear within ±{args.tau:g})', fontsize=12, color=st['faint'],
+             family='Nimbus Mono PS', va='center', ha='center')
     out = f'{GAL}/plates_{args.src}_{style}.png'
     fig.savefig(out, dpi=100, facecolor=st['ground'])
     plt.close(fig)

@@ -9,14 +9,30 @@ SERIES = [2, 3, 4, 5, 7, 10]
 TAU = 1e-4          # symlog linear threshold (eigenvalue units)
 
 
-def slog(lam, tau=TAU):
+def set_tau(t):
+    global TAU
+    TAU = t
+
+
+def slog(lam, tau=None):
+    tau = TAU if tau is None else tau
     """Symmetric log: sign(l) * log10(1 + |l|/tau). Negative eigenvalues map to the left of 0."""
     lam = np.asarray(lam, dtype=np.float64)
     return np.sign(lam) * np.log10(1 + np.abs(lam) / tau)
 
 
-def islog(s, tau=TAU):
+def islog(s, tau=None):
+    tau = TAU if tau is None else tau
     return np.sign(s) * tau * (10 ** np.abs(s) - 1)
+
+
+def n_structural(d, thr=0.5):
+    """Leading eigenvectors whose squared projection onto span{d_c} (C class-mean gradient directions) exceeds thr."""
+    ov = np.asarray(d['ov_dc'])
+    k = 0
+    while k < len(ov) and ov[k] > thr:
+        k += 1
+    return k
 
 
 def load_exact(C, run='s_mlps', step=None):
