@@ -19,19 +19,21 @@ ap.add_argument('--bs', type=int, default=128)
 ap.add_argument('--seed', type=int, default=0)
 ap.add_argument('--n_ckpt', type=int, default=6, help='number of log-spaced checkpoints (plus step 0 and final)')
 ap.add_argument('--name', required=True)
+ap.add_argument('--down', type=int, default=0, help='avg-pool images to down x down (0 = off)')
+ap.add_argument('--threads', type=int, default=4)
 args = ap.parse_args()
 
-torch.cuda.set_per_process_memory_fraction(0.10)
+torch.set_num_threads(args.threads)
 torch.manual_seed(args.seed)
 out = os.path.join(CACHE, 'runs', args.name)
 os.makedirs(out, exist_ok=True)
 
-x, y = load_dataset(args.ds, train=True)
+x, y = load_dataset(args.ds, train=True, down=args.down or None)
 x, y = class_subset(x, y, args.C)
-xt, yt = load_dataset(args.ds, train=False)
+xt, yt = load_dataset(args.ds, train=False, down=args.down or None)
 xt, yt = class_subset(xt, yt, args.C)
 N = len(y)
-model = ARCHS[args.arch](args.ds, args.C).cuda()
+model = ARCHS[args.arch](args.ds, args.C)
 P = n_params(model)
 steps_per_epoch = N // args.bs
 total = steps_per_epoch * args.epochs
@@ -54,11 +56,11 @@ def evaluate(xx, yy):
 
 
 log = []
-g = torch.Generator(device='cuda').manual_seed(args.seed)
+g = torch.Generator(device='cpu').manual_seed(args.seed)
 step, t0 = 0, time.time()
 torch.save(model.state_dict(), os.path.join(out, f'step_{0:06d}.pt'))
 while step < total:
-    perm = torch.randperm(N, device='cuda', generator=g)
+    perm = torch.randperm(N, device='cpu', generator=g)
     for b in range(steps_per_epoch):
         idx = perm[b * args.bs:(b + 1) * args.bs]
         loss = F.cross_entropy(model(x[idx]), y[idx])

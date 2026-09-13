@@ -20,7 +20,8 @@ _STATS = {'MNIST': (0.1307, 0.3081), 'FashionMNIST': (0.2860, 0.3530),
           'CIFAR10': ((0.4914, 0.4822, 0.4465), (0.2470, 0.2435, 0.2616))}
 
 
-def load_dataset(name, train=True, device='cuda'):
+def load_dataset(name, train=True, device='cpu', down=None):
+    """down: optional side length for average-pool downsampling (e.g. 10 -> 10x10 MNIST)."""
     ds = getattr(torchvision.datasets, name)(root=ROOT, train=train, download=False)
     if name == 'CIFAR10':
         x = torch.tensor(ds.data).permute(0, 3, 1, 2).float() / 255.
@@ -32,6 +33,8 @@ def load_dataset(name, train=True, device='cuda'):
         m, s = _STATS[name]
         x = (x - m) / s
         y = ds.targets.clone()
+    if down:
+        x = F.adaptive_avg_pool2d(x, down)
     return x.to(device), y.to(device)
 
 
@@ -81,6 +84,8 @@ class SmallCNN(nn.Module):
 
 ARCHS = {
     'mlp': lambda ds, C: MLP(784 if ds != 'CIFAR10' else 3072, C, width=128, depth=2),
+    # small MLP on 10x10 average-pooled images: P ~ 4.4k, so the FULL Hessian can be formed and diagonalised
+    'mlps': lambda ds, C: MLP(100 if ds != 'CIFAR10' else 300, C, width=32, depth=2),
     'cnn': lambda ds, C: (SmallCNN(1, C, 28, (16, 32), 64) if ds != 'CIFAR10'
                           else SmallCNN(3, C, 32, (32, 64, 64), 128)),
 }
@@ -159,6 +164,30 @@ class HessianOps:
             out += vjp_fn(u)[0]
         return out / self.N
 
+    def Hv_batched(self, V):
+        """(B,P) -> (B,P) exact Hessian columns, vmapped forward-over-reverse."""
+        from torch.func import vmap
+        out = torch.zeros_like(V)
+        for xb, yb in self._chunks():
+            lf = lambda th: F.cross_entropy(self.fl.f(th, xb), yb, reduction='sum')
+            g = grad(lf)
+            out += vmap(lambda v: jvp(g, (self.th,), (v,))[1])(V)
+        return out / self.N
+
+    def Gv_batched(self, V):
+        from torch.func import vmap
+        out = torch.zeros_like(V)
+        for xb, yb in self._chunks():
+            fx = lambda th: self.fl.f(th, xb)
+            z, vjp_fn = vjp(fx, self.th)
+            p = torch.softmax(z.detach(), 1)
+            def one(v):
+                Jv = jvp(fx, (self.th,), (v,))[1]
+                u = p * Jv - p * (p * Jv).sum(1, keepdim=True)
+                return vjp_fn(u)[0]
+            out += vmap(one)(V)
+        return out / self.N
+
     def Ev(self, v):
         return self.Hv(v) - self.Gv(v)
 
@@ -205,7 +234,7 @@ def papyan_decomposition(D):
 
 # ----------------------------------------------------------------------------- Lanczos
 @torch.no_grad()
-def lanczos(mv, P, m, device, dtype=torch.float64, seed=0, v0=None, reorth=True):
+def lanczos(mv, P, m, device, dtype=torch.float64, seed=0, v0=None, reorth=True, return_V=False):
     """m-step Lanczos with full re-orthogonalisation (twice), float64.
 
     Returns (alpha, beta, first components needed for SLQ are implicit: start vector e1).
@@ -238,6 +267,8 @@ def lanczos(mv, P, m, device, dtype=torch.float64, seed=0, v0=None, reorth=True)
                 break
             V[j + 1] = w / b
     alpha, beta = alpha[:k_used].double(), beta[:k_used].double()
+    if return_V:
+        return alpha.numpy(), beta.numpy(), V[:k_used]
     return alpha.numpy(), beta.numpy()
 
 
@@ -259,7 +290,38 @@ def slq(mv, P, m, nv, device, seed=0):
     return nodes, weights
 
 
-def top_eigs(mv, P, m, device, seed=0):
+def top_eigs(mv, P, m, device, seed=0, k_vec=0):
+    """Extreme Ritz values (ascending) + residual bounds; optionally the top-k_vec Ritz vectors (k, P)."""
+    if k_vec:
+        a, b, V = lanczos(mv, P, m, device, seed=seed, return_V=True)
+        import scipy.linalg
+        th, S = scipy.linalg.eigh_tridiagonal(a, b[:len(a) - 1])
+        res = np.abs(b[len(a) - 1] * S[len(a) - 1])
+        Sk = torch.tensor(S[:, ::-1][:, :k_vec].copy(), dtype=V.dtype, device=V.device)
+        return th, res, (V.T @ Sk).T
     a, b = lanczos(mv, P, m, device, seed=seed)
     th, _, res = tridiag_eig(a, b)
     return th, res   # ascending; both ends usable, check residuals
+
+
+# ----------------------------------------------------------------------------- exact (small nets)
+def full_matrix(mv_batched, P, block=256, dtype=torch.float64):
+    """Materialise a symmetric operator column-block by column-block. mv_batched: (B,P)->(B,P)."""
+    M = torch.empty(P, P, dtype=dtype)
+    for s in range(0, P, block):
+        E = torch.zeros(min(block, P - s), P, dtype=dtype)
+        E[torch.arange(E.shape[0]), torch.arange(s, s + E.shape[0])] = 1.
+        M[s:s + E.shape[0]] = mv_batched(E)
+    return 0.5 * (M + M.T)
+
+
+# ----------------------------------------------------------------------------- outlier counting
+def count_outliers(lam, kmax):
+    """Largest multiplicative gap among the top kmax+1 positive eigenvalues (descending).
+
+    Returns (k, gap_ratio, second_best_k, second_gap_ratio): k eigenvalues sit above the widest log-gap."""
+    lam = np.sort(np.asarray(lam))[::-1]
+    lam = lam[lam > 0][:kmax + 1]
+    r = lam[:-1] / lam[1:]
+    o = np.argsort(r)[::-1]
+    return int(o[0] + 1), float(r[o[0]]), int(o[1] + 1), float(r[o[1]])
