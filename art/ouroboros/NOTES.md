@@ -19,10 +19,13 @@
 - render_fern.py `<cache fern gmm> sheet|hero --gens 0,10,40,100,200` (stipple samples + engraved component ellipses; "Filix ouroborum" plate).
 - peek.py: diagnostic contact sheet -> logs/.
 
-## Left running at handoff (nohup, safe to let finish; check with `ps -eo pid,args | grep -E "compute_phase|render_film"`)
-- phase replace workers (logs/phase_gmm_replace_w1.log, _w2.log): 26/55 unique columns at 14:12; w1 reruns itself to assemble cache/phase_ring_gmm_replace.npz.
-- logs/render_films.log: film_ring_gmm_dark.mp4 DONE (4 MB, gif 3 MB); paper then film_ring_kde_dark (bioluminescence) in progress.
-- film_B finished: cache/film_fern_gmm_n4096.npz (no params) and cache/film_fern_kde_n2048.npz exist.
+## State (agent 2, 14:45)
+- DONE: phase_ring_gmm_replace.npz assembled (97 lam x 65 n in [8,512], G80). Rendered replace-only maps: `render_phase.py ring gmm --regimes replace` -> gallery/phase_ring_gmm_replace_{sw2_*,split_*}.png (single panel uses 2:1 cells).
+- DONE: film_phase_ring_gmm_replace_sd_spectral.mp4/.gif (`render_phase_film.py ring gmm`), fern_sheet_{sepia_ink,iron_gall}.png + fern_hero_replace_sepia_ink.png (cache/film_fern_gmm_n4096_all.npz = merged), spirals rerendered with new tone (`--wexp 1`, per-tile blur, guides dimmer; dark/paper --tile 0.18, riso two-arm --tile 0.09).
+- RUNNING (nohup): accumulate phase workers logs/phase_gmm_acc_w{1,2}.log (w1 reruns to assemble cache/phase_ring_gmm_accumulate.npz; if both exit w/o assembling, rerun w1 command after deleting stale locks). Then: `render_phase.py ring gmm` (diptych) and `render_phase_film.py ring gmm --regime accumulate` optional.
+- RUNNING: `verify_compute.py all` (logs/verify_compute.log): floor + seeds done; native window n=32..96 x2 seeds (~1.5 h, parts in cache/parts/verify_native_n*.npz, resumable). Then `verify.py` -> verify_results.txt + gallery/verify_boundary.png.
+- verify so far: CRN exact (rows with same n_r identical, diff 0). Seeds 0-4 n128 G200: replace sW2 0.93+-0.24, modes 1,1,1,2,0; anchored 0.23, 8 modes; accumulate 0.15, 8 modes; true-sample floor 0.046+-0.013. Box counting replace map: D(1-8 cells)=1.53, smooth-only 1.11, phase-random null 1.46+-0.03, AAFT null 1.35+-0.04 (real rougher than both nulls at 100% quantile, but boundary-cell count 701 vs null 727/735), local slopes 1.3-1.8 (no power law, <1 decade). Native raster D(4-32px) ~1.15 -> noise-roughened, not fractal.
+- TODO: README.md (full), final verify run, NOTES final.
 
 ## Caches (cache/, gitignored)
 - film_ring_gmm_n128.npz (G200, with params), film_ring_kde_n128.npz (G120), film_spiral_kde_n512 (G100), film_spiral_gmm_n1024 K24 (G200)

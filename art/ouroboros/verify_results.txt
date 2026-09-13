@@ -1,0 +1,26 @@
+== 1. common random numbers
+rows sharing n_r = floor(lambda n): 902 groups, max |sliced W2 difference| over all generations = 0.00e+00
+distinct chains per column: 9 (n = 8) to 97 of 97 rows; lambda resolution floor = 1/n (0.125 at n = 8, 0.0104 = grid spacing at n = 96)
+
+== 2. collapse over seeds (ring, GMM K = 8, n = 128, G = 200)
+noise floor, true samples (64 draws of 2048): sliced W2 0.046 +- 0.013, modes 8.00, var_ratio 1.000
+regime             sW2 g0       sW2 g50      sW2 g200   modes g200  var_ratio g200
+replace      0.120+-0.036  0.590+-0.118  0.927+-0.239    1 1 1 2 0    0.203+-0.406
+anchored     0.120+-0.036  0.212+-0.064  0.226+-0.054    8 8 8 8 7    0.953+-0.049
+accumulate   0.120+-0.036  0.144+-0.046  0.146+-0.043    8 8 8 8 8    0.970+-0.018
+
+== 3. escape-set boundary, replace phase map (97 x 65 cells, tau = 0.25, G = 80)
+escaped cells 27.7%; boundary cells 701; box counts eps=[1, 2, 3, 4, 6, 8, 12, 16]: [701, 241, 132, 81, 46, 29, 17, 10]
+box-counting slope D over eps 1-8 cells (0.9 decades): 1.53
+smoothed field alone (Gaussian sigma = 3 cells): D = 1.11
+null model, smooth + phase-randomised residual (40 surrogates): D = 1.46 +- 0.03; real D is at the 100% quantile; boundary cells 180 (smooth) vs 727 +- 40 (null) vs 701 (real)
+amplitude-adjusted null (residual's own heavy-tailed distribution): D = 1.35 +- 0.04; real at the 100% quantile; boundary cells 735 +- 43
+local slopes between successive eps (a fractal would hold one value): 1.54, 1.48, 1.70, 1.40, 1.60, 1.32, 1.84
+
+== 4. resolution check: native window n in [32, 96], lambda in [0.03, 0.35]
+columns done: n = 32..41; base-map cells re-measured by the native run agree 100.0% (108 cells)
+phase-map cells  256^2 raster box counts eps=[1, 2, 4, 8, 16, 32, 64]: [1677, 601, 277, 120, 59, 25, 7]; D(1-4 px) = 1.30, D(4-32 px) = 1.14
+native seed 0    256^2 raster box counts eps=[1, 2, 4, 8, 16, 32, 64]: [1984, 805, 321, 153, 71, 27, 9]; D(1-4 px) = 1.31, D(4-32 px) = 1.18
+native seed 1    256^2 raster box counts eps=[1, 2, 4, 8, 16, 32, 64]: [0, 0, 0, 0, 0, 0, 0]; D(1-4 px) = nan, D(4-32 px) = nan
+seed 0 vs seed 1 escape labels disagree on 15.7% of the window, 40.7% within 6 px of either boundary
+first surviving n_r per column, |seed 0 - seed 1| in units of 1/n: median nan, mean nan
