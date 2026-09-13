@@ -54,7 +54,7 @@ def layout(K):
     best = None
     for cols in range(1, K + 1):
         rows = int(np.ceil(K / cols))
-        size = min(1.0 / cols, 0.74 / rows)
+        size = min(1.0 / cols, 0.70 / rows)
         if best is None or size > best[0]:
             best = (size, rows, cols)
     return best
@@ -72,7 +72,7 @@ def build(style):
             r, c = divmod(j, cols)
             n_in_row = min(cols, K - r * cols)
             x0 = (1 - n_in_row * size) / 2 + c * size
-            y0 = 0.955 - 0.06 - (r + 1) * size + (0.74 - rows * size) / 2
+            y0 = 0.93 - (r + 1) * size - (0.70 - rows * size) / 2
             ax = fig.add_axes([x0 + 0.01, y0 + 0.01, size - 0.02, size - 0.02]); ax.set_facecolor(st["bg"])
             ax.set_xlim(-1.8, 1.8); ax.set_ylim(-1.8, 1.8); ax.set_aspect("equal"); ax.axis("off")
             lw = 0.9 if style != "plotter" else 0.75
@@ -182,9 +182,9 @@ if __name__ == "__main__":
             pool.map(render_range, chunks)
         mp4 = f"gallery/{name}.mp4"
         subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(args.fps), "-i", f"{outdir}/%05d.png",
-                        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18", "-preset", "slow", mp4], check=True)
+                        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "26", "-preset", "slow", mp4], check=True)
         gif = f"gallery/{name}.gif"
         subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(args.fps), "-i", f"{outdir}/%05d.png",
-                        "-vf", "fps=12,scale=540:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=96:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle",
+                        "-vf", "fps=8,scale=480:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=64:stats_mode=diff[p];[b][p]paletteuse=dither=none:diff_mode=rectangle",
                         gif], check=True)
         print(name, len(items), "frames", os.path.getsize(mp4) // 1024, "KB mp4", os.path.getsize(gif) // 1024, "KB gif", flush=True)

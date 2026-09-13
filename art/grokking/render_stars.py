@@ -50,7 +50,7 @@ def small_multiples(style):
     for j, k in enumerate(keys):
         ax = fig.add_axes([j / K + 0.01, 0.2, 1 / K - 0.02, 0.72])
         ax.set_facecolor(st["bg"])
-        draw_star(ax, rings[j], style, lw=st["lw"] * 1.4)
+        draw_star(ax, rings[j], style, lw=st["lw"] * 1.8, lim=1.3)
         lab = f"k = {k}   {star_name(k)}"
         if style == "plate":
             lab = f"Fig. {j + 1}.  k = {k}\n{star_name(k)}   R = {Rf[j]:.3f}"
@@ -93,7 +93,7 @@ def overlay(style):
     return fig
 
 
-for style in STYLES:
+for style in ["nocturne", "plotter", "plate"]:
     save_png(small_multiples(style), f"gallery/stars_smallmultiples_{tag}_{style}.png")
     save_png(overlay(style), f"gallery/stars_overlay_{tag}_{style}.png")
     print("wrote", style, flush=True)
@@ -142,4 +142,3 @@ def lissajous(style):
 
 for style in ["nocturne", "plotter", "plate"]:
     save_png(labelled(style), f"gallery/stars_labelled_{tag}_{style}.png")
-    save_png(lissajous(style), f"gallery/lissajous_{tag}_{style}.png")

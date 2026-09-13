@@ -41,9 +41,9 @@ def cmap_for(style):
 # ------------------------------------------------------------------ diptych
 def diptych(style):
     st = STYLES[style]
-    t_before = int(np.searchsorted(steps, ph["t_mem"]))     # the moment memorisation completes
-    cols = [(t_before, f"before · step {int(steps[t_before])}", "memorised, test accuracy at chance"),
-            (len(steps) - 1, f"after · step {int(steps[-1])}", "grokked, test accuracy 100%")]
+    t_before = int(np.searchsorted(steps, ph["t_clean"]))   # end of the plateau: memorised, not yet generalising
+    cols = [(t_before, f"before · step {int(steps[t_before]):,}", "memorised; test accuracy < 10%"),
+            (len(steps) - 1, f"after · step {int(steps[-1]):,}", "grokked, test accuracy 100%")]
     fig = fig_canvas(1800, 3000, style)
     for c, (ti, head, sub) in enumerate(cols):
         sh = share(spec[ti, s])
@@ -110,10 +110,10 @@ def spectrogram(style, W=3600, Hh=1500, seeds=None, strip=False):
             ax.text(1.005, 0.5, f"seed {int(A['init_seeds'][ss])}" + ("" if A["data_seeds"][ss] == 598 else "*") + "\n" + " ".join(map(str, kk)),
                     transform=ax.transAxes, va="center", fontsize=9, color=st["muted"])
         else:
-            for name, t in [("memorised", ph["t_mem"]), ("circuit", ph["t_circ"]), ("cleanup", ph["t_clean"]), ("100% test", ph["t_done"])]:
+            for i_, (name, t) in enumerate([("circuit formation →", ph["t_circ"]), ("cleanup →", ph["t_clean"]), ("100% test", ph["t_done"])]):
                 if t > 0:
                     ax.axvline(t, color=st["muted"] if style != "nocturne" else "#ffffff", lw=0.6, ls=":", alpha=0.7)
-                    ax.text(t, 0.3, " " + name, color=st["muted"], fontsize=10, va="bottom")
+                    ax.text(t, 0.3 - 1.4 * (i_ % 2), " " + name, color=st["muted"], fontsize=10, va="bottom")
             for k in keys:
                 ax.text(1.005, k, f"k={k}", transform=ax.get_yaxis_transform(), va="center", fontsize=10, color=st["muted"])
     if style == "riso":
@@ -146,10 +146,9 @@ def riso_spectrogram(W, Hh, seeds, top, bot, hh):
     return out
 
 
-for style in STYLES:
+for style in ["nocturne", "plotter", "plate"]:
     if style != "riso":
         save_png(diptych(style), f"gallery/spectral_diptych_{tag}_{style}.png")
     save_png(spectrogram(style), f"gallery/spectrogram_{tag}_{style}.png")
-    save_png(spectrogram(style, W=6000, Hh=900, strip=True), f"gallery/spectral_score_strip_{tag}_{style}.png")
     save_png(spectrogram(style, W=3600, Hh=3000, seeds=list(range(len(A["init_seeds"])))), f"gallery/spectrogram_12seeds_{style}.png")
     print("wrote", style, flush=True)

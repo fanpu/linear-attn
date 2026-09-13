@@ -54,7 +54,10 @@ def seedwall(style, cols=4):
         ks, rs = keys_of(i)
         ax = cell_ax(fig, i); ax.set_facecolor(st["bg"])
         for z in rs:
-            draw_star(ax, z, style, lw=0.45 if style != "nocturne" else 0.5, alpha=0.85 if style != "nocturne" else 0.6, lim=1.6)
+            if style == "nocturne":   # declared: one warm ink, low alpha, so overlaps accumulate like exposure
+                draw_star(ax, z, style, lw=0.5, alpha=0.45, color="#ffd9a8", lim=1.35)
+            else:
+                draw_star(ax, z, style, lw=0.4, alpha=0.8, lim=1.35)
         r, c = divmod(i, cols)
         fig.text(c * cw + cw / 2, 1 - 150 / Hh - (r + 1) * ch + 0.012, f"{seed_label(i)}    k = {', '.join(map(str, ks))}",
                  ha="center", fontsize=10, color=st["muted"], style="italic" if style == "plate" else "normal")
@@ -96,8 +99,8 @@ def specimen(style):
 
 
 if __name__ == "__main__":
-    for style in STYLES:
+    for style in ["nocturne", "plotter", "plate"]:
         save_png(seedwall(style), f"gallery/seedwall_{style}.png")
-        if style != "riso":
+        if True:
             save_png(specimen(style), f"gallery/specimen_{style}.png")
         print("wrote", style, flush=True)

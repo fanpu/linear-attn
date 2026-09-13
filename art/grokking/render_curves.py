@@ -67,6 +67,6 @@ def curves(style):
     return fig
 
 
-for style in STYLES:
+for style in ["nocturne", "plotter", "plate"]:
     save_png(curves(style), f"gallery/curves_{tag}_{style}.png")
 print(ph)

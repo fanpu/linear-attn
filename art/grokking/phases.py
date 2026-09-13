@@ -11,7 +11,9 @@ def phases(A, s):
     after = fs >= 0
     i_min = int(np.argmin(np.where(fs >= t_mem * 0.5, exc, np.inf)))
     t_circ = int(fs[i_min])
-    t_clean = int(ev[np.argmax(te_acc >= 0.10)])                  # test accuracy leaves chance (>=10%)
-    t_grok = int(ev[np.argmax(te_acc >= 0.50)])                   # 50% test accuracy
+    i_grok = int(np.argmax(te_acc >= 0.50))
+    t_grok = int(ev[i_grok])                                      # 50% test accuracy
+    below = np.where(te_acc[:i_grok] < 0.10)[0]
+    t_clean = int(ev[below[-1] + 1]) if len(below) else 0         # last departure from <10% test accuracy before grokking
     t_done = int(ev[np.argmax(te_acc >= 0.999)]) if (te_acc >= 0.999).any() else -1
     return dict(t_mem=t_mem, t_circ=t_circ, t_clean=t_clean, t_grok=t_grok, t_done=t_done)
