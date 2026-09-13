@@ -65,7 +65,7 @@ def marks(ax, ink, bg, lw=1.0, fs=15):
                 fontsize=fs, ha='center', va='center', path_effects=[pe.withStroke(linewidth=3.5, foreground=bg, alpha=0.8)])
 
 
-def plate(rgb, style, ink, bg, sub, caption, contours=None):
+def plate(rgb, style, ink, bg, sub, caption, contours=None, mark_ink=None, mark_bg=None):
     W, Hh = 2600, 3000
     fig = fig_px(W, Hh, bg=bg)
     ax = ax_px(fig, 200, 330, 2200, 2200, W, Hh)
@@ -73,7 +73,7 @@ def plate(rgb, style, ink, bg, sub, caption, contours=None):
         ax.imshow(rgb, origin='lower', extent=ext, interpolation='lanczos')
     if contours is not None:
         contours(ax)
-    marks(ax, ink, bg)
+    marks(ax, mark_ink or ink, mark_bg or bg)
     ax.set_xlim(ext[0], ext[1]); ax.set_ylim(ext[2], ext[3])
     fig.text(0.5, 1 - 150 / Hh, 'ONE BASIN', ha='center', va='center', color=ink, fontsize=30)
     t = {'perm': f'the plane through A, B and π(B)  ·  {DSNAME}',
@@ -129,5 +129,5 @@ for style in args.styles.split(','):
             ax.contour(xx, yy, F_, levels=np.log(np.geomspace(Lg.min() * 1.02, Lg.max(), 30)), colors='#ffffff',
                        linewidths=0.35, alpha=0.35, negative_linestyles='solid')
         cap = common + '\nColour: magma, reversed, linear in log-loss (bright = low loss). White: 30 log-spaced contours.'
-        plate(rgb, 'night', '#efe8d8', '#050507', '#9a9385', cap, contours=cont)  # labels haloed
+        plate(rgb, 'night', '#efe8d8', '#050507', '#9a9385', cap, contours=cont, mark_ink='#140c1c', mark_bg='#fbf3dc')  # labels haloed
     print('saved', style)

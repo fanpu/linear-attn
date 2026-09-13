@@ -127,7 +127,7 @@ for args_style in args.styles.split(','):
              color=st['ink'], fontsize=17)
     fig.text(0.5, 1 - (H - 55) / H - 0.0,
              f'MLP 784-{int(D["width"])}-{int(D["width"])}-{int(D["width"])}-10, seeds 0 and 1.  Surface: train loss (60k images); '
-             'strata: each digit class\'s share of it, stacked 0 (bottom) to 9; dashed: test loss.  '
+             'strata: each ' + ('digit' if args.ds == 'mnist' else 'garment') + ' class\'s share of it, stacked class 0 (bottom) to 9; dashed: test loss.  '
              'Bedrock and colours are decorative.', ha='center', va='center', color=st['sub'], fontsize=9)
     save(fig, f'triptych_{args.ds}{args.tag}_{args_style}.png')
     print('saved', args_style)

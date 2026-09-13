@@ -160,3 +160,32 @@ if 'quilt' in args.pieces:
                 f'B in its trained order. ' + cdesc, sub, width=int(W / 22))
         save(fig, f'quilt_{sfx}_{style}.png')
     print('quilt done')
+
+if 'pairs' in args.pieces:
+    side = int(round(np.sqrt(Wt['A']['W0'].shape[1])))
+    mc = U['matchcos0']
+    order = np.argsort(-mc)
+    cm = plt.get_cmap('cmc.vik')
+    ncol, nrow, sc = 6, 4, 8
+    ts = side * sc
+    W, H = ncol * (2 * ts + 16 + 110) + 200, nrow * (ts + 120) + 560
+    fig = fig_px(W, H, bg='#0d0d12')
+    for k in range(ncol * nrow):
+        u = order[k * 3]  # every 3rd of the best 72 pairs (declared selection)
+        r, c = divmod(k, ncol)
+        x0 = 150 + c * (2 * ts + 16 + 110)
+        y0 = 330 + r * (ts + 120)
+        for j, key in enumerate(['A', 'Bp']):
+            t = Wt[key]['W0'][u].numpy().reshape(side, side)
+            ax = ax_px(fig, x0 + j * (ts + 16), y0, ts, ts, W, H)
+            ax.imshow(cm((t / np.abs(t).max() + 1) / 2), interpolation='nearest')
+        fig.text((x0 + ts + 8) / W, 1 - (y0 + ts + 40) / H, f'cos {mc[u]:.2f}', ha='center', color='#8f887c', fontsize=11,
+                 family='DejaVu Sans Mono')
+    title(fig, H, 'TWINS', f'first-layer units of network A (left of each pair) and the unit of B matched to them  ·  {DSNAME}',
+          '#ece5d5', y1=120, y2=205)
+    caption(fig, H, H - 190, f'24 pairs: every third of the 72 best-matched units by cosine similarity of incoming weights '
+            f'(the best {int(np.round(100 * 72 / n))}% of {n}; median over all units {np.median(mc):.2f}). Pixels are the raw 28×28 weights, '
+            'Crameri vik, symmetric per tile about 0 (blue negative). The two networks never saw each other; B is from a different seed.',
+            '#8f887c', width=170)
+    save(fig, f'twins_{sfx}.png')
+    print('pairs done')
