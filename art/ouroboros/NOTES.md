@@ -19,6 +19,11 @@
 - render_fern.py `<cache fern gmm> sheet|hero --gens 0,10,40,100,200` (stipple samples + engraved component ellipses; "Filix ouroborum" plate).
 - peek.py: diagnostic contact sheet -> logs/.
 
+## Left running at handoff (nohup, safe to let finish; check with `ps -eo pid,args | grep -E "compute_phase|render_film"`)
+- phase replace workers (logs/phase_gmm_replace_w1.log, _w2.log): 26/55 unique columns at 14:12; w1 reruns itself to assemble cache/phase_ring_gmm_replace.npz.
+- logs/render_films.log: film_ring_gmm_dark.mp4 DONE (4 MB, gif 3 MB); paper then film_ring_kde_dark (bioluminescence) in progress.
+- film_B finished: cache/film_fern_gmm_n4096.npz (no params) and cache/film_fern_kde_n2048.npz exist.
+
 ## Caches (cache/, gitignored)
 - film_ring_gmm_n128.npz (G200, with params), film_ring_kde_n128.npz (G120), film_spiral_kde_n512 (G100), film_spiral_gmm_n1024 K24 (G200)
 - film_fern_gmm_n4096_p.npz: replace+anchored WITH params (K64, G200, nd 20000). film_fern_gmm_n4096.npz (all 3 regimes, NO params; accumulate slow, was at g175 at 14:05) — merge its accumulate/* keys into the _p file for the sheet (see merge one-liner used for toy: load both, d.update(accumulate keys), np.savez). Accumulate row then has no ellipses unless recomputed with params (~20 min CPU: `compute_film.py fern gmm 4096 200 --K 64 --nd 20000 --regimes accumulate --tag _pacc`).
