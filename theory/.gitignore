@@ -1,0 +1,6 @@
+.venv/
+_shared/.gpu_slots/
+_shared/*.lock
+*/cache/
+*/_preview/
+*/post.html
