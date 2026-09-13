@@ -1,0 +1,5 @@
+# PAUSED (session limit)
+- Done: float64 batched torch engine (tfractal.py), faithful Spectral style, zoomA keyframes 0-3 on the boundary (cache/zoom_zoomA), quadratic null zoom (D~1.05), Liu toy deflation diptych + 2048 native hero (D 1.03 vs ~1.7, but ulp flips ~50%: roundoff chaos), early-exit/ulp-floor tests, diptych B tanh/relu/sin windows, speck test (dust density rises 26->87 specks at 2x: specks are real, under-resolved dust).
+- Not done: zoomA to >=6 decades (kf 4-12), 1024^2 native tanh hero (logs/hero_run.sh), jobs3 remainder (dip_B_mb16, semantic sigma/wd 384, steps animation, dip_A), README body, plates/video re-render.
+- Next: resume compute, then `python render_zoom.py zoomA --plates --video`, `python render_hero.py hero_overview_tanh_1024 overview`, `python verify.py zoomA null_quadratic`, finish README.md.
+- Resume: `cd art/trainability-fractal && ../_shared/gpu_run.sh bash logs/zoomA_run.sh >> logs/zoomA.log 2>&1 & ../_shared/gpu_run.sh bash logs/hero_run.sh > logs/hero.log 2>&1 &` (zoom resumes from cached keyframes).
