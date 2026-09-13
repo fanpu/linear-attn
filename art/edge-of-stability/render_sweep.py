@@ -6,7 +6,7 @@ Rows = step sizes (2/eta ascending, top to bottom), columns = GD steps.
   edge_*   colour = (lambda_1 - 2/eta) / (2/eta), split at 0. Spectral split: each side rank-
            normalised separately (pooled over all rows) onto one half of Spectral; below the edge
            purple->blue->green->pale, above the edge deep red->orange->pale; the dark ends meet at 0.
-  phase_*  colour = demodulated oscillation coordinate (-1)^t x_t, split at 0 and rank-normalised per
+  phase_*  colour = demodulated oscillation coordinate (-1)^t c_t (windowed PCA), split at 0 and rank-normalised per
            row (declared: amplitudes differ by orders of magnitude between rows). A seam running
            down a band is a phase slip of the period-2 oscillation, i.e. a crossing in the braid.
            Pixels where the amplitude is below 1e-5 (no oscillation, float32 floor) are ground.
@@ -41,6 +41,9 @@ def to_png(img, name, width=None):
     print("wrote", p)
 
 
+TE = {}  # row -> first step at the edge (filled by fields)
+
+
 def fields(d, t0=0, amin=1e-5):
     invs = d["invs"]
     lam = ffill(d["evals"][:, :, 0].astype(float))
@@ -48,12 +51,22 @@ def fields(d, t0=0, amin=1e-5):
     edge = ((lam - invs[None]) / invs[None]).T
     edge[~alive] = np.nan
     x = np.stack([braid(d, r) for r in range(len(d["invs"]))])
+    TE.clear()
     T = x.shape[1]
     s = (-1.0) ** np.arange(T)
     xd = x * s[None]
     amp = np.sqrt(0.5 * (x ** 2 + np.roll(x, -1, 1) ** 2))
     xd[~(amp > amin)] = np.nan
     xd[~alive] = np.nan
+    # mask each row before it first reaches the edge (after any initial catapult): before that there is no
+    # period-2 oscillation and the PCA coordinate is noise above the float floor
+    for r in range(len(invs)):
+        l1 = lam[:, r]
+        fb = np.flatnonzero(l1 < invs[r])
+        fb = fb[0] if len(fb) else 0
+        ab = np.flatnonzero((l1 >= invs[r]) & (np.arange(len(l1)) > fb))
+        xd[r, :(ab[0] if len(ab) else T)] = np.nan
+        TE[r] = ab[0] if len(ab) else T
     return edge[:, t0:], xd[:, t0:], invs
 
 
@@ -87,7 +100,15 @@ def main(f, tag):
             ax = fig.add_axes([0.06, 1 - 0.03 - (r + 1) * h, 0.92, h * 0.92], facecolor=bg)
             x = braid(d, r)
             t = np.arange(len(x))
+            x[t < TE[r] - 20] = 0.0  # declared: flat rule before the edge (no period-2 oscillation yet)
             ok = np.isfinite(x)
+            if TE[r] >= len(x) - 30:
+                ax.axis("off")
+                ax.set_xlim(0, len(x) - 1)
+                ax.axhline(0, color=fg, lw=0.35, alpha=0.5)
+                ax.text(-0.005, 0.5, f"2/η = {invs[r]:.0f}", transform=ax.transAxes, ha="right",
+                        va="center", color=fg, fontsize=8, family=MONO)
+                continue
             if ok.sum() < 10:
                 ax.axis("off")
                 ax.text(0, 0.5, f"2/η = {invs[r]:.0f}   diverged at step {d['diverged_at'][r]}",
@@ -103,7 +124,7 @@ def main(f, tag):
             ax.axis("off")
             ax.text(-0.005, 0.5, f"2/η = {invs[r]:.0f}", transform=ax.transAxes, ha="right",
                     va="center", color=fg, fontsize=8, family=MONO)
-        fig.text(0.06, 0.012, f"x_t along the current top Hessian eigenvector, even / odd steps; per-stave gain; "
+        fig.text(0.06, 0.012, f"{coord_label(short=True)}, even / odd steps; per-stave gain; flat before each run first reaches the edge; "
                  f"steps 0–{T - 1}; eigenvectors refreshed every {E} steps", color=fg, fontsize=8, family=MONO)
         save(fig, f"sweep_{tag}_score_{style}.png", dpi=250, facecolor=bg)
 

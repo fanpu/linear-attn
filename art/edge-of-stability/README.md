@@ -68,7 +68,24 @@ Layers: the hairline is 2/η. The strokes are λ₁ (bright), λ₂, and λ₃ (
 
 The same 400 steps (η = 2/80) in two coordinates. **Top:** the displacement along the *current* top eigenvector u₁(t), the naive choice. The ticks mark steps where the refreshed eigenvector turned by more than acos 0.95. λ₁ and λ₂ are nearly degenerate at the edge, so the eigenvector labels swap, and the braid shows jumps and false crossings. **Bottom:** the windowed-PCA coordinate (§4.3) is smooth, and it swaps strands only at amplitude nodes.
 
-<!-- SWEEP -->
+### 2.7 η-sweep: sixteen step sizes (`sweep16.npz`, 2/η = 30 … 250, 5000 steps)
+
+<img src="gallery/sweep_sweep16_edge_sd_spectral.png" width="100%">
+
+**Edge plate, Spectral.** Rows run from 2/η = 30 (top) to 250 (bottom); columns are GD steps. Colour is (λ₁ − 2/η)/(2/η), split at 0 (declared Sohl-Dickstein split, with each side rank-normalised over all rows). Cool colours are below the edge (sharpening; the pastel end is far below). Warm colours are at or above it, and the dark seam is the edge itself. The staircase is t_edge growing with 1/η. The run at 2/η = 250 never reaches its edge in 5000 steps.
+
+| | |
+|---|---|
+| <img src="gallery/sweep_sweep16_edge_hubble_sho.png"> the same field with the `hubble_sho` split pairing from `palettes.py` (declared) | <img src="gallery/sweep_sweep16_phase_spectral.png"> **Phase plate.** Colour is the demodulated coordinate (−1)ᵗc<sub>t</sub>, split at 0 and rank-normalised per row (declared). A warm↔cool switch is a phase slip. Rows are ground before they first reach the edge. |
+| <img src="gallery/sweep_sweep16_score_night.png"> **Score, night.** One stave per step size, even/odd strands, per-stave gain (declared). | <img src="gallery/sweep_sweep16_score_paper.png"> score, paper |
+
+**Sweep numbers** (`cache/sweep16_verify.json`; eigenvalues refreshed every 5 steps, sketch 512). Values are listed for 2/η = 30 / 40 / 50 / 60 / 70 / 80 / 90 / 100 / 115 / 130 / 145 / 160 / 180 / 200 / 225:
+- Hover median above the edge: 5.7 / 5.1 / 5.0 / 5.0 / 4.4 / 4.2 / 3.8 / 3.9 / 3.5 / 3.3 / 3.2 / 2.6 / 2.0 / 0.9 / 0.6 %. The hover is smaller for smaller η, and the late runs have spent less time at the edge.
+- PCA-frame phase slips after t_edge+100: 210 / 199 / 188 / 150 / 100 / 87 / 68 / 55 / 29 / 13 / 12 / 1 / 0 / 0 / 0.
+- Median burst spacing: 38 / 32 / 35 / 38 / 40 / 42 / 43 / 47 / 51 / 54 / 64 / 70 / 99 / 118 steps.
+- At 2/η = 80 the sweep reproduces the dense main run: 87 vs 82 slips and 42 vs 42 steps burst spacing. This is the same seed, so it checks the measurement pipeline (eigen refresh, sketch size), not seed variance.
+- The cold-vs-warm underestimate is worse with sparse refreshes: up to 12.6 % at 2/η = 30. Warm is again never above cold.
+
 
 ## 3. What was computed
 
@@ -81,9 +98,9 @@ The same 400 steps (η = 2/80) in two coordinates. **Top:** the displacement alo
 - **Runs:**
   - `scout.npz`: 2/η ∈ {50, 80, 120, 200, 300}, eigenvalues every 10 steps, killed at t ≈ 3200, 1173 s. It showed visible kinks at refreshes, so the main runs refresh every step.
   - `main4.npz`: 2/η ∈ {50, 80, 120, 200}, 6000 steps, eigenvalues every step, 7617 s wall on a contended shared GPU.
-  - `sweep16.npz`: 16 step sizes, 5000 steps, eigenvalues every 5 steps.
+  - `sweep16.npz`: 16 step sizes, 5000 steps, eigenvalues every 5 steps, 7040 s wall.
   - 2/η = 20 diverges at step 31 (init sharpness is 88.0).
-- **GPU time:** about 4.5 slot-hours in total (scout + main4 + sweep16, each one slot).
+- **GPU time:** about 4.4 slot-hours in total (1173 + 7617 + 7040 s) (scout + main4 + sweep16, each one slot).
 
 Reproduce (from `art/edge-of-stability/`, `P=../.venv/bin/python`):
 

@@ -59,7 +59,7 @@ orbit_main4_* (render_phase rewritten: smoothed orbit, growth plate, burst retur
 return_main4_{paper,night}, plotter_eta80 (pen2 = below-edge steps), film_eta80 (gif 9.7MB), diptych_frames_eta80.
 README.md written (sweep section placeholder <!-- SWEEP -->). Warm lam is ALWAYS <= cold (lower bound).
 Growth plate: zero growth at r~+5-8%, not 0 (quadratic model wrong equilibrium). Return maps = clouds (negative).
-Remaining: sweep16 plates (render_sweep.py) when sweep16 finishes -> fill README SWEEP section; commit.
+sweep16 FINISHED (7040 s); verify -> cache/sweep16_verify.json; sweep plates rendered (pre-edge masked) and README 2.7 filled.\nPROJECT ESSENTIALLY COMPLETE. Optional polish: detail prints for 2/eta=50/200; film for 2/eta=200; orbit plate is a tangle for large eta.
 
 ## Resume
 cd art/edge-of-stability; P=../.venv/bin/python
