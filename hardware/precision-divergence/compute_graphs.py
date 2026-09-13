@@ -90,14 +90,14 @@ def main():
         for M in range(1, 40):
             S = bias + M - 1
             N = bias * (1 << M)
-            if 2 * S + 3 >= 62 or N > 3e7:
+            if 2 * S + 3 >= 62 or N > 5e6:
                 break
             t = time.time()
             mf = Minifloat(E, M)
             vals, succ = build(mf)
             a = analyze(succ, want_node_arrays=True)
             s = summarize(mf.name, mf, vals, succ, a,
-                          null_model(succ, rng, reps=10 if N < 1e6 else 3) if 10 < N < 1e7 else None)
+                          null_model(succ, rng, reps=10) if 10 < N < 3e5 else None)
             s["seconds"] = time.time() - t
             fam.append(s)
             print(mf.name, "N", N, "cycles", s["n_cycles"], "longest", s["longest_cycle"], "cyclic", s["n_cyclic"],
