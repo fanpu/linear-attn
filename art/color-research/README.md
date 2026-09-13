@@ -36,7 +36,7 @@ Rebuild the sheets with `python render_sheets.py split_train split_lyap divergin
 | data | first choices | why |
 |---|---|---|
 | signed converge/diverge, λ, f−c (split) | `aurora_ember`, `indigo_madder`, `hubble_sho`, `klimt_lapis`, `sd_spectral` | dark seams stay under L* 25 and the pastel ends are far apart in hue. `hubble_sho` and `indigo_madder` are the most robust for colour-blind viewers. |
-| symmetric diverging (random fields) | `crameri_vik`, `brewer_brbg`, `verdigris`, `hubble_sho`, `crameri_berlin` (dark centre) | one clean lightness peak each, uniform, and good under deuteranopia (0.93–0.95 retention) |
+| symmetric diverging (random fields) | `crameri_vik`, `brewer_brbg`, `verdigris`, `hubble_sho`, `crameri_berlin` (dark centre) | one clean lightness peak each, uniform, and good under deuteranopia (0.92–0.95 retention) |
 | sequential density on dark (bifurcation, spectra) | `klimt_gold`, `bioluminescence`, `ember`, `crt_amber`, `cmc.lajolla` | monotone lightness from near black; the curated ramps are uniformised in CAM02-UCS |
 | sequential on paper / archival | `cyanotype`, `platinum`, `vandyke`, `nippon_aizome` | carried almost entirely by lightness (greyscale retention 0.83–0.99), so they print well |
 | cyclic phase | `cmc.romaO`, `verdigris_cyclic`; `shibori_cyclic` only for axial (mod π) data | |
