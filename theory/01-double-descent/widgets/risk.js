@@ -21,7 +21,7 @@
     <div class="dd-hint">Drag γ through 1 with λ = 0 and watch the variance (red) explode. Then raise λ, or tick "optimal". The right panel is the Marchenko–Pastur eigenvalue density at the current γ; eigenvalues left of the dashed λ line are the ones ridge "fills in".</div>`;
 
   const $ = id => root.querySelector("#" + id);
-  const W1 = Math.min(640, (root.clientWidth || 900) - 320), H1 = 330, W2 = 290, H2 = 200;
+  const W1 = Math.min(740, (root.clientWidth || 900) - 330), H1 = 330, W2 = 290, H2 = 200;
   const ctx1 = setupCanvas($("rw-c1"), Math.max(420, W1), H1);
   const ctx2 = setupCanvas($("rw-c2"), W2, H2);
 
@@ -114,7 +114,7 @@
       `λ used: ${lamOf(st, g) === 0 ? "0 (min-norm)" : fmtNum(lamOf(st, g), 1)}${zeros}`;
   }
 
-  root.querySelectorAll("input").forEach(el => el.addEventListener("input", draw));
+  root.querySelectorAll("input").forEach(el => { el.addEventListener("input", draw); el.addEventListener("change", draw); });
   draw();
 
   if (location.hash.indexOf("selftest") >= 0) {

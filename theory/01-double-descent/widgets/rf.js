@@ -66,7 +66,7 @@
   function predict(a, P, xs) { return xs.map(t => { const r = phiRow(t, P); let s = 0; for (let j = 0; j < P; j++) s += a[j] * r[j]; return s; }); }
   function testRisk(a, P) { const f = predict(a, P, XS); let s = 0; for (let i = 0; i < XS.length; i++) s += (f[i] - FS[i]) ** 2; return s / XS.length; }
 
-  const GRID = Array.from(new Set([...Array.from({ length: 34 }, (_, i) => Math.round(Math.pow(400, i / 33))), 16, 17, 18, 19, 20, 21, 22, 23, 25, 28])).sort((a, b) => a - b);
+  const GRID = Array.from(new Set([...Array.from({ length: 40 }, (_, i) => i + 1), ...Array.from({ length: 24 }, (_, i) => Math.round(40 * Math.pow(10, (i + 1) / 24)))])).sort((a, b) => a - b);
   let curve = null, curveKey = "";
 
   function state() {
@@ -126,8 +126,12 @@
     ax2.dot(st.P, Math.max(3e-3, Math.min(300, r)), 9, "rgba(255,246,232,0.2)");
     ax2.dot(st.P, Math.max(3e-3, Math.min(300, r)), 4.5, C.data);
     ctx2.save(); ctx2.font = `12px ${FONT}`; ctx2.fillStyle = C.goldD; ctx2.fillText("p = n", px + 5, ax2.box.y + 10);
-    ctx2.fillStyle = C.nightInk; ctx2.fillText("this draw", ax2.box.x + ax2.box.w - 120, ax2.box.y + 4);
-    ctx2.fillStyle = C.nightMuted; ctx2.fillText("median of 200 draws (λ = 0)", ax2.box.x + ax2.box.w - 170, ax2.box.y + 20);
+    const kx = ax2.box.x + ax2.box.w - 200;
+    const grad = ctx2.createLinearGradient(kx, 0, kx + 22, 0); grad.addColorStop(0, heat(0.1)); grad.addColorStop(1, heat(0.9));
+    ctx2.strokeStyle = grad; ctx2.lineWidth = 2.2; ctx2.beginPath(); ctx2.moveTo(kx, ax2.box.y + 4); ctx2.lineTo(kx + 22, ax2.box.y + 4); ctx2.stroke();
+    ctx2.fillStyle = "rgba(107,91,154,0.6)"; ctx2.fillRect(kx, ax2.box.y + 15, 22, 8);
+    ctx2.textBaseline = "middle"; ctx2.fillStyle = C.nightInk; ctx2.fillText("this draw, this λ", kx + 30, ax2.box.y + 4);
+    ctx2.fillStyle = C.nightMuted; ctx2.fillText("median ± IQR, 200 draws, λ = 0", kx + 30, ax2.box.y + 19);
     ctx2.restore();
 
     $("rf-read").innerHTML = `test error <b>${fmtNum(r, 1)}</b> · smallest singular value of Φ <b>${fmtNum(sol.smin, 1)}</b> · coefficient norm ‖a‖ <b>${fmtNum(aNorm, 1)}</b>`;
