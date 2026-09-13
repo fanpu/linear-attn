@@ -110,11 +110,11 @@ def basin_2x2(sign, s, q, R, T=3000):
 
 
 @torch.no_grad()
-def basin_3link(c, eta, R, T=4000):
+def basin_3link(c, eta, R, T=4000, lo=(0.0, 0.0), width=1.0):
     """Two agents, three links, exponential MWU, full (asymmetric) game. Pixel = player 1's start x0 on
     the simplex; player 2 starts at the P<->R swap of x0. Label = 3*argmax(x)+argmax(y) once both
     strategies are within 1e-3 of pure, 9 = not converged, -1 = outside the simplex."""
-    X, m = simplex_grid(R)
+    X, m = simplex_grid(R, lo, width)
     X = X.to(dev()); c = torch.as_tensor(c, dtype=DT, device=dev())
     Qx = torch.log(X); Qy = torch.log(X[..., [1, 0, 2]])
     for _ in range(T):
@@ -147,6 +147,15 @@ def atlas():
                 print(f'{name} {tag} R={R}: {time.time()-t:.0f}s labels={np.unique(lab).tolist()} '
                       f'nonconv={np.mean(lab == (4 if kind == "c2" else 9)):.4f}', flush=True)
     np.savez_compressed('cache/basin_atlas.npz', **out, meta=str(ATLAS))
+
+
+def island_zoom():
+    """5x zoom on the only non-trivial basin feature (link3_b, eta=40), for the resolution check."""
+    out = {}
+    for R in (512, 1024):
+        out[f'R{R}'] = basin_3link([1.0, 1.3, 1.1], 40.0, R, lo=(0.02, 0.52), width=0.25).astype(np.int8)
+        print('island zoom', R, np.unique(out[f'R{R}']).tolist(), flush=True)
+    np.savez_compressed('cache/basin_island_zoom.npz', **out, lo=(0.02, 0.52), width=0.25)
 
 
 if __name__ == '__main__':

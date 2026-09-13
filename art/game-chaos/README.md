@@ -70,7 +70,12 @@ Style variants of the same measured λ (declared palettes: `color-research/palet
 <tr><td><img src="gallery/lyap_z3_shrimp_verdigris.png" width="100%"></td><td><img src="gallery/lyap_z1_crossing_aurora.png" width="100%"></td><td><img src="gallery/lyap_z1_crossing_dark.png" width="100%"></td></tr>
 </table>
 
-**Motion:** [`gallery/lyap_zoom.mp4`](gallery/lyap_zoom.mp4) and [`gif`](gallery/lyap_zoom.gif). This is a 15-second geometric zoom from the full plane into the z5 shrimp field, with every frame recomputed (360 frames × 900², float64).
+<table>
+<tr><td><img src="gallery/plate_z4_shrimp.png" width="100%"></td><td><img src="gallery/lyap_z4_shrimp_verdigris.png" width="100%"></td><td><img src="gallery/lyap_z4_shrimp_dark.png" width="100%"></td></tr>
+<tr><td>plate, z4 shrimp (also <a href="gallery/plate_z3_shrimp.png">z3 plate</a>)</td><td>z4 verdigris/copper (also <a href="gallery/lyap_z4_shrimp_aurora.png">aurora</a>)</td><td>z4 dark berlin (also <a href="gallery/lyap_z3_shrimp_dark.png">z3 dark</a>, <a href="gallery/lyap_z3_shrimp_aurora.png">z3 aurora</a>, <a href="gallery/lyap_z1_crossing_verdigris.png">z1 verdigris</a>)</td></tr>
+</table>
+
+**Motion:** [`gallery/lyap_zoom.mp4`](gallery/lyap_zoom.mp4) and [`gif`](gallery/lyap_zoom.gif). This is a 17-second geometric zoom (×2750 in s, ×7100 in y*) from the full plane into the z5 shrimp field, with every frame recomputed (360 frames × 900², float64).
 
 **Bifurcation cascades** along one horizontal line of the plane. The ink density is the attractor, and the Spectral strip underneath is λ along the same line:
 
@@ -94,6 +99,8 @@ In the (β, ε) plane at α = 0.3, chaos (red/orange) occupies only **2.9%** of 
 <table><tr><td><img src="gallery/rps_beta_eps_a0.30_indigo.png" width="100%"></td><td><img src="gallery/rps_beta_eps_a0.30_zoom_dark.png" width="100%"></td><td><img src="gallery/rps_beta_eps_a0.30_zoom_indigo.png" width="100%"></td></tr>
 <tr><td>indigo / madder split (declared)</td><td>dark berlin diverging, seam at λ = 3·10⁻³</td><td>indigo / madder, zoom</td></tr></table>
 
+Also: [bare Spectral print](gallery/rps_beta_eps_a0.30_spectral.png), [dark full plane](gallery/rps_beta_eps_a0.30_dark.png), [zoom plate with caption](gallery/plate_rps_beta_eps_a0.30_zoom.png).
+
 ### 2.3 Simplex trajectories and Poincaré sections (continuous learning, SAF)
 
 | | |
@@ -102,6 +109,8 @@ In the (β, ε) plane at α = 0.3, chaos (red/orange) occupies only **2.9%** of 
 | **Single ink**, ε = 0.5, energy H = 2.8. 395 orbits, ~4,400 returns each (1.8 M dots) through the section x_P − x_R + y_P − y_R = 0; axes x_R vs y_P. Nested closed curves are tori (KAM islands, genuinely repeating). The grey haze is a single chaotic sea. Aesthetic: ink coverage 1 − exp(−hits). | **Dark**, same data. Copper = orbits with finite-time λ ≤ 5·10⁻³; ice blue = chaotic orbits (λ > 5·10⁻³), each coloured by its own measured λ. |
 
 <img src="gallery/poincare_eps_series.png" width="100%">
+
+Also: [ε = 0 single-ink section](gallery/poincare_ink_eps0.00.png) (integrable: only tori) and [ε = 0.25 dark](gallery/poincare_dark_eps0.25.png).
 
 *ε = 0 → 0.5 on one energy surface. The share of chaotic orbits grows 0% → 1% → 14% → 23% → 29%. Red marks orbits measured as chaotic.* At H = 3.0 (higher energy, closer to the simplex edge), 67% of orbits are chaotic.
 
@@ -135,7 +144,17 @@ In the (β, ε) plane at α = 0.3, chaos (red/orange) occupies only **2.9%** of 
 
 **Discrete MWU basin maps: a negative result.** See §4.
 
-BASIN_PLACEHOLDER
+<img src="gallery/basin_atlas_negative.png" width="100%">
+
+*Colour = which pure Nash profile the two learners reach from each pair of starts (declared categorical palette). Top row: large step; bottom row: the same game at a small step (null).*
+* **2×2 coordination** (s = 20): the boundary bends, but it is smooth.
+* **2×2 anti-coordination** (s = 30): the boundary is exactly the diagonal, identical at every step size, as the sign-invariance argument predicts.
+* **Three-link congestion game** (costs (1, 1.2, 1.5), η = 60): smooth. With costs (1, 1.3, 1.1), η = 40, one detached island appears, the only non-trivial feature I found (D = 1.17, see §4).
+
+<table><tr><td width="45%"><img src="gallery/basin_island_zoom.png" width="100%"></td><td>
+
+**4× zoom of that island** (x_P ∈ [0.02, 0.27], x_S ∈ [0.52, 0.77], 1024², fresh runs). The large "bird" is smooth. Small lobes and thin slivers cluster along one straight line. That line is where player 2's start (the P↔R swap of player 1's start) *coincides* with player 1's. It is the symmetric invariant subspace that carries the Palaiopanos-type chaotic saddle. So the only intricacy in the discrete basin maps sits exactly where theory puts the chaos, but it stays thin.
+</td></tr></table>
 
 ### 2.5 Self-play framing
 
@@ -150,7 +169,42 @@ Two softmax policies (three logits each) are trained against each other with exa
 
 ## 3. What was computed
 
-COMPUTED_PLACEHOLDER
+No neural networks or datasets are involved: every "model" is a pair of mixed strategies, and every "optimizer" is a learning rule in logit coordinates. **Precision:** all float64. **Seeds:** tangent vectors use numpy/torch seed 0; nothing else is random except the documented 2×2 random-game search (seed 1).
+
+| piece | system | grid / orbits | iterations | where |
+|---|---|---|---|---|
+| Congestion Lyapunov planes | u′ = u − s(σ(u) − y*), exact derivative | full 2400², six zooms 2000² | 3000 transient + 5000 averaged | `compute_lyap_congestion.py plates` (GPU, ~5–7 min per plate) |
+| Resolution / iteration check | z4 window | 500², 1000², 2000²; 500² at 20k iterations | | `compute_lyap_congestion.py rescheck` |
+| Zoom video | geometric zoom, 360 frames | 900² per frame | 1000 + 1500 | `compute_lyap_congestion.py video` (~100 min on the shared GPU) |
+| Bifurcation plates | same map, y* ∈ {0.4168, 0.7} | 3000 step sizes | 3000 + 600 samples | `compute_bifurcation.py` |
+| EWA on RPS | Q′ = (1−α)Q + βA(ε)y, tangent propagation | 1000² × 2 | 3000 + 5000 | `compute_lyap_rps.py rps_beta_eps_a0.30 rps_beta_eps_a0.30_zoom` (~25 min each) |
+| SAF reproduction | replicator, RK4 h = 0.01 in logits, C/OpenMP | 25 starts × 3 ε | T = 10⁵ | `compute_poincare.py repro` |
+| Poincaré sections | 26–40² seeds on one energy surface (secant-refined crossings) | ~400 orbits per ε, 5 values of ε + H = 3.0 | T = 4·10⁴ | `compute_poincare.py kam` (~1 min each) |
+| Trajectories, butterfly, plotter line | SAF starts k = 1, 2, 5, 20 | | T = 4000 (h = 0.005); 20,000 for the plotter line | `compute_poincare.py traj` |
+| Initial-condition λ map | player-1 start over the simplex | 79,800 orbits; zoom 160,000 | T = 2000 | `compute_icmap.py 400 2000 0.5` and `… 0.33 0.03 0.1` (11 / 22 min, 4 CPU threads) |
+| Basin atlas | 2×2 MWU, 3-link MWU, + small-step nulls | 256², 512², 1024² | 3000–4000 | `compute_basins.py atlas` |
+| Self-play | PG vs MWU, 1200 step sizes | | 5000 + 20,000 | `compute_selfplay.py` (CPU, 40 s) |
+
+**Reproduce everything** (from this directory; long GPU jobs go through the slot limiter):
+
+```bash
+P=/home/fzeng/ml/research/art/.venv/bin/python; G=/home/fzeng/ml/research/art/_shared/gpu_run.sh
+export OMP_NUM_THREADS=4
+$P replicator_c.py                                 # compiles the C integrator, smoke-tests SAF Table I
+$P compute_poincare.py all                         # repro + Poincaré sections + trajectories
+$P compute_icmap.py 400 2000 0.5 && $P compute_icmap.py 400 2000 0.5 0.33 0.03 0.1
+$G $P compute_lyap_congestion.py plates rescheck   # then: $G $P compute_lyap_congestion.py video
+$G $P compute_lyap_rps.py rps_beta_eps_a0.30 rps_beta_eps_a0.30_zoom
+$G $P compute_basins.py atlas && $G $P compute_basins.py island_zoom
+$P compute_bifurcation.py && $P compute_selfplay.py
+$G $P analyze_verify.py lyap && $P analyze_verify.py saf icmap basins
+$P render_lyap.py all && $P render_rps.py && $P render_poincare.py all riso_torus
+$P render_basins.py icmap atlas selfplay && $P render_bifurcation.py
+```
+
+**Wall time.** About 4.5 h of shared-GPU wall clock (the GPU ran at 90%+ utilisation from ~9 agents, so real compute was much less) and about 1.2 h of 4-thread CPU for the C integrator. **Exploration scripts** that led to these choices are kept in `cache/explore/` (gitignored); see §4.3.
+
+**Files over 20 MB** (not committed): none in `gallery/`. `cache/` is gitignored.
 
 ---
 
@@ -206,7 +260,16 @@ COMPUTED_PLACEHOLDER
 * **Null** (same pipeline on a smooth level set of the energy H in the same pixels): D = 1.09 (full) and 1.18 (zoom).
 * **Verdict.** The chaos boundary is rougher than a smooth curve by about 0.2, consistently at both scales. The fit range is short (§11 wants more than one decade; this is 1.5), and the null is not exactly 1, so I call it **suggestive, not proven, fractal**. That is the expected KAM picture of islands around islands.
 
-**(iii) Discrete MWU basin boundaries.** BASIN_VERIFY
+**(iii) Discrete MWU basin boundaries.** Box counting (1–64 px on 1024²) and boundary-fraction scaling (256² → 512² → 1024²):
+
+| game | large step: D (box) | large step: D (resolution) | small-step null: D (box) | small-step null: D (resolution) |
+|---|---|---|---|---|
+| 2×2 coordination | 1.06 | 1.05 | 1.03 | 1.00 |
+| 2×2 anti-coordination | 1.01 | 1.00 | 1.01 | 1.00 |
+| 3-link (1, 1.2, 1.5) | 1.03 | 0.99 | 1.03 | 0.98 |
+| 3-link (1, 1.3, 1.1) | **1.17** | **1.12** | 1.03 | 0.98 |
+
+All boundaries are smooth (D ≈ 1) except the island in the last game, which is mildly rough. The 4× island zoom gives D (box) = 1.17 at 512² and 1.16 at 1024². The boundary-fraction scaling between those resolutions gives **D = 1.07**, so the extra length does not keep growing as resolution increases. **Verdict: no fractal basin boundary in discrete MWU for these games.** The mild roughness comes from a few lobes accumulating near the symmetric chaotic saddle; a much deeper zoom along that line would be the place to look for riddling.
 
 ### 4.3 What didn't work (negative results)
 
