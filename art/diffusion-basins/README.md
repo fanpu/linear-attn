@@ -93,6 +93,19 @@ MP4 [zoom_iter_ring8.mp4](gallery/zooms/zoom_iter_ring8.mp4) (1080², 54 s) · G
 
 <table>
 <tr>
+<td><img src="gallery/toy/atlas_learned_confidence.png"></td>
+<td><img src="gallery/toy/atlas_learned_paper.png"></td>
+</tr>
+<tr>
+<td>Same atlas with the <b>learned</b> ε-MLP instead of the exact score (512²): the same countries with slightly wavy edges. The learned net is smooth too, so its map is still a diffeomorphism.</td>
+<td>Learned-score atlas, paper (<a href="gallery/toy/atlas_learned_night.png">night</a>).</td>
+</tr>
+</table>
+
+**ODE zoom** (32 levels ×2, scatter12): <a href="gallery/zooms/zoom_ode_scatter12_plate.png">plate</a> · <a href="gallery/zooms/zoom_ode_scatter12.mp4">MP4</a> · <a href="gallery/zooms/zoom_ode_scatter12.gif">GIF</a>. The boundary unrolls into a single straight line, the counterpart of the flower zoom.
+
+<table>
+<tr>
 <td><img src="gallery/toy/hero_ode_scatter12_confidence.png"></td>
 <td><img src="gallery/toy/hero_ode_scatter12_riso.png"></td>
 <td><img src="gallery/toy/hero_ode_scatter12_ink.png"></td>
@@ -205,6 +218,7 @@ python render_mnist.py basin boundary mosaic memo steps zoom
 | PF-ODE, scatter12 (exact score) | 1.094 ± 0.015 | **0.995** (M = 2¹⁸, ε 10⁻¹…10⁻⁵) | 32 levels ×2: boundary = one straight line from width 9 × 10⁻⁵ on; windowed D → 0.98–1.02 | **smooth** |
 | DDIM-50, scatter12 | 1.093 | **0.983** | – | **smooth** |
 | DDIM-10, scatter12 | 1.087 | – | – | smooth |
+| DDIM-50, scatter12, **learned MLP** | – | – | 16 levels ×2 at 512² into a triple junction: 1500–2050 boundary px per window at every level (no growth), 3 labels; windowed D 1.20 → 1.05, falling | **smooth** |
 | DDPM frozen noise, injected-noise slice | D[2,128] = 1.22 (N = 30), 1.19 (N = 1000) at 512² | – | – | smooth organic lobes (finite-resolution D) |
 | null: circle | 1.061 | – | – | smooth reference |
 | null: ring8 exact rays / iterated γ = 1 | 1.070 / 1.070 | – | – | smooth reference |
