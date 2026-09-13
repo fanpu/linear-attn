@@ -1,31 +1,41 @@
-"""Sanity tests: manual gradients vs autograd; early-exit vs exact; throughput."""
+"""Sanity tests: compiled manual gradients vs autograd; early-exit+checkpoints vs exact."""
 import math, time, torch, numpy as np
 import tfractal as tf
 tf.setup_gpu(0.10)
-for nl in ['tanh', 'relu']:
+for nl in ['tanh', 'relu', 'sin']:
     prob = tf.make_problem(0, nonlin=nl)
     P = 3
     W0 = (prob['W0'].expand(P,16,16) * torch.tensor([0.5,1,2],dtype=tf.DT,device='cuda').view(P,1,1)).clone().requires_grad_()
     W1 = prob['W1'].expand(P,16,1).clone().requires_grad_()
     X, Y = prob['X'], prob['Y']
     Z = X @ W0 / 4
-    h = torch.tanh(Z*math.sqrt(2)) if nl=='tanh' else torch.relu(Z)*math.sqrt(2)
-    out = h @ W1 / 4 / 4
-    L = ((out - Y)**2).mean(dim=(1,2))
-    L.sum().backward()
+    h = {'tanh': lambda z: torch.tanh(z*math.sqrt(2)), 'relu': lambda z: torch.relu(z)*math.sqrt(2), 'sin': lambda z: torch.sin(z*math.sqrt(2))}[nl](Z)
+    L = (((h @ W1) / 16 - Y)**2).mean(dim=(1,2)); L.sum().backward()
+    lg, _, _ = tf.get_steps(nl, 16, compiled=False)
     with torch.no_grad():
-        l2, g0, g1 = tf._loss_and_grad(W0.detach(), W1.detach(), X, Y, nl, 16)
-    print(nl, 'loss err', (L-l2).abs().max().item(), 'g0 err', (W0.grad-g0).abs().max().item()/W0.grad.abs().max().item(),
-          'g1 err', (W1.grad-g1).abs().max().item()/W1.grad.abs().max().item())
+        l2, g0, g1 = lg(W0.detach(), W1.detach(), X, Y)
+    print(nl, 'loss err', (L-l2).abs().max().item(), 'g0 rel err', ((W0.grad-g0).abs().max()/W0.grad.abs().max()).item(),
+          'g1 rel err', ((W1.grad-g1).abs().max()/W1.grad.abs().max()).item(), flush=True)
 
 prob = tf.make_problem(0, nonlin='tanh')
+R = 64
+e0, e1 = tf.log_grid(1.5, 1.5, 4.5, R)
+cps = [100, 250]
+t = time.time()
+m_ex, mT_ex = tf.run_grid(prob, e0, e1, steps=500, early_exit=False, checkpoints=cps, verbose=False)
+print('exact', time.time()-t)
+t = time.time()
+m_ee, mT_ee = tf.run_grid(prob, e0, e1, steps=500, early_exit=True, checkpoints=cps, verbose=False)
+print('early', time.time()-t)
+for k in range(mT_ex.shape[0]):
+    a, b = mT_ex[k], mT_ee[k]
+    print('cp', k, 'sign flips', int(((a<0)!=(b<0)).sum()), 'max rel', float(np.max(np.abs(a-b)/np.abs(a))))
+# separate short runs must equal checkpoints
+for k, T in enumerate(cps):
+    mT = tf.run_grid(prob, e0, e1, steps=T, early_exit=False, verbose=False)
+    print('T', T, 'checkpoint vs standalone max rel', float(np.max(np.abs(mT - mT_ex[k])/np.abs(mT))))
+# compare with old eager toy at 128 (first 64? different grid) -> recompute toy 128 exact check against file
+toy = np.load('cache/toy_128_tanh.npy')
 e0, e1 = tf.log_grid(1.5, 1.5, 4.5, 128)
-for ee in [False, True]:
-    torch.cuda.synchronize(); t=time.time()
-    m = tf.run_grid(prob, e0, e1, steps=500, chunk=16384, early_exit=ee, verbose=False)
-    torch.cuda.synchronize(); dt=time.time()-t
-    print('early_exit', ee, f'{dt:.1f}s', f'{m.size/dt:.0f} px/s', 'frac conv', (m<0).mean())
-    if not ee: m_exact = m
-    else:
-        print(' sign mismatch', ((m<0)!=(m_exact<0)).sum(), 'max rel diff', np.max(np.abs(m-m_exact)/np.abs(m_exact)))
-np.save('cache/toy_128_tanh.npy', m_exact)
+m128 = tf.run_grid(prob, e0, e1, steps=500, verbose=False)
+print('toy128 file vs compiled+early: sign flips', int(((toy<0)!=(m128<0)).sum()), 'frac conv', (m128<0).mean())
