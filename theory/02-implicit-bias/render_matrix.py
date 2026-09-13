@@ -121,7 +121,11 @@ if "anim" in only:
     s_true = np.linalg.svd(Ws, compute_uv=False)[:5]
     TAU0, TAU1 = -0.5, 3.4
     nF = 330
-    taus = np.r_[np.linspace(TAU0, TAU1, nF - 45), np.full(45, TAU1)]
+    # time warp: linger where the stages happen (depth 2 around eta*t ~ 0.5, depth 3 around eta*t ~ 10)
+    grid = np.linspace(TAU0, TAU1, 4000)
+    dens = 1 + 2.0 * np.exp(-0.5 * ((grid + 0.25) / 0.3) ** 2) + 5.0 * np.exp(-0.5 * ((grid - 1.0) / 0.18) ** 2)
+    cdf = np.cumsum(dens); cdf = (cdf - cdf[0]) / (cdf[-1] - cdf[0])
+    taus = np.r_[np.interp(np.linspace(0, 1, nF - 45), cdf, grid), np.full(45, TAU1)]
     fdir = "cache/frames_mc"
     shutil.rmtree(fdir, ignore_errors=True); os.makedirs(fdir)
     fig = plt.figure(figsize=(15, 7.6), dpi=100)
@@ -142,12 +146,12 @@ if "anim" in only:
             ax = fig.add_axes([x0, 0.43, 0.27, 0.40])
             ax.bar(np.arange(K), sv, width=0.72, color=col, zorder=2)
             ax.scatter(np.arange(5), s_true, marker="_", s=420, color=S.INK, lw=1.4, zorder=3)
-            ax.set_ylim(0, 62); ax.set_xlim(-0.7, K - 0.3)
+            ax.set_ylim(0, 72); ax.set_xlim(-0.7, K - 0.3)
             ax.set_xticks(np.arange(K)); ax.set_xticklabels([str(i + 1) for i in range(K)], fontsize=8.5)
             ax.grid(axis="x", visible=False)
             ax.set_title(titles[N], fontsize=12.5)
             err = D["err"][k]; er = D["erank"][k]
-            ax.text(K - 0.5, 58, f"error {100 * err:.0f}%\neffective rank {er:.1f}", ha="right", va="top", fontsize=10.5, color=S.INK2)
+            ax.text(K - 0.5, 68, f"error {100 * err:.0f}%\neffective rank {er:.1f}", ha="right", va="top", fontsize=10.5, color=S.INK2)
             if c == 0:
                 ax.set_ylabel("singular value $\\sigma_r$")
             bx = fig.add_axes([x0, 0.08, 0.27, 0.26])
@@ -155,13 +159,13 @@ if "anim" in only:
             for r in range(8):
                 bx.plot(tau, L[:, r], color=col, lw=1.6 if r < 5 else 0.9, alpha=1 if r < 5 else 0.5)
             bx.axvline(lt, color=S.INK, lw=1)
-            bx.set_xlim(TAU0, TAU1); bx.set_ylim(0, 62)
+            bx.set_xlim(TAU0, TAU1); bx.set_ylim(0, 72)
             bx.set_xticks([0, 1, 2, 3]); bx.set_xticklabels(["1", "10", "100", "1000"])
             bx.set_xlabel("gradient-flow time ηt (log)", fontsize=10)
             if c == 0:
                 bx.set_ylabel("$\\sigma_1 \\ldots \\sigma_8$")
         fig.savefig(f"{fdir}/f{fi:05d}.png", dpi=100)
-        if fi == 175:
+        if fi == 200:
             fig.savefig("figures/mc_spectra_still.png", dpi=170)
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(FPS), "-i", f"{fdir}/f%05d.png", "-c:v", "libx264",
                     "-pix_fmt", "yuv420p", "-crf", "20", "-preset", "slow", "-movflags", "+faststart", "figures/mc_spectra.mp4"], check=True)

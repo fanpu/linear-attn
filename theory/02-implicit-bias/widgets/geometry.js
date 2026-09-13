@@ -87,7 +87,7 @@
     <div id="ge-angle"></div>
     <pre id="ge-test" class="ib-test"></pre>`;
   const el = id => root.querySelector(id);
-  const cData = canvas(el("#ge-data"), 440, 420), cW = canvas(el("#ge-w"), 440, 420), cA = canvas(el("#ge-angle"), 900, 270);
+  const cData = canvas(el("#ge-data"), 440, 420), cW = canvas(el("#ge-w"), 440, 420), cA = canvas(el("#ge-angle"), 960, 270);
 
   let states, traces, running = false, raf = null;
   function adamCfg() { return { lr: +el("#ge-lr").value, b1: 0.9, b2: +el("#ge-b2").value, eps: +el("#ge-eps").value }; }
@@ -201,7 +201,7 @@
     // right-edge labels with simple de-collision
     lastY.sort((a, b) => a[0] - b[0]);
     let prev = -1e9;
-    for (const [y, o] of lastY) { const yy = Math.max(y, prev + 14); prev = yy; dot(ctx, 800, yy, 3.5, o.color); text(ctx, o.name, 808, yy, { size: 11 }); }
+    for (const [y, o] of lastY) { const yy = Math.max(y, prev + 14); prev = yy; dot(ctx, 800, yy, 3.5, o.color); text(ctx, o.name, 810, yy, { size: 11.5 }); }
     [["l2", "L₂"], ["linf", "L∞"], ["l1", "L₁"]].forEach(([p, s]) => text(ctx, s, CX(0) + 4, CY(deg(REF[p].theta)) - 8, { size: 10.5, color: C.ink2 }));
   }
   function drawAll() {

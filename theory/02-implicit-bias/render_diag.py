@@ -215,7 +215,7 @@ if "stems" in only:
         fig.text(0.05, 0.855, "d = 100, n = 40 measurements: a 60-dimensional space of perfect fits", fontsize=11, color=S.INK2)
         fig.text(0.72, 0.8, "INIT SCALE", color=S.MUTED, fontsize=10.5)
         fig.text(0.72, 0.72, f"α = {alpha:.0e}" if alpha < 0.1 else f"α = {alpha:.2g}", fontsize=28, family=S.MONO, color=S.INK)
-        bx = fig.add_axes([0.745, 0.16, 0.22, 0.44])
+        bx = fig.add_axes([0.745, 0.16, 0.22, 0.40])
         lla = np.log10(l1_curve_a)
         for j in range(len(lla) - 1):
             bx.plot(lla[j:j + 2], l1_curve[j:j + 2, 0], color=S.ALPHA_CMAP((lla[j] + 5) / 7), lw=2.6)
@@ -227,7 +227,7 @@ if "stems" in only:
         bx.set_xticks([-5, -3, -1, 1]); bx.set_xticklabels(["1e-5", "1e-3", "0.1", "10"])
         bx.set_xlabel("α"); bx.set_title("$\\|w\\|_1$ of the solution", fontsize=11.5)
         err = np.linalg.norm(w - wsp) / np.linalg.norm(wsp)
-        fig.text(0.72, 0.655, f"distance to the true $w^\\star$: {100 * err:.1f}%", ha="left", fontsize=12, color=S.INK2)
+        fig.text(0.72, 0.682, f"distance to the true $w^\\star$: {100 * err:.1f}%", ha="left", fontsize=12, color=S.INK2)
         fig.savefig(f"{fdir}/f{fi:05d}.png", dpi=100)
         if fi == nF // 2:
             fig.savefig("figures/diag_stems_still.png", dpi=180)

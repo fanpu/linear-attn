@@ -130,9 +130,9 @@
     // axes
     line(ctx, [[X(XL[0]), Y(0)], [X(XL[1]), Y(0)]], C.axis, 1);
     line(ctx, [[X(0), Y(YL[0])], [X(0), Y(YL[1])]], C.axis, 1);
-    text(ctx, "w₁", X(1.23), Y(0) - 10, { align: "right", size: 13 });
-    text(ctx, "w₂", X(0) + 8, Y(0.8), { size: 13 });
-    [0.5, 1].forEach(v => { text(ctx, v, X(v), Y(0) + 12, { align: "center", size: 10, color: C.muted }); });
+    text(ctx, "w₁", X(1.23), Y(0) - 12, { align: "right", size: 15 });
+    text(ctx, "w₂", X(0) + 10, Y(0.76), { size: 15 });
+    [0.5, 1].forEach(v => { text(ctx, v, X(v), Y(0) + 13, { align: "center", size: 11, color: C.muted }); });
     // references: min-L2 point + its circle, min-L1 point + its diamond
     const n2 = x[0] * x[0] + x[1] * x[1], l2 = [x[0] / n2, x[1] / n2], r2 = Math.hypot(...l2);
     const circ = []; for (let i = 0; i <= 120; i++) { const t = 2 * Math.PI * i / 120; circ.push([X(r2 * Math.cos(t)), Y(r2 * Math.sin(t))]); }
@@ -168,10 +168,11 @@
     dot(ctx, X(l2[0]), Y(l2[1]), 4.5, C.paper); ctx.strokeStyle = C.blue; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.arc(X(l2[0]), Y(l2[1]), 4.5, 0, 7); ctx.stroke();
     dot(ctx, X(l1[0]), Y(l1[1]), 4.5, C.paper); ctx.strokeStyle = C.aqua; ctx.beginPath(); ctx.arc(X(l1[0]), Y(l1[1]), 4.5, 0, 7); ctx.stroke();
     dot(ctx, X(pa.end[0]), Y(pa.end[1]), 6.5, col, C.paper);
-    text(ctx, "min-L₂", X(l2[0]) - 10, Y(l2[1]) - 12, { align: "right", size: 12 });
-    text(ctx, "min-L₁", X(l1[0]) + 10, Y(l1[1]) + 14, { size: 12 });
+    text(ctx, "min-L₂", X(l2[0]) - 10, Y(l2[1]) - 12, { align: "right", size: 13.5, color: C.ink });
+    text(ctx, "min-L₁", X(l1[0]) + 10, Y(l1[1]) + 15, { size: 13.5, color: C.ink });
     // legend
     const lx = 300, ly = 400;
+    ctx.fillStyle = "rgba(252,251,248,0.92)"; ctx.fillRect(lx - 8, ly - (gdTrace ? 30 : 12), 262, gdTrace ? 60 : 42);
     line(ctx, [[lx, ly], [lx + 22, ly]], col, 3); text(ctx, "gradient-flow path (closed form)", lx + 28, ly, { size: 11.5 });
     line(ctx, [[lx, ly + 18], [lx + 22, ly + 18]], C.ink, 1.3, [4, 4]); text(ctx, "level set of Q_α through the landing point", lx + 28, ly + 18, { size: 11.5 });
     if (gdTrace) { dot(ctx, lx + 11, ly - 18, 3.5, C.orange); text(ctx, "discrete GD on (u, v), running live", lx + 28, ly - 18, { size: 11.5 }); }
@@ -201,8 +202,11 @@
     [2, 3, 4].forEach(d => {
       const arr = sideCache[key][d];
       line(ctx, arr.map(([la, w]) => [SX(la), SY(w[1])]), d === D ? C.violet : "rgba(74,58,167,0.28)", d === D ? 2.5 : 1.4);
-      const last = arr[Math.floor(arr.length * 0.47)];
-      text(ctx, `D=${d}`, SX(last[0]) + 4, SY(last[1][1]) - 9, { size: 10.5, color: d === D ? C.ink : C.muted });
+      // label where the curve crosses half-way between the two answers
+      const half = 0.5 * l2y;
+      let lab = arr[0];
+      for (const q of arr) { if ((q[1][1] - half) * Math.sign(l2y || 1) >= 0) { lab = q; break; } }
+      text(ctx, `D = ${d}`, SX(lab[0]) + 8, SY(lab[1][1]), { size: 11.5, color: d === D ? C.ink : C.muted });
     });
     const end = path(x, a, D, 8).end;
     dot(ctx, SX(Math.log10(a)), SY(end[1]), 6, ramp((Math.log10(a) + 3) / 4), C.paper);

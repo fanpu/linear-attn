@@ -67,6 +67,14 @@ from matplotlib.colors import to_rgb
 TEAL_RGB, AMBER_RGB, NIGHT_RGB, STAR_RGB = (np.array(to_rgb(c)) for c in (S.TEAL, S.AMBER, S.NIGHT, S.STAR))
 
 
+def XT(lt):
+    """log-of-log time axis for the side panels: equal room for 10^0..10^3 and 10^30..10^100."""
+    return np.log10(np.asarray(lt) + 2.2)
+
+
+XT_TICKS = [(0, "1"), (3, "10³"), (10, "10¹⁰"), (30, "10³⁰"), (100, "10¹⁰⁰")]
+
+
 def fmt_t(lt):
     if lt < 0:
         return f"{10 ** lt:.2f}", ""
@@ -75,8 +83,9 @@ def fmt_t(lt):
     return "10", f"{lt:.0f}"
 
 
-COMPARE = [(0, ""), (9.5, "a GPU-year of steps is about 10¹⁰"), (17.6, "the universe is about 10¹⁸ seconds old"),
-           (80, "there are about 10⁸⁰ atoms in the universe")]
+COMPARE = [(0, ""), (6, "large-model pretraining runs take about 10⁶ steps"),
+           (26.6, "10⁹ steps per second since the Big Bang: about 4 × 10²⁶"),
+           (80, "there are about 10⁸⁰ atoms in the observable universe")]
 
 
 def draw(i, fig):
@@ -154,32 +163,33 @@ def draw(i, fig):
     # ---------------- angle panel
     a1 = fig.add_axes([xr + 0.035, 0.43, 0.345, 0.28])
     a1.set_yscale("log"); a1.minorticks_off()
-    a1.set_xlim(LT0, LT_END); a1.set_ylim(0.12, 45)
-    a1.plot(lt_th, ang_th, color=S.LILAC, lw=1.1, ls=(0, (4, 3)), alpha=0.9)
+    a1.set_xlim(XT(-0.8), XT(LT_END)); a1.set_ylim(0.12, 45)
+    a1.plot(XT(lt_th), ang_th, color=S.LILAC, lw=1.1, ls=(0, (4, 3)), alpha=0.9)
     m = lt_curve <= lt
-    a1.plot(lt_curve[m], ang_curve[m], color=S.STAR, lw=2)
-    a1.scatter([lt], [ang], s=50, color=S.STAR, edgecolor=S.NIGHT, linewidth=2, zorder=5)
-    a1.scatter([lt], [ang], s=260, color=S.STAR, alpha=0.12, lw=0, zorder=4)
+    a1.plot(XT(lt_curve[m]), ang_curve[m], color=S.STAR, lw=2)
+    a1.scatter([XT(lt)], [ang], s=50, color=S.STAR, edgecolor=S.NIGHT, linewidth=2, zorder=5)
+    a1.scatter([XT(lt)], [ang], s=260, color=S.STAR, alpha=0.12, lw=0, zorder=4)
     a1.set_yticks([0.3, 1, 3, 10, 30]); a1.set_yticklabels(["0.3°", "1°", "3°", "10°", "30°"])
-    a1.set_xticks([0, 25, 50, 75, 100]); a1.set_xticklabels(["1", "10²⁵", "10⁵⁰", "10⁷⁵", "10¹⁰⁰"])
+    a1.set_xticks([XT(v) for v, _ in XT_TICKS]); a1.set_xticklabels([l for _, l in XT_TICKS])
     for yv in [0.3, 1, 3, 10, 30]:
         a1.axhline(yv, color=S.FAINT, lw=0.6, zorder=0)
     a1.spines["left"].set_visible(False); a1.spines["bottom"].set_color(S.FAINT)
     a1.set_title("angle between the GD and max-margin directions", color=S.STAR, fontsize=11.5, loc="left", pad=8)
-    a1.text(55, 0.6, r"theory: $w(t) \approx \hat w \log t + \tilde w$", color=S.LILAC, fontsize=10)
+    a1.text(XT(12), 6, r"theory: $w(t) \approx \hat w \log t + \tilde w$", color=S.LILAC, fontsize=10)
     # ---------------- norm panel
     a2 = fig.add_axes([xr + 0.035, 0.08, 0.345, 0.24])
-    a2.set_xlim(LT0, LT_END)
-    a2.set_ylim(0, norm_curve.max() * 1.08)
-    a2.plot(lt_th, np.linalg.norm(wh) * np.log(10 ** lt_th), color=S.LILAC, lw=1.1, ls=(0, (4, 3)), alpha=0.9)
-    a2.plot(lt_curve[m], norm_curve[m], color=S.STAR, lw=2)
-    a2.scatter([lt], [nw], s=50, color=S.STAR, edgecolor=S.NIGHT, linewidth=2, zorder=5)
-    a2.set_xticks([0, 25, 50, 75, 100]); a2.set_xticklabels(["1", "10²⁵", "10⁵⁰", "10⁷⁵", "10¹⁰⁰"])
-    a2.set_yticks([0, 100, 200]); a2.spines["left"].set_visible(False); a2.spines["bottom"].set_color(S.FAINT)
-    for yv in [100, 200]:
+    a2.set_xlim(XT(-0.8), XT(LT_END))
+    a2.set_yscale("log"); a2.minorticks_off()
+    a2.set_ylim(0.3, norm_curve.max() * 1.6)
+    a2.plot(XT(lt_th), np.linalg.norm(wh) * np.log(10 ** lt_th), color=S.LILAC, lw=1.1, ls=(0, (4, 3)), alpha=0.9)
+    a2.plot(XT(lt_curve[m]), norm_curve[m], color=S.STAR, lw=2)
+    a2.scatter([XT(lt)], [nw], s=50, color=S.STAR, edgecolor=S.NIGHT, linewidth=2, zorder=5)
+    a2.set_xticks([XT(v) for v, _ in XT_TICKS]); a2.set_xticklabels([l for _, l in XT_TICKS])
+    a2.set_yticks([1, 10, 100]); a2.set_yticklabels(["1", "10", "100"]); a2.spines["left"].set_visible(False); a2.spines["bottom"].set_color(S.FAINT)
+    for yv in [1, 10, 100]:
         a2.axhline(yv, color=S.FAINT, lw=0.6, zorder=0)
     a2.set_title(r"the weights never stop growing: $\|w\| \approx \|\hat w\|\,\log t$", color=S.STAR, fontsize=11.5, loc="left", pad=8)
-    a2.set_xlabel("t  (log scale)", color=S.DIM, fontsize=10)
+    a2.set_xlabel("training time t  (axis spacing: log of log t)", color=S.DIM, fontsize=10)
 
 
 def _line(ax, w, level, **kw):
@@ -209,9 +219,9 @@ if __name__ == "__main__":
         draw(int(n_main * 0.55), fig)
         fig.savefig("figures/hero_still.png", dpi=200)
         subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(args.fps), "-i", f"{fdir}/f%05d.png",
-                        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "20", "-preset", "slow", "-movflags", "+faststart",
+                        "-vf", f"fade=in:0:8,fade=out:{len(lts) - 12}:12", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "20", "-preset", "slow", "-movflags", "+faststart",
                         "figures/hero.mp4"], check=True)
         subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(args.fps), "-i", f"{fdir}/f%05d.png",
-                        "-vf", "fps=20,scale=960:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=160[p];[b][p]paletteuse=dither=sierra2_4a",
+                        "-vf", f"fade=in:0:8,fade=out:{len(lts) - 12}:12,fps=20,scale=960:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=160[p];[b][p]paletteuse=dither=sierra2_4a",
                         "figures/hero.gif"], check=True)
         print("wrote hero.mp4 / hero.gif")

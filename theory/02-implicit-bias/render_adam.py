@@ -62,6 +62,7 @@ D = np.load("cache/adam_geom_lr0.01_const.npz")
 st, W, eps = D["steps"], D["W"][:, 0], D["eps"]
 lr, b2 = float(D["lr"]), 0.999
 Z = D["Z"][0]
+ends_a = []
 for e_i, e in enumerate(eps):
     th = np.degrees(np.arctan2(W[:, e_i, 1], W[:, e_i, 0]))
     ax.semilogx(st, th, color=eps_color(e), lw=2.2)
@@ -82,15 +83,20 @@ for e_i, e in enumerate(eps):
     if e == 0:
         ax.annotate(eps_label(e), (st[-1], th[-1]), xytext=(6, -2), textcoords="offset points", ha="left", fontsize=9.5, color=S.INK2)
     else:
-        ax.annotate(eps_label(e), (t_f[ok][-1], thf[ok][-1]), xytext=(5, 0), textcoords="offset points", ha="left", va="center", fontsize=9.5, color=S.INK2)
+        ends_a.append((thf[ok][-1], t_f[ok][-1], e))
+ends_a.sort()
+for i_, (yv, xv, e) in enumerate(ends_a):
+    yy = 55.0 + 1.25 * i_
+    ax.annotate(eps_label(e), (xv, yv), xytext=(3e33, yy), textcoords="data", va="center", fontsize=9.5, color=S.INK2,
+                arrowprops=dict(arrowstyle="-", color=S.AXIS, lw=0.8))
 ax.axhline(45, color=S.ORANGE, lw=1, ls=(0, (5, 4)))
 ax.axhline(63.435, color=S.BLUE, lw=1, ls=(0, (5, 4)))
-ax.text(1.5, 45.4, "$L_\\infty$ max-margin direction", fontsize=9.5, color=S.INK2)
+ax.text(1e12, 45.4, "$L_\\infty$ max-margin direction", fontsize=9.5, color=S.INK2)
 ax.text(1.5, 63.8, "$L_2$ max-margin direction", fontsize=9.5, color=S.INK2)
-ax.set_xlim(1, 1e37); ax.set_ylim(43, 66)
+ax.set_xlim(1, 1e40); ax.set_ylim(43, 66)
 ax.set_xlabel("Adam steps t"); ax.set_ylabel("direction of w (degrees)")
 ax.set_title("(a) Adam leaves the $L_\\infty$ solution once $\\sqrt{\\hat v}$ falls below ε")
-ax.text(0.98, 0.04, "ticks: predicted crossover $t_\\times$ (see text)\n"
+ax.text(0.98, 0.2, "ticks: predicted crossover $t_\\times$ (see text)\n"
         "dotted: after the last Adam step, gradient flow with step lr/ε", transform=ax.transAxes, ha="right", fontsize=9, color=S.INK2)
 ax.set_xticks([1, 1e5, 1e10, 1e15, 1e20, 1e25, 1e30])
 
@@ -117,13 +123,13 @@ ax.set_xlim(0, 300); ax.set_ylim(-300, 30)
 ax.set_xlabel(r"$r_{\mathrm{pred}}\cdot t$   (steps, rescaled by the predicted rate)")
 ax.set_ylabel(r"$\ln\sqrt{\hat v}$  (shifted)")
 ax.set_title(r"(b) Adam's gradient scale decays at a predictable rate $r$")
-ytxt = -175
-ax.text(8, ytxt, "     lr        β₂        predicted r     measured r", fontsize=9.5, color=S.INK, family=S.MONO)
+ytxt = -25
+ax.text(118, ytxt, "     lr        β₂        predicted r     measured r", fontsize=9.5, color=S.INK, family=S.MONO)
 for i_, (lrv, b2v, r, meas, col) in enumerate(rows_b):
     yy = ytxt - 22 * (i_ + 1)
-    ax.plot([9, 22], [yy + 5, yy + 5], color=col, lw=2.6)
-    ax.text(26, yy, f"{lrv:<8g}{b2v:<9g}{r:<15.4e}{meas:.4e}", fontsize=9.5, color=S.INK2, family=S.MONO)
-ax.text(150, -20, "all runs collapse onto slope −1 (dashed)", fontsize=9.5, color=S.INK2)
+    ax.plot([119, 132], [yy + 1, yy + 1], color=col, lw=2.6)
+    ax.text(136, yy, f"{lrv:<8g}{b2v:<9g}{r:<15.4e}{meas:.4e}", fontsize=9.5, color=S.INK2, family=S.MONO)
+ax.text(8, -280, "all runs collapse onto slope −1 (dashed)", fontsize=9.5, color=S.INK2)
 
 # ------------------------------------------------------------------------------------------------ (c) & (d)
 axc = fig.add_subplot(gs[1, 0])
@@ -150,7 +156,10 @@ for fn, lrv, mk in [("cache/adam_gauss_lr0.001_const.npz", 1e-3, "o"), ("cache/a
             ai = np.degrees(angle(Wt, Wi[None]))
             pos = ai / (ai + a2)  # 0 at Linf solution, 1 at L2 solution
             axd.semilogx(st_g, np.median(pos, 1), color=eps_color(e), lw=2.2)
-            axd.annotate(eps_label(e), (st_g[-1], np.median(pos, 1)[-1]), xytext=(4, 0), textcoords="offset points", va="center", fontsize=9.5, color=S.INK2)
+            v_end = np.median(pos, 1)[-1]
+            yy = v_end if e == 0 else 0.5 + 0.045 * e_i
+            axd.annotate(eps_label(e), (st_g[-1], v_end), xytext=(st_g[-1] * 4, yy), textcoords="data", va="center", fontsize=9.5, color=S.INK2,
+                         arrowprops=dict(arrowstyle="-", color=S.AXIS, lw=0.8))
 lim = [3e3, 3e6]
 axc.loglog(lim, lim, color=S.INK, lw=1, ls=(0, (4, 3)))
 axc.set_xlim(lim); axc.set_ylim(lim)

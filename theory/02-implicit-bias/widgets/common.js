@@ -17,7 +17,7 @@
     const c = document.createElement("canvas");
     const dpr = window.devicePixelRatio || 1;
     c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
-    c.style.width = "100%"; c.style.maxWidth = w + "px"; c.style.height = "auto"; c.style.display = "block";
+    c.style.width = "100%"; c.style.maxWidth = w + "px"; c.style.height = "auto"; c.style.display = "block"; c.style.margin = "0 auto";
     const ctx = c.getContext("2d");
     ctx.scale(dpr, dpr);
     el.appendChild(c);

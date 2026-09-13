@@ -14,6 +14,8 @@
 .widget button:hover { background: #f3f0ea; }
 .widget input[type=range] { width: 130px; accent-color: #2a78d6; }
 .widget select { font: inherit; font-size: .84rem; }
+.widget { background: #fcfbf8; }
+.widget canvas { margin: 0 auto; }
 .widget .wcap { color: #6b6b70; font-size: .84rem; line-height: 1.45; margin: .6rem 0 0; }
 figure.hero { background: #0b0d12; border-radius: 10px; padding: 0; overflow: hidden; }
 figure.hero figcaption { color: #8e929c; padding: .2rem 1.1rem .9rem; }
@@ -25,7 +27,7 @@ figure.hero figcaption { color: #8e929c; padding: .2rem 1.1rem .9rem; }
 
 <figure class="hero wide">
 <video autoplay loop muted playsinline poster="figures/hero_still.png" src="figures/hero.mp4"></video>
-<figcaption>Logistic regression trained by plain gradient descent on data a line can separate. The white line is the decision boundary; the dashed lilac line is the maximum-margin (hard SVM) boundary. Watch the clock on the right: it counts to $10^{100}$ steps, and the boundary is <em>still</em> not there. The dashed curve in the angle panel is the closed-form asymptote from Soudry et al. (2018); the measured curve lies on it to seven digits.</figcaption>
+<figcaption>Logistic regression trained by plain gradient descent on data a line can separate. The white line is the decision boundary; the dashed lilac line is the maximum-margin (hard SVM) boundary. Watch the clock on the right: it counts to $10^{100}$ steps, and the boundary is <em>still</em> not there. The dashed curve in the angle panel is the closed-form asymptote from Soudry et al. (2018); after $t \approx 10^{10}$ the measured $w(t)$ sits on it to within $10^{-8}$.</figcaption>
 </figure>
 
 Here is a small puzzle. Take a dataset that a straight line can separate, and train logistic regression on it with gradient descent. The loss goes to zero. But logistic loss never actually *reaches* zero: you can always make it smaller by scaling up the weights. So there is no minimum. Instead there is a whole cone of directions, every one of which drives the loss to zero as $\|w\| \to \infty$.
@@ -75,7 +77,7 @@ where $\hat w$ is the $L_2$ max-margin solution. For almost every dataset the re
 
 </div>
 
-The $1/\log t$ is the creep in the hero animation. The correction $\rho(t)$ stays bounded while $\|w\|$ grows like $\log t$, so the angle shrinks like $\|\rho\|/\log t$. Going from $10^{10}$ steps to $10^{100}$ steps only divides $\log t$ by ten.
+The $1/\log t$ is the creep in the hero animation. The correction $\rho(t)$ stays bounded while $\|w\|$ grows like $\log t$, so the angle shrinks like $\|\rho\|/\log t$. Going from $10^{10}$ steps to $10^{100}$ steps multiplies $\log t$ by ten, so it only divides the angle by ten. (The $O(1/\log t)$ rate holds for almost every dataset; for degenerate ones it is $O(\log\log t/\log t)$.)
 
 To check this literally, I integrated the gradient flow in *log-time*, $s = \log t$. The substitution makes the ODE well-behaved out to $t = 10^{100}$ in float64. On the 2D hero dataset the two support vectors span the plane, so $\tilde w$ is fully predicted by the SVM duals. Panel (a) below shows the residual $\rho(t)$ landing on that prediction. Panel (b) repeats the experiment on 8 random datasets in $d = 50$ with $n = 40$, where the theorem only promises the rate. Multiplying the angle by $\ln t$ gives a curve that flattens, which is what a $1/\log t$ law looks like.
 
@@ -84,7 +86,7 @@ To check this literally, I integrated the gradient flow in *log-time*, $s = \log
 <figcaption><b>(a)</b> 2D hero data. The residual $w(t) - \hat w \ln t$ converges to the $\tilde w$ computed from the SVM dual variables, shown dashed. Dots are discrete GD with $\eta = 0.1$, plotted at flow time $\eta k$. <b>(b)</b> $d = 50$, $n = 40$, random labels, 8 datasets. Solid lines: GD for $10^8$ steps in float64. Dotted lines: the same gradient flow continued in log-time to $10^{100}$. <b>(c)</b> The gap between the current normalized margin and the best achievable margin. Plain GD follows the $1/\ln t$ guide. Normalizing the step (constant step, or $\eta_t \propto 1/\sqrt t$) makes the gap fall polynomially, consistent with the rates of Nacson et al. (2019) and Ji & Telgarsky (2021). Thin lines are individual datasets; thick lines are medians.</figcaption>
 </figure>
 
-{{SOUDRY_NUMBERS}}
+The numbers make the creep concrete. On the 2D data the angle to the SVM direction is 15.5° at $t = 1$, 4.5° at $t = 10^4$, 2.3° at $10^{10}$, 1.1° at $10^{20}$ and 0.23° at $10^{100}$. The residual matches the predicted $\tilde w$ to $10^{-8}$. In $d = 50$, after $10^8$ full-batch steps in float64, GD's direction is still on average **3.9°** from the SVM, and its normalized margin is 95.4% of the best possible. Normalized GD with a constant step gets within 0.001° in $10^7$ steps.
 
 The fix for the slowness is simple and well known. The creep happens because the gradient shrinks like $1/t$ as the loss vanishes. Normalizing the step, $w \leftarrow w - \eta\, \nabla L / \|\nabla L\|$, keeps the pace constant. Panel (c) shows the payoff: the margin gap falls polynomially instead of logarithmically. The limit doesn't change, only the speed.
 
@@ -138,7 +140,9 @@ That is precisely the stationarity condition of the convex problem
 
 <div class="keyeq">
 
-$$\min_w\ Q_\alpha(w) = \alpha^2 \sum_i q\!\left(\frac{w_i}{\alpha^2}\right) \ \ \text{s.t.}\ Xw = y, \qquad q(z) = 2 - \sqrt{4 + z^2} + z\,\operatorname{arcsinh}(z/2).$$
+$$\min_w\ Q_\alpha(w) = \alpha^2 \sum_i q\!\left(\frac{w_i}{\alpha^2}\right) \quad \text{s.t.}\ \ Xw = y,$$
+
+$$q(z) = 2 - \sqrt{4 + z^2} + z\,\operatorname{arcsinh}(z/2).$$
 
 </div>
 
@@ -158,10 +162,10 @@ The picture is the same in 100 dimensions. Take $d = 100$ weights, $n = 40$ Gaus
 
 <figure class="wide">
 <img src="figures/diag_sweep.png" alt="Distance to basis pursuit and min-L2 vs alpha; recovery error vs n">
-<figcaption>Left: dots are the measured end points of gradient flow on $(u, v)$ (LSODA, rtol $10^{-11}$) for 57 values of $\alpha$. Lines are the closed-form $\arg\min Q_\alpha$, solved independently through its convex dual. They agree to $10^{-8}$ everywhere. The distance to basis pursuit shrinks linearly in $\alpha$ (slope 1 on log-log axes); the distance to min-$L_2$ vanishes like $\alpha^{-2}$. Right: relative recovery error against the number of measurements. Ten random problems per point, $d = 100$, 5-sparse truth.</figcaption>
+<figcaption>Left: dots are the measured end points of gradient flow on $(u, v)$ (LSODA, rtol $10^{-11}$) for 57 values of $\alpha$. Lines are the closed-form $\arg\min Q_\alpha$, solved independently through its convex dual. They agree to $10^{-8}$ everywhere. The distance to basis pursuit shrinks roughly linearly in $\alpha$ (log-log slope ≈ 0.93); the distance to min-$L_2$ vanishes like $\alpha^{-4}$. Right: relative recovery error against the number of measurements. Ten random problems per point, $d = 100$, 5-sparse truth.</figcaption>
 </figure>
 
-A practical note about "small". The distance to basis pursuit shrinks only linearly in $\alpha$, and Woodworth et al. show that reaching the $L_1$ limit in general needs *exponentially* small initialization. Tiny initialization also costs training time: the flow sits near the saddle at $w = 0$ for time $\sim \log(1/\alpha)$ before the coordinates escape, one at a time.
+A practical note about "small". The distance to basis pursuit shrinks only about linearly in $\alpha$, and Woodworth et al. show that reaching the $L_1$ limit in general needs *exponentially* small initialization. Tiny initialization also costs training time: the flow sits near the saddle at $w = 0$ for time $\sim \log(1/\alpha)$ before the coordinates escape, one at a time.
 
 ## 5. Depth and low rank: a bias no norm explains <span class="tag lit">literature</span>
 
@@ -169,7 +173,7 @@ The matrix version of the diagonal network is **deep matrix factorization**. We 
 
 <figure class="wide">
 <video autoplay loop muted playsinline poster="figures/mc_spectra_still.png" src="figures/mc_spectra.mp4"></video>
-<figcaption>Top: the 12 largest singular values of $W$ during training, with ghost ticks at the true singular values. Bottom: $\sigma_1, \ldots, \sigma_8$ over time on a log axis. Depth 1 inflates everything at once and generalizes badly. Depth 2 learns modes in stages. Depth 3 separates the stages sharply, peeling off one singular value at a time, and never grows the spurious ones. Time is gradient-flow time, $\eta \times$ steps. Depth 3 uses a smaller step, $\eta = 4\cdot 10^{-4}$, so that one-step differences track the flow.</figcaption>
+<figcaption>Top: the 12 largest singular values of $W$ during training, with ghost ticks at the true singular values. Bottom: $\sigma_1, \ldots, \sigma_8$ over time on a log axis. Depth 1 inflates everything at once and generalizes badly. Depth 2 learns modes in stages. Depth 3 separates the stages sharply, peeling off one singular value at a time, while the spurious ones stay near zero. Time is gradient-flow time, $\eta \times$ steps. Depth 3 uses a smaller step, $\eta = 4\cdot 10^{-4}$, so that one-step differences track the flow.</figcaption>
 </figure>
 
 Arora, Cohen, Hu & Luo (2019) explain the staging with an exact equation. For gradient flow from a balanced initialization, each singular value of the product evolves as
@@ -180,14 +184,12 @@ The factor $\sigma_r^{2 - 2/N}$ is a rich-get-richer term. For $N = 1$ it is abs
 
 <figure class="wide">
 <img src="figures/mc_summary.png" alt="Recovery error by depth and nuclear norm; singular value dynamics check">
-<figcaption>Left: relative recovery error after training. The convex baseline is the matrix with minimum nuclear norm that agrees with the observations, solved with SCS. {{MC_CAPTION}} Right: the Arora et al. equation checked step by step, for the top 5 singular values at every recorded step. The measured one-step change in $\sigma_r$ is plotted against $\eta$ times the right-hand side.</figcaption>
+<figcaption>Left: relative recovery error after training. The convex baseline is the matrix with minimum nuclear norm that agrees with the observations, solved with SCS. With 2000 observed entries (20%), depth 3 recovers the matrix to $3\cdot10^{-6}$ relative error, depth 2 reaches 0.15, the nuclear-norm minimizer 0.19, and depth 1 just leaves the unobserved entries at zero (0.89). At 30% everything except depth 1 succeeds. At 12.5%, just above the 975 degrees of freedom of a rank-5 matrix, nothing recovers the matrix, and depth 3 had not converged after $5\cdot 10^5$ steps. Right: the Arora et al. equation checked step by step, for the top 5 singular values at every recorded step. The measured one-step change in $\sigma_r$ is plotted against $\eta$ times the right-hand side.</figcaption>
 </figure>
-
-{{MC_NUMBERS}}
 
 A natural guess is that depth secretly minimizes the nuclear norm, a convex proxy for rank. It doesn't. At 20% observed, the depth-3 solution has *larger* nuclear norm than the nuclear-norm minimizer, yet lower error. Razin & Cohen (2020) went further and built a case where the implicit bias can't be *any* norm.
 
-Complete a $2\times 2$ matrix with three observed entries, $W_{12} = W_{21} = 1$ and $W_{22} = 0$. Every completion $\begin{psmallmatrix} w & 1 \\ 1 & 0\end{psmallmatrix}$ has determinant $-1$. A depth-$N \ge 2$ factorization started from balanced factors with $\det W(0) > 0$ can never change the sign of its determinant under gradient flow, so it can never fit the data exactly. As the loss goes to zero it must send the free entry $|w| \to \infty$. Every norm of $W$ then diverges, while $W$ gets ever closer to rank 1: its second singular value is at most $3\sqrt2\sqrt{\ell}$. Norm minimization would pick a finite completion; depth instead lowers the rank and pays with an unbounded norm.
+Complete a $2\times 2$ matrix with three observed entries, $W_{12} = W_{21} = 1$ and $W_{22} = 0$. Every completion $\left(\begin{smallmatrix} w & 1 \\ 1 & 0\end{smallmatrix}\right)$ has determinant $-1$. A depth-$N \ge 2$ factorization started from balanced factors with $\det W(0) > 0$ can never change the sign of its determinant under gradient flow, so it can never fit the data exactly. As the loss goes to zero it must send the free entry $|w| \to \infty$. Every norm of $W$ then diverges, while $W$ gets ever closer to rank 1: its second singular value is at most $3\sqrt2\sqrt{\ell}$. Norm minimization would pick a finite completion; depth instead lowers the rank and pays with an unbounded norm.
 
 <figure class="full">
 <img src="figures/razin.png" alt="Razin-Cohen example: W11 diverges, norms diverge, sigma2 goes to zero">
@@ -196,16 +198,107 @@ Complete a $2\times 2$ matrix with three observed entries, $W_{12} = W_{21} = 1$
 
 ## 6. Modern optimizers <span class="tag new">new measurements</span>
 
-{{BUILDON}}
+Everything so far is textbook. Now for questions whose answers aren't. Real training uses Adam, and increasingly Muon, not plain or sign gradient descent. What do *they* converge to on the simplest separable problem, and how long does it take with the hyperparameters people actually use?
+
+### 6a. Adam: $L_\infty$ for a while, then $L_2$ forever
+
+**What is known.** Two results seem to disagree:
+
+- **Zhang, Zou & Cao (2024)** prove that Adam converges to the **$L_\infty$** max-margin direction. Their setting removes the stability constant ($\varepsilon = 0$) and uses a decaying learning rate. The intuition: without $\varepsilon$, Adam's update $m/\sqrt{v}$ is a smoothed sign of the gradient, so it inherits sign GD's geometry.
+- **Wang et al. (2022)** prove that deterministic Adam **with** $\varepsilon > 0$ and a small constant learning rate converges to the **$L_2$** direction. Once gradients become much smaller than $\varepsilon$, $\sqrt{v} + \varepsilon \approx \varepsilon$ and Adam is just gradient descent with step $\text{lr}/\varepsilon$.
+
+Both are right; they describe different limits. On separable data the gradients shrink exponentially, so every Adam run with $\varepsilon > 0$ eventually enters the second regime. The practical questions are **when** the handover happens and **how far** Adam gets toward $L_\infty$ before it. Neither result quantifies that.
+
+**Method.** Full-batch Adam with bias correction, $\beta_1 = 0.9$, $\beta_2 \in \{0.99, 0.999, 0.9999\}$, constant lr $\in \{10^{-3}, 10^{-2}\}$ and $\varepsilon \in \{0, 10^{-16}, 10^{-12}, 10^{-8}, 10^{-6}, 10^{-4}\}$, on logistic regression in float64. There are two data settings: the 2D data from the widget, and the eight $d = 50$ datasets from section 2. I ran up to $3\cdot10^6$ steps. The gradient is stored as $e^{C}\hat g$, with the moment buffers rescaled as $C$ moves, so the $\varepsilon = 0$ runs can go to margins where $e^{-\text{margin}}$ underflows.
+
+<figure class="full">
+<img src="figures/adam.png" alt="Adam: direction vs time for several epsilons; decay-rate collapse; predicted vs measured crossover; d=50 position between Linf and L2 solutions">
+<figcaption><b>(a)</b> 2D data, lr = 0.01. Every run first heads toward the $L_\infty$ direction (45°). With $\varepsilon = 0$ it keeps going there. With $\varepsilon > 0$ each run turns around at a crossover step (black ticks: prediction, below) and starts a logarithmic crawl toward the $L_2$ direction (63.4°). Dotted: continuation as gradient flow with step lr/ε. Started from the Adam iterate at $t = 3\cdot10^5$, this continuation predicts Adam's direction at $t = 3\cdot 10^6$ to within 0.001°. <b>(b)</b> In the sign-like phase, the gradient scale decays exactly exponentially, at a rate $r$ fixed by lr, $\beta_1$, $\beta_2$ and the margin (equation below). Rescaling time by the predicted $r$ collapses four runs onto one line. <b>(c)</b> Predicted against measured crossover step on the $d = 50$ datasets. The median error is 4% (lr = $10^{-3}$) and 2% (lr = $10^{-2}$). <b>(d)</b> $d = 50$: where Adam's direction sits between the $L_\infty$ solution (0) and the $L_2$ solution (1), as a median over datasets.</figcaption>
+</figure>
+
+**Result 1: there are two phases, and $\varepsilon$ sets the handover.** Before the crossover, all values of $\varepsilon$ produce identical trajectories that head toward the $L_\infty$ solution. After it, runs with larger $\varepsilon$ turn toward $L_2$ sooner (panels a, d). In $d = 50$ with lr = $10^{-2}$, after $3\cdot10^6$ steps the $\varepsilon = 0$ runs are a median 3.7° from the $L_\infty$ solution and 27° from the $L_2$ one. With $\varepsilon = 10^{-8}$ they are 23° and 16° away, and still moving toward $L_2$. The continuation in panel (a) shows how slow the second phase is: even at $10^{30}$ steps, the 2D runs are still 2–5° short of the $L_2$ direction.
+
+**Result 2: a rate law for the first phase.** Suppose the gradient decays like $e^{-rt}$ while its sign pattern stays fixed. Adam's two moving averages are then geometric sums, and the per-coordinate step becomes
+
+$$|\Delta w_i| = \text{lr}\cdot \frac{1-\beta_1}{1-\beta_1 e^{r}} \sqrt{\frac{1 - \beta_2 e^{2r}}{1-\beta_2}} .$$
+
+A sign-like step of that size raises the margin, and hence $-\ln(\text{gradient})$, by $\gamma$ times the step, where $\gamma$ is the $L_\infty$-normalized margin. Self-consistency therefore requires
+
+<div class="keyeq">
+
+$$r = \gamma\,\text{lr}\,\frac{1-\beta_1}{1-\beta_1 e^{r}}\sqrt{\frac{1-\beta_2 e^{2r}}{1-\beta_2}}, \qquad\text{so}\qquad r < \tfrac12 \ln(1/\beta_2) \approx \tfrac{1-\beta_2}{2}.$$
+
+</div>
+
+The square root has to stay real, and that caps the rate. If the gradient shrank faster than $e^{-(1-\beta_2)t/2}$, the second-moment average $v$ would be dominated by old, larger gradients. The steps would shrink, and the decay would slow back down to the cap. I'll call this the **$\beta_2$ throttle**. Solving the equation reproduces the measured rates to four significant digits in every run (the table in panel b): for example $r = 4.4038\cdot10^{-3}$ predicted and measured at $\beta_2 = 0.99$, and $4.9939\cdot 10^{-4}$ predicted against $4.9940\cdot10^{-4}$ measured at $\beta_2 = 0.999$. With the common $\beta_2 = 0.999$, the loss can't fall faster than about $e^{-t/2000}$, however large the learning rate.
+
+**Result 3: when $\varepsilon$ takes over.** The handover happens when $\sqrt{\hat v}$ reaches $\varepsilon$:
+
+$$t_\times \approx t_a + \frac{\ln\!\big(\sqrt{\hat v(t_a)}/\varepsilon\big)}{r},$$
+
+anchored at any early time $t_a$ in the exponential phase. The $L_\infty$ phase therefore lasts a number of steps proportional to $\ln(1/\varepsilon)$, divided by $\min\big(\gamma\,\text{lr},\ (1-\beta_2)/2\big)$ up to the smooth correction above. With $\beta_2 = 0.999$ and $\varepsilon = 10^{-8}$, that is roughly $2\ln(10^8)/10^{-3} \approx 37{,}000$ steps once the throttle binds (panel c).
+
+**Caveats.** All of this is full-batch, linear and float64. With minibatches, $v$ also averages gradient noise, which changes the picture: Baek, Song & Yun (2026) show that per-sample Adam can land on $L_2$. In float32, gradients underflow at much smaller margins than the $e^{-700}$ reachable here. Weight decay (AdamW) adds an explicit $L_\infty$ constraint (Xie & Li 2024) and is not modeled. The rate law assumes a stable sign pattern, which is what makes the first phase sign-like; it will be less clean in networks where the pattern keeps changing.
+
+### 6b. Spectral descent and Muon on a linear multiclass classifier
+
+{{MUON}}
 
 ## 7. Where it breaks
 
-{{BREAKS}}
+The four reproductions matched their theorems quantitatively. The places where they didn't are worth collecting, because each marks an assumption doing real work.
+
+- **"Eventually" can mean never.** The $1/\log t$ rate is a mathematical statement, not a practical one: after $10^8$ steps GD is still 3.9° from the SVM in $d = 50$. Early stopping, learning-rate schedules, or finite float precision will end training long before the implicit bias has finished acting.
+- **Near-support vectors slow everything down.** The residual converges to $\tilde w$ only after points *just outside* the margin stop contributing. A point at normalized margin $1 + \delta$ fades like $t^{-\delta}$. In my first attempt at the hero dataset, one point sat at margin 1.002. At $t = 10^{300}$ the residual was still 0.3 away from its limit, because $10^{-300\cdot 0.002} \approx 0.25$. The $d = 50$ datasets have near-support vectors at margins 1.006 to 1.17, which is why the curves in panel (b) keep drifting until $t \sim 10^{30}$.
+- **The step-size condition matters, but only for the path.** My first discrete-GD check on the 2D data used $\eta = 0.1$, which is 5.7× the theorem's limit $2\beta^{-1}\sigma_{\max}^{-2}$. GD still converged to the same $\tilde w$, but it approached from the other side, along a visibly different path from gradient flow. At half the limit (the figure) GD and flow agree.
+- **Discrete GD is not gradient flow for diagonal nets.** With constant step $\eta = c/(8\lambda_{\max}\|w_{\text{BP}}\|_\infty)$, the solution GD lands on moves away from $\arg\min Q_\alpha$ roughly in proportion to $c$. At $\alpha = 0.1$ the gap is $4\cdot10^{-4}$, $1.6\cdot10^{-3}$, $4.0\cdot10^{-3}$ and $6.4\cdot10^{-3}$ for $c = 0.05, 0.2, 0.5, 0.8$. The shift is always toward a slightly *larger* $L_1$ norm: finite steps make GD a little less sparse than its flow. (Even, Pesme, Gunasekar & Flammarion (2023) analyse this effect for (S)GD.)
+- **The rich regime is expensive.** Getting within $10^{-3}$ of basis pursuit needed $\alpha \approx 10^{-4}$. The flow then spends time $\propto \log(1/\alpha)$ on the saddle at the origin before it moves, and float64 precision bounds how small $\alpha$ can usefully be.
+- **Balancedness is an assumption.** The singular-value equation is exact only for balanced factors. From a random init of scale $10^{-3}$, the factors are not balanced while $\sigma_r \lesssim 10^{-3}$. There the measured change was on average 1.09× (depth 2) and 1.37× (depth 3) the prediction. Above that scale the ratio was 1.0001 and 1.0000.
+- **Float64 tunnels through a barrier the flow can't cross.** In the Razin–Cohen example the exact flow keeps $\det W > 0$ forever. Numerically, $\sigma_2(W)$ fell to $10^{-16}$ (depth 2, by $t \approx 80$) and $10^{-18}$ (depth 3, by $t \approx 3\cdot10^9$), after which round-off flipped the sign of the determinant and the solver found a finite zero-loss completion. The theorem describes an exact dynamical system; finite precision breaks its invariant.
+- **Where the classical story stops for modern optimizers.** Adam with a realistic $\varepsilon$ is neither the $L_\infty$ nor the $L_2$ story. It follows one, then the other, with a handover time set by $\varepsilon$ and $\beta_2$ (§6a). {{MUON_BREAK}}
 
 ## Reproduce it
 
-{{REPRO}}
+Everything runs on CPU in float64 (`OMP_NUM_THREADS=1`, at most four processes). From `theory/02-implicit-bias/` with `PY=../.venv/bin/python`:
+
+```bash
+# measurements -> cache/*.npz            (wall-clock on a busy 20-core GB10)
+$PY compute_soudry.py hero               # 2D log-time flow to 1e100 + 1e7 GD steps      (~2 min)
+$PY compute_soudry.py gd 1e8             # d=50, 8 datasets, 1e8 GD steps + flows         (~40 min)
+for m in ngd ngd_sqrt sign; do $PY compute_soudry.py $m 1e7; done                         # (~5 min each)
+$PY compute_diag.py                      # diagonal nets: alpha sweep, GD step sizes, n sweep, 2D toy  (~3 min)
+$PY compute_matrix.py razin
+for N in 1 2 3; do for m in 1250 2000 3000; do $PY compute_matrix.py complete $N $m; done; done
+$PY compute_matrix.py complete 3 2000 0 4e-4 5e5 _slow; $PY compute_matrix.py complete 3 1250 0 4e-4 5e5
+for m in 1250 2000 3000; do $PY compute_matrix.py nuclear $m; done
+$PY compute_adam.py geom 3e6 1e-2 const; $PY compute_adam.py geom 1e6 1e-3 const
+$PY compute_adam.py geom 1e6 1e-2 const 0.99; $PY compute_adam.py geom 2e6 1e-2 const 0.9999
+$PY compute_adam.py gauss 3e6 1e-3 const; $PY compute_adam.py gauss 3e6 1e-2 const        # (~15 min each)
+$PY compute_spectral.py 1e6                                                                # (~1 h)
+# figures, widget data, tests, page
+$PY render_hero.py; $PY render_soudry.py; $PY render_diag.py; $PY render_matrix.py
+$PY render_adam.py; $PY render_spectral.py; $PY export_widgets.py; $PY test_core.py
+$PY ../_shared/render_post.py post.md --shot
+```
+
+The widgets have self-tests: open `post.html#selftest`.
 
 ## References
 
-{{REFS}}
+- D. Soudry, E. Hoffer, M. S. Nacson, S. Gunasekar, N. Srebro. *The Implicit Bias of Gradient Descent on Separable Data.* JMLR 19 (2018); ICLR 2018. [arXiv:1710.10345](https://arxiv.org/abs/1710.10345)
+- M. S. Nacson, J. D. Lee, S. Gunasekar, P. Savarese, N. Srebro, D. Soudry. *Convergence of Gradient Descent on Separable Data.* AISTATS 2019. [arXiv:1803.01905](https://arxiv.org/abs/1803.01905)
+- Z. Ji, M. Telgarsky. *Characterizing the implicit bias via a primal-dual analysis.* ALT 2021. [arXiv:1906.04540](https://arxiv.org/abs/1906.04540)
+- S. Gunasekar, J. D. Lee, D. Soudry, N. Srebro. *Characterizing Implicit Bias in Terms of Optimization Geometry.* ICML 2018. [arXiv:1802.08246](https://arxiv.org/abs/1802.08246)
+- B. Woodworth, S. Gunasekar, J. D. Lee, E. Moroshko, P. Savarese, I. Golan, D. Soudry, N. Srebro. *Kernel and Rich Regimes in Overparametrized Models.* COLT 2020. [arXiv:2002.09277](https://arxiv.org/abs/2002.09277)
+- M. Even, S. Pesme, S. Gunasekar, N. Flammarion. *(S)GD over Diagonal Linear Networks: Implicit Bias, Large Stepsizes and Edge of Stability.* NeurIPS 2023. [arXiv:2302.08982](https://arxiv.org/abs/2302.08982)
+- S. Arora, N. Cohen, W. Hu, Y. Luo. *Implicit Regularization in Deep Matrix Factorization.* NeurIPS 2019. [arXiv:1905.13655](https://arxiv.org/abs/1905.13655)
+- N. Razin, N. Cohen. *Implicit Regularization in Deep Learning May Not Be Explainable by Norms.* NeurIPS 2020. [arXiv:2005.06398](https://arxiv.org/abs/2005.06398)
+- C. Zhang, D. Zou, Y. Cao. *The Implicit Bias of Adam on Separable Data.* NeurIPS 2024. [arXiv:2406.10650](https://arxiv.org/abs/2406.10650)
+- B. Wang, Q. Meng, H. Zhang, R. Sun, W. Chen, Z.-M. Ma, T.-Y. Liu. *Does Momentum Change the Implicit Regularization on Separable Data?* NeurIPS 2022. [arXiv:2110.03891](https://arxiv.org/abs/2110.03891)
+- B. Wang, Q. Meng, W. Chen, T.-Y. Liu. *The Implicit Regularization for Adaptive Optimization Algorithms on Homogeneous Neural Networks.* ICML 2021. [arXiv:2012.06244](https://arxiv.org/abs/2012.06244)
+- S. Xie, Z. Li. *Implicit Bias of AdamW: ℓ∞ Norm Constrained Optimization.* ICML 2024. [arXiv:2404.04454](https://arxiv.org/abs/2404.04454)
+- B. Baek, M. Song, C. Yun. *Implicit Bias of Per-sample Adam on Separable Data.* ICLR 2026. [arXiv:2510.26303](https://arxiv.org/abs/2510.26303)
+- C. Fan, M. Schmidt, C. Thrampoulidis. *Implicit Bias of Spectral Descent and Muon on Multiclass Separable Data.* NeurIPS 2025. [arXiv:2502.04664](https://arxiv.org/abs/2502.04664)
+- N. Tsilivis, G. Vardi, J. Kempe. *Flavors of Margin: Implicit Bias of Steepest Descent in Homogeneous Neural Networks.* ICLR 2025. [arXiv:2410.22069](https://arxiv.org/abs/2410.22069)
+- K. Lyu, J. Li. *Gradient Descent Maximizes the Margin of Homogeneous Neural Networks.* ICLR 2020. [arXiv:1906.05890](https://arxiv.org/abs/1906.05890)
+- K. Jordan et al. *Muon: An optimizer for hidden layers in neural networks* (blog post, 2024), for the Newton–Schulz coefficients.

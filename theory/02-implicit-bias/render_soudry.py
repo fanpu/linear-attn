@@ -46,9 +46,9 @@ ax.set_xlim(0.18, 100)
 ax.set_xticks([1, 3, 10, 30, 100]); ax.set_xticklabels(["$10^{1}$", "$10^{3}$", "$10^{10}$", "$10^{30}$", "$10^{100}$"])
 ax.set_xlabel("time t  (axis: log of log t)")
 ax.set_title(r"(a) 2D: the residual $\rho(t) = w(t) - \hat w \ln t$ converges to $\tilde w$")
-ax.text(0.2, 0.5, r"dashed: $\tilde w$ predicted from the SVM duals," "\n" r"$e^{-y_n x_n^\top \tilde w} = \alpha_n$ for each support vector",
-        transform=ax.transAxes, fontsize=9.5, color=S.INK2)
-ax.text(0.2, 0.36, "dots: discrete GD (η = 4/σ²max, 10⁷ steps)\nsolid: gradient flow in log-time", transform=ax.transAxes, fontsize=9.5, color=S.INK2)
+ax.text(0.36, 0.97, r"dashed: $\tilde w$ predicted from the SVM duals," "\n" r"$e^{-y_n x_n^\top \tilde w} = \alpha_n$ for each support vector",
+        transform=ax.transAxes, fontsize=9.5, color=S.INK2, va="top")
+ax.text(0.36, 0.84, "dots: discrete GD (η = 4/σ²max, 10⁷ steps)\nsolid: gradient flow in log-time", transform=ax.transAxes, fontsize=9.5, color=S.INK2, va="top")
 final_err = np.abs(rho[-1] - wt).max()
 ax.text(0.98, 0.03, f"|ρ(10¹⁰⁰) − w̃| = {final_err:.0e}", transform=ax.transAxes, ha="right", fontsize=9, color=S.MUTED)
 ax.set_ylim(-0.1, 1.45)
