@@ -198,7 +198,7 @@ def alm_from_white(z, C, lmax_z):
         a0 = m * (2 * lmax_z + 1 - m) // 2
         b0 = m * (2 * lmax + 1 - m) // 2
         n = lmax + 1 - m
-        out[b0:b0 + n] = z[a0 + m:a0 + m + n] if False else z[a0 + m - m + m:a0 + m + n] * s[m:]
+        out[b0 + m:b0 + m + n] = z[a0 + m:a0 + m + n] * s[m:]
     return out
 
 
@@ -293,3 +293,39 @@ def fit_dim(sizes, counts, smin, smax):
     ss = ((y - yhat) ** 2).sum()
     se = np.sqrt(ss / max(len(x) - 2, 1) / ((x - x.mean()) ** 2).sum()) if len(x) > 2 else np.nan
     return float(coef[0]), float(se), int(sel.sum())
+
+
+def rbf_d(s):
+    """Null model: squared-exponential-on-the-sphere kernel exp(-(1-u)/s^2) (C^infinity)."""
+    return lambda t: -np.expm1(-(2 * np.sin(np.asarray(t, float) / 2) ** 2) / s**2)
+
+
+def kernel_d(name, L):
+    """theta -> 1 - kappa(cos theta) for a named kernel; name 'rbf' ignores L."""
+    if name == "rbf":
+        return rbf_d(RBF_S)
+    return lambda t: d_of_theta(name, L, t)
+
+
+RBF_S = 0.02
+
+
+def flat_spectrum(dfunc, ks, K0=60.0, nper=24):
+    """Planar (flat-sky) spectral density S(k) = -2 pi int_0^inf D(theta) J0(k theta) theta dtheta,
+    regularised by a Gaussian window exp(-(k theta / K0)^2) (relative spectral blur ~ 1/K0).
+    Valid for large k (theta-support ~ K0/k << 1). Matches C_l at l = k."""
+    from scipy.special import j0
+    g, gw = roots_legendre(nper)
+    smax = 6 * K0
+    # panels in s = k theta: geometric near 0, then width pi/2 (J0 half-period ~ pi)
+    geo = (np.pi / 2) * 2.0 ** -np.arange(60)[::-1]
+    uni = np.arange(np.pi / 2, smax + 1e-9, np.pi / 2)
+    edges = np.unique(np.concatenate([[0.0], geo, uni]))
+    lo, hi = edges[:-1], edges[1:]
+    s = ((lo + hi)[:, None] / 2 + (hi - lo)[:, None] / 2 * g).ravel()
+    w = ((hi - lo)[:, None] / 2 * gw).ravel()
+    base = w * j0(s) * s * np.exp(-(s / K0) ** 2)
+    out = []
+    for k in ks:
+        out.append(-2 * np.pi / k**2 * np.dot(base, dfunc(s / k)))
+    return np.array(out)
