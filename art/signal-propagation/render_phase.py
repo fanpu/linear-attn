@@ -153,15 +153,16 @@ if want("atlas") and E is not None:
         else:
             norm = mcolors.Normalize(*rng_)
         for j, (f, t) in enumerate(((a, "analytic"), (e, "measured"))):
-            ax = fig.add_axes([0.07 + j * 0.45, 0.955 - (i + 1) * 0.184, 0.40, 0.165])
+            ax = fig.add_axes([0.07 + j * 0.45, 0.955 - (i + 1) * 0.184, 0.40, 0.150])
             im = ax.imshow(f, origin="lower", extent=ext, aspect="auto", cmap=cmap, norm=norm, interpolation="nearest")
             ax.tick_params(labelsize=8, colors=INK)
             ax.set_title(f"{lab}, {t}", fontsize=12, color=INK, loc="left")
         cax = fig.add_axes([0.93, 0.955 - (i + 1) * 0.184 + 0.02, 0.012, 0.125])
         fig.colorbar(im, cax=cax).ax.tick_params(labelsize=8)
     fig.text(0.05, 0.012, "Axes: sigma_w^2 (horizontal, 0.5-4.5), sigma_b^2 (vertical, 0-2). Measured: random tanh MLPs, "
-             f"N = {int(E['N'])}, depth {int(E['D'])}, {int(E['K'])} nets per pixel; q*, c* are tail means, xi_q, xi_c exponential fits, "
-             "chi_1 the growth rate of an infinitesimal perturbation.", fontsize=11, color=INK)
+             f"N = {int(E['N'])}, depth {int(E['D'])}, {int(E['K'])} nets per pixel;\nq*, c* are tail means, xi_q, xi_c exponential fits, "
+             "chi_1 the growth rate of an infinitesimal perturbation. White = not measurable (perturbation fell below float32 floor / "
+             "transient shorter than one layer).", fontsize=11, color=INK)
     savefig(fig, "phase_atlas_analytic_vs_measured.png")
 
 # ---------------------------------------------------------------- A6 trainability overlay
