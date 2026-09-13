@@ -47,6 +47,8 @@ def plate(rgb, name, title, caption, extent, bg=PAPER, fg=INK, W=3000, line=None
     ax.set_xlabel(r"weight variance  $\sigma_w^2$", color=fg, fontsize=14)
     ax.set_ylabel(r"bias variance  $\sigma_b^2$", color=fg, fontsize=14)
     fig.text(300 / W, 1 - 95 / H, title, color=fg, fontsize=26, va="center")
+    import textwrap
+    caption = "\n".join(textwrap.fill(par, 185) for par in caption.replace("\n", " ").split("  ")) if len(caption) > 0 else caption
     fig.text(300 / W, 1 - (ih + 330) / H, caption, color=fg, fontsize=11.5, va="top", linespacing=1.5, alpha=0.9)
     return savefig(fig, name)
 
@@ -68,15 +70,15 @@ if want("spectral"):
         rgb = split_rgb(ch_e, E["xi_c"], "sd_spectral", near_boundary="large")
         plate(rgb, "phase_spectral_measured.png", "Order and Chaos, measured (width 1000, 6 random nets per pixel)",
               f"Each pixel: {int(E['K'])} random tanh MLPs of width N = {int(E['N'])}, depth {int(E['D'])} (common random numbers across pixels). "
-              "Side = measured growth rate of an infinitesimal input perturbation (chi_1 > 1: red).\nShade = measured "
-              "correlation depth scale xi_c (exponential fit of |c^l - c*| vs depth), rank-normalised per side "
-              "(declared Spectral split). 480 x 240 pixels, shown with nearest-neighbour enlargement.\nNo line drawn.",
+              "\nSide = measured growth rate of an infinitesimal input perturbation (chi_1 > 1: red). Shade = measured "
+              "correlation depth scale xi_c (exponential fit of |c^l - c*| vs depth),\nrank-normalised per side "
+              "(declared Spectral split). 480 x 240 pixels, nearest-neighbour enlargement. No line drawn; black = fit failed.",
               ext)
         for pair in ("aurora_ember", "indigo_madder"):
             rgb = split_rgb(ch_e, E["xi_c"], pair, near_boundary="large")
             plate(rgb, f"phase_split_{pair}_measured.png", f"Order and Chaos, measured ({P.PAIRINGS[pair]['title']})",
                   f"Same measurement as the Spectral plate (N = {int(E['N'])}, depth {int(E['D'])}, {int(E['K'])} nets/pixel); declared split palette "
-                  f"'{pair}' from color-research/palettes.py.", ext)
+                  f"'{pair}' from color-research/palettes.py.\nSide = measured chi_1 > 1; shade = per-side rank of measured xi_c.", ext)
 
 # ---------------------------------------------------------------- A2 dark ridge (measured, no line)
 if want("ridge") and E is not None:

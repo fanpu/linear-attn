@@ -87,14 +87,14 @@ for k in range(nlev):
     # resolution check
     rc = {}
     cands = []
-    Zr = load(args.tag + "res", "f64", 512)
-    if Zr is not None and k < Zr["L_avg"].shape[0]:
-        cands.append((512, Zr, k))
-    for item in filter(None, args.plates.split(";")):
-        t, lv = item.split(":")
-        lv = [int(x) for x in lv.split(",")]
-        if k in lv:
-            cands.append((1024, load(t, "f64", 1024), lv.index(k)))
+    for f in sorted(glob.glob(C(f"zoom_{args.tag}*_N{args.N}_D{args.D}_s{args.seed}_f64_r*.npz"))):
+        r = int(f.split("_r")[-1].split(".")[0])
+        if r == args.res:
+            continue
+        Zr = np.load(f)
+        jj = [j for j in range(Zr["windows"].shape[0]) if np.allclose(Zr["windows"][j], wins[k], rtol=0, atol=1e-15)]
+        if jj:
+            cands.append((r, Zr, jj[0]))
     for r, Zr, kk in cands:
         if Zr is None:
             continue
