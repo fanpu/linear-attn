@@ -17,7 +17,7 @@ import style as S
 ap = argparse.ArgumentParser()
 ap.add_argument("target"); ap.add_argument("model")
 ap.add_argument("--tag", default=""); ap.add_argument("--G", type=int, default=0)
-ap.add_argument("--tau", type=float, default=0.35); ap.add_argument("--cell", type=int, default=0)
+ap.add_argument("--tau", type=float, default=0.25); ap.add_argument("--cell", type=int, default=0)
 ap.add_argument("--only", default="")
 a = ap.parse_args()
 
@@ -45,8 +45,11 @@ def escape(sw, tau):
 
 
 def fields(D, G):
+    # excess over the chain's own generation-0 fit (identical across lambda at fixed n under CRN),
+    # so the finite-n error of a single fit is not mistaken for self-consumption
     sw = D["sw2"][0, :, :, :G + 1].astype(float)  # [L, Nn, G+1]
-    E = sw[..., G]
+    E = sw[..., G] / sw[..., 0]
+    sw = sw - sw[..., :1]
     T = escape(sw, a.tau)
     margin = a.tau - sw.max(-1)  # how close a surviving chain came to the threshold
     signed = np.where(np.isfinite(T), (G - T) + 1e-3, -np.maximum(margin, 1e-6))  # >=0 escaped, <0 stable
@@ -78,7 +81,7 @@ def upsample_to(rgb, shape_cells):
 def plate(panels, style, name, title, sub, cbar=None):
     cell = a.cell or max(8, 1200 // max(L_, N_))
     pw, ph = N_ * cell, L_ * cell
-    ml, mr, mt, mb, gap = 210, 90, 250, 250, 120
+    ml, mr, mt, mb, gap = 210, 90, 290, 250, 120
     W = ml + 2 * pw + gap + mr
     H = mt + ph + mb
     dark = style == "dark"
@@ -137,8 +140,8 @@ if not a.only or "seq" in a.only:
             Lut = Lut[::-1] if Lut[0].sum() < Lut[-1].sum() else Lut
         pans = [(lab[k], S.apply_lut((logs_[k] - lo) / (hi - lo), Lut)) for k, _ in sets]
         plate(pans, style, f"{base}_sw2_{cmap}.png", f"Where the snake eats its tail — {MODEL}",
-              f"distance to the real distribution after {G} generations (sliced W₂, log colour). Each cell is one chain.",
-              cbar=(Lut[::8], f"{10**lo:.2f}", f"{10**hi:.2f}", "sliced W₂ at generation " + str(G)))
+              f"how much worse than its own generation-0 fit after {G} generations: sliced W₂(G) / sliced W₂(0), log colour.\nEach cell is one chain of {G} refits (seed 0, common random numbers across cells).",
+              cbar=(Lut[::8], f"×{10**lo:.2f}", f"×{10**hi:.1f}", f"W₂ ratio, generation {G} vs 0"))
 
 # ---- 2. split: escaped (red side, coloured by how late) vs survived (purple side, by how close it came)
 if not a.only or "split" in a.only:
@@ -149,5 +152,4 @@ if not a.only or "split" in a.only:
             rgb = S.P.render_split(F[k][3], pairing, near_boundary="small", ref=ref) * 255
             pans.append((lab[k], rgb))
         plate(pans, "dark", f"{base}_split_{pairing}.png", f"Escape-time map of self-consumption — {MODEL}",
-              f"red side: sliced W₂ crossed τ = {a.tau} within {G} generations (paler = earlier); purple side: never crossed "
-              "(paler = further below τ). Rank-normalised per side, shared across panels; declared.")
+              f"red side: sliced W₂ rose more than τ = {a.tau} above generation 0 within {G} generations (paler = earlier).\npurple side: never did (paler = further below τ). Each side rank-normalised, shared across panels; declared mapping.")

@@ -116,6 +116,9 @@ def run_batch(target, model, regime, lam, n, seeds, G, K=8, em_iters0=400, em_it
             ud, zd = pools(g, "display", n_display)
             Yd = gmm_sample(*state, ud, zd) if model == "gmm" else kde_sample(P, cnt, state, ud, zd)
             samples.append(Yd.float().cpu().numpy())
+            if model == "gmm":
+                for nm, t in zip(("pi", "mu", "cov"), state):
+                    hist.setdefault("disp_" + nm, []).append(t.cpu().numpy())
         if log is not None and (g % 25 == 0 or g == G):
             log(f"{target}/{model}/{regime} n={n} g={g} N={Nmax} sw2={m['sw2'].mean():.4f}")
     out = {k: np.stack(v, 1) for k, v in hist.items()}  # [B, G+1, ...]

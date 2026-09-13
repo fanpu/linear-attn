@@ -17,7 +17,8 @@ ap.add_argument("--nmin", type=int, default=16); ap.add_argument("--nmax", type=
 ap.add_argument("--lam0", type=float, default=0.0); ap.add_argument("--lam1", type=float, default=1.0)
 ap.add_argument("--G", type=int, default=60); ap.add_argument("--seeds", default="0")
 ap.add_argument("--bs", type=int, default=96); ap.add_argument("--K", type=int, default=8)
-ap.add_argument("--tag", default="")
+ap.add_argument("--tag", default=""); ap.add_argument("--rev", action="store_true")
+ap.add_argument("--em_iters", type=int, default=10); ap.add_argument("--noassemble", action="store_true")
 a = ap.parse_args()
 
 lams = np.linspace(a.lam0, a.lam1, a.L)
@@ -30,21 +31,27 @@ os.makedirs("cache/parts", exist_ok=True)
 keys = ["sw2", "var_ratio", "overlap"] + (["modes"] if a.target == "ring" else []) + (["h"] if a.model == "kde" else [])
 t0 = time.time()
 cols = []
-for j, n in enumerate(np.unique(ns)[::-1]):  # biggest first: fail fast on memory
-    part = f"cache/parts/{name.replace(a.tag, '')}_L{a.L}_{a.lam0:g}-{a.lam1:g}_G{a.G}_s{a.seeds}_n{n}.npz"
+order = np.unique(ns) if a.rev else np.unique(ns)[::-1]  # default biggest first; --rev lets a 2nd worker start small
+for j, n in enumerate(order):
+    part = f"cache/parts/{name.replace(a.tag, '') if a.tag else name}_L{a.L}_{a.lam0:g}-{a.lam1:g}_G{a.G}_e{a.em_iters}_s{a.seeds}_n{n}.npz"
+    if os.path.exists(part + ".lock") and not os.path.exists(part):
+        continue  # another worker is on it
+    open(part + ".lock", "w").close() if not os.path.exists(part) else None
     if os.path.exists(part):
         cols.append((n, dict(np.load(part)))); continue
     grid = [(s, l) for s in seeds for l in lams]
     acc = {k: [] for k in keys}
     for i in range(0, len(grid), a.bs):
         chunk = grid[i:i + a.bs]
-        r = run_batch(a.target, a.model, a.regime, [c[1] for c in chunk], int(n), [c[0] for c in chunk], a.G, K=a.K)
+        r = run_batch(a.target, a.model, a.regime, [c[1] for c in chunk], int(n), [c[0] for c in chunk], a.G, K=a.K, em_iters=a.em_iters)
         for k in keys:
             acc[k].append(r[k].astype(np.float32))
     col = {k: np.concatenate(v, 0).reshape(len(seeds), len(lams), a.G + 1) for k, v in acc.items()}
     np.savez(part, **col)
     cols.append((n, col))
     print(f"[{time.time()-t0:7.0f}s] {name} n={n} ({j+1}/{len(ns)}) sw2[lam=0,G]={col['sw2'][0,0,-1]:.3f}", flush=True)
+if a.noassemble or len(cols) < len(np.unique(ns)):
+    raise SystemExit("columns done; not assembling")
 bycol = dict(cols)
 out = {k: np.stack([bycol[n][k] for n in ns], 2) for k in keys}  # [S, L, Nn, G+1]
 np.savez_compressed(f"cache/{name}.npz", lams=lams, ns=ns, seeds=np.array(seeds), **out)
