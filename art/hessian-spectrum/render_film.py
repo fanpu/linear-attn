@@ -19,6 +19,7 @@ ap.add_argument('--run', default='film_mlps_C10_pc200')
 ap.add_argument('--stills', action='store_true')
 ap.add_argument('--film', action='store_true')
 ap.add_argument('--styles', default='hue,silver,magma,paper,split,aurora_ember,cyanotype_vandyke')
+ap.add_argument('--film_style', default='hue', help='hue or split')
 ap.add_argument('--frames', type=int, default=720)
 args = ap.parse_args()
 
@@ -71,7 +72,7 @@ def waterfall(W, Hrows):
     return tone(D), D, uu
 
 
-def colorize(E, style, W):
+def colorize(E, style, W, D=None):
     xs = np.linspace(x0, x1, W)
     if style == 'hue':
         col = wavelength_rgb(np.interp(xs, [x0, x1], [395, 690])) * 0.85 + 0.15
@@ -100,7 +101,7 @@ if args.stills:
     W, Hr = 2400, 1600
     E, D, uu = waterfall(W, Hr)
     for style in args.styles.split(','):
-        rgb = colorize(E, style, W)
+        rgb = colorize(E, style, W, D)
         img = Image.fromarray((np.clip(rgb, 0, 1) * 255).astype(np.uint8))
         ground = (243, 238, 227) if style == 'paper' else (6, 6, 6)
         ink = (28, 26, 23) if style == 'paper' else (220, 214, 200)
@@ -139,12 +140,13 @@ if args.film:
     trace_y, strip_y, strip_h = 120, 250, 130
     wf_y, wf_h = 470, 520
     E, D, uu = waterfall(W, wf_h)
-    wf = (np.clip(colorize(E, 'hue', W), 0, 1) * 255).astype(np.uint8)
+    wf = (np.clip(colorize(E, args.film_style, W, D), 0, 1) * 255).astype(np.uint8)
+    Dref = D
     xs = np.linspace(x0, x1, W)
     hue = wavelength_rgb(np.interp(xs, [x0, x1], [395, 690])) * 0.85 + 0.15
     slit = np.clip(1.25 - np.abs(np.linspace(-1, 1, strip_h)) ** 6 * 1.25, 0, 1)
     fT, fM, fI = ImageFont.truetype(FONT, 40), ImageFont.truetype(MONO, 24), ImageFont.truetype(FONTI, 24)
-    tmp = os.path.join(CACHE, 'film_frames'); os.makedirs(tmp, exist_ok=True)
+    tmp = os.path.join(CACHE, 'film_frames_' + args.film_style); os.makedirs(tmp, exist_ok=True)
     nF, hold = args.frames, 72
     for fi in range(nF + hold):
         v = u[0] + (u[-1] - u[0]) * min(fi, nF - 1) / (nF - 1)
@@ -152,7 +154,16 @@ if args.film:
         stepv = 10 ** v - 1
         can = np.zeros((FH, FW, 3), np.uint8) + 6
         ex = expo_row(s, W, sigma=1.1)
-        strip = ex[None, :, None] * hue[None] * slit[:, None, None]
+        if args.film_style == 'hue':
+            strip = ex[None, :, None] * hue[None] * slit[:, None, None]
+        else:   # same per-side rank normalisation as the waterfall (ref = whole waterfall)
+            import palettes as P
+            dr_ = dens_row(s, W, 1.1)[None]
+            M = np.where(xs[None] < 0, -1.0, 1.0) * np.log1p(dr_); M = np.where(dr_ < 1e-3, 0.0, M)
+            Mref = np.where(xs[None] < 0, -1.0, 1.0) * np.log1p(Dref); Mref = np.where(Dref < 1e-3, 0.0, Mref)
+            row = P.render_split(M, 'sd_spectral', near_boundary='small', ref=Mref)
+            row = row * (0.08 + 0.92 * np.clip(dr_ / 0.05, 0, 1)[..., None])
+            strip = row * slit[:, None, None]
         can[strip_y:strip_y + strip_h, L:L + W] = (np.clip(strip, 0, 1) * 255).astype(np.uint8)
         nrow = int(round((v - u[0]) / (u[-1] - u[0]) * (wf_h - 1))) + 1
         can[wf_y:wf_y + nrow, L:L + W] = wf[:nrow]
@@ -178,10 +189,11 @@ if args.film:
                 f'lines (eigvecs in class-mean span): {count[jn]}', font=fM, fill=(200, 194, 182))
         dr.text((L + W, FH - 60), 'time ↓  symlog λ →', font=fM, fill=(130, 124, 112), anchor='rt')
         im.save(os.path.join(tmp, f'f{fi:04d}.png'))
-    mp4 = f'{GAL}/spectrograph_film.mp4'
+    sfx = '' if args.film_style == 'hue' else '_' + args.film_style
+    mp4 = f'{GAL}/spectrograph_film{sfx}.mp4'
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-framerate', '30', '-i', os.path.join(tmp, 'f%04d.png'),
                     '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '18', '-preset', 'slow', mp4], check=True)
-    gif = f'{GAL}/spectrograph_film.gif'
+    gif = f'{GAL}/spectrograph_film{sfx}.gif'
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', mp4, '-vf',
                     'fps=12,scale=900:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse=dither=sierra2_4a',
                     gif], check=True)
