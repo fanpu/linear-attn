@@ -48,9 +48,9 @@ Layers: the hairline is 2/η. The strokes are λ₁ (bright), λ₂, and λ₃ (
 
 | | |
 |---|---|
-| <img src="gallery/orbit_main4_night.png"> **Orbit plane, night.** Horizontal: r = (λ₁ − 2/η)/(2/η). Vertical: log₁₀ amplitude. Both use a 9-step centred mean (declared), and colour encodes the step (declared). Steps after t_edge + 100 only. | <img src="gallery/orbit_main4_spectral.png"> **Orbit plane, Spectral.** Colour is the amplitude growth d log A/dt, split at 0 (declared split). Warm and cool mix on both sides of the edge line; see §5.4. |
+| <img src="gallery/orbit_main4_night.png"> **Orbit plane, night.** Horizontal: r = (λ₁ − 2/η)/(2/η). Vertical: log₁₀ amplitude. Both use a 9-step centred mean (declared), and colour encodes the step (declared). Steps after t_edge + 100 only. | <img src="gallery/orbit_main4_spectral.png"> **Orbit plane, Spectral.** Colour is the amplitude growth d log A/dt, split at 0 (declared split). Warm and cool mix on both sides of the edge line (§5 items 1 and 4). |
 | <img src="gallery/orbit_main4_paper.png"> orbit, single ink | <img src="gallery/growth_main4_paper.png"> **Growth plate.** Measured one-step growth log(A<sub>t+1</sub>/A<sub>t</sub>) against r for all four η, with binned medians. The dashed line is the quadratic-model prediction log\|1 + 2r\|, which is a single curve in these units. The measured zero crossing sits at r ≈ +0.05 to +0.08, not at 0. |
-| <img src="gallery/return_main4_paper.png"> **Burst return maps** (A<sub>n</sub>, A<sub>n+1</sub>) and (τ<sub>n</sub>, τ<sub>n+1</sub>), cobweb idiom. These are clouds, not curves: a negative result (§5.4). | <img src="gallery/return_main4_night.png"> return maps, night |
+| <img src="gallery/return_main4_paper.png"> **Burst return maps** (A<sub>n</sub>, A<sub>n+1</sub>) and (τ<sub>n</sub>, τ<sub>n+1</sub>), cobweb idiom. These are clouds, not curves: a negative result (§4.4, §5 item 3). | <img src="gallery/return_main4_night.png"> return maps, night |
 
 ### 2.4 Plotter braid (one continuous line)
 
