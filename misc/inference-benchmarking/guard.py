@@ -80,6 +80,7 @@ def run_guarded(
     env: dict | None = None,
     cwd: str | None = None,
     echo: bool = False,
+    on_line=None,
 ) -> GuardResult:
     """Run `argv` under the watchdog, capturing its output.
 
@@ -113,6 +114,10 @@ def run_guarded(
         assert proc.stdout is not None
         for line in proc.stdout:
             chunks.append(line)
+            # on_line lets the caller persist results as they arrive, so a kill
+            # partway through loses one cell rather than everything buffered.
+            if on_line is not None:
+                on_line(line)
             if echo:
                 print(line, end="")
 

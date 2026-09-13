@@ -191,22 +191,22 @@ def run_model(model: str, done: set, dry_run: bool) -> None:
     # FlashInfer JIT-compiles fused MoE kernels, which dense models never trigger.
     env = dict(os.environ, VLLM_LOGGING_LEVEL="WARNING", MAX_JOBS="4")
 
-    t0 = time.time()
-    res = guard.run_guarded(argv, timeout_s=TIMEOUT_S, env=env)
-    print(f"      -> {res.status()} in {res.elapsed_s/60:.1f} min, "
-          f"min available {res.min_available_bytes/budget.GIB:.1f} GiB")
-
     meta = {}
     n_rows = 0
-    for line in res.output.splitlines():
+
+    def on_line(line: str) -> None:
+        nonlocal meta, n_rows
         if line.startswith("ROWMETA "):
             meta = json.loads(line[len("ROWMETA "):])
         elif line.startswith("ROW "):
             row = json.loads(line[len("ROW "):])
             row["load_s"] = meta.get("load_s")
-            row["guard_min_available_gib"] = res.min_available_bytes / budget.GIB
             append(row)
             n_rows += 1
+
+    res = guard.run_guarded(argv, timeout_s=TIMEOUT_S, env=env, on_line=on_line)
+    print(f"      -> {res.status()} in {res.elapsed_s/60:.1f} min, "
+          f"min available {res.min_available_bytes/budget.GIB:.1f} GiB")
 
     if n_rows < len(cells):
         # The child died partway. Record why, so the gap in the grid is explained.
