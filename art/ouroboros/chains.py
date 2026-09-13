@@ -21,7 +21,7 @@ from common import (DEV, DT, crn_pools, gmm_em, gmm_init, gmm_sample, hist_overl
                     kde_sample, real_pool, reference_sample, ref_hist, ring_mode_mass, sliced_w2)
 
 N_EVAL = 2048
-KDE_Q = 1024
+KDE_Q = 256
 
 
 class Evaluator:
@@ -46,7 +46,7 @@ class Evaluator:
         return out
 
 
-def run_batch(target, model, regime, lam, n, seeds, G, K=8, em_iters0=200, em_iters=30,
+def run_batch(target, model, regime, lam, n, seeds, G, K=8, em_iters0=400, em_iters=10,
               keep_samples_every=0, n_display=0, log=None):
     """Run B chains sharing the same n. lam [B] float, seeds [B] int (python lists)."""
     B = len(lam)

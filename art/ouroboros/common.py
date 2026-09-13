@@ -1,6 +1,6 @@
 """Shared pieces for Ouroboros: targets, common-random-number pools, batched models, metrics.
 
-Everything here is batched over independent chains on the GPU in float64.
+Everything here is batched over independent chains (CPU by default, float64).
 A "chain" is one (target, model, regime, lambda, n, seed) retraining loop.
 """
 import hashlib
@@ -9,8 +9,10 @@ import math
 import numpy as np
 import torch
 
-DEV = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-DT = torch.float64
+import os
+# CPU by default (the shared GPU is saturated); OUROBOROS_DEV=cuda to opt in.
+DEV = torch.device(os.environ.get("OUROBOROS_DEV", "cpu"))
+DT = torch.float64 if os.environ.get("OUROBOROS_DT", "float64") == "float64" else torch.float32
 EXTENT = (-1.45, 1.45)  # square window all targets live in (data units)
 
 RING_K = 8
@@ -117,8 +119,14 @@ def gmm_em(X, w, pi, mu, cov, iters):
         Nk_safe = Nk.clamp_min(1e-12)
         mu_new = torch.einsum("bnk,bnd->bkd", r, X) / Nk_safe[..., None]
         mu = torch.where(alive[..., None], mu_new, mu)
-        d = X[:, :, None, :] - mu[:, None, :, :]
-        cov_new = torch.einsum("bnk,bnkd,bnke->bkde", r, d, d) / Nk_safe[..., None, None]
+        # second moment via sufficient statistics (no [B,N,K,2] tensor): cov = E[xx^T] - mu mu^T
+        rxx = torch.stack([torch.einsum("bnk,bn->bk", r, X[..., 0] * X[..., 0]),
+                           torch.einsum("bnk,bn->bk", r, X[..., 0] * X[..., 1]),
+                           torch.einsum("bnk,bn->bk", r, X[..., 1] * X[..., 1])], -1) / Nk_safe[..., None]
+        cxx = rxx[..., 0] - mu[..., 0] ** 2
+        cxy = rxx[..., 1] - mu[..., 0] * mu[..., 1]
+        cyy = rxx[..., 2] - mu[..., 1] ** 2
+        cov_new = torch.stack([torch.stack([cxx, cxy], -1), torch.stack([cxy, cyy], -1)], -2)
         cov_new = cov_new + REG_COVAR * torch.eye(2, dtype=X.dtype, device=X.device)
         cov = torch.where(alive[..., None, None], cov_new, cov)
     return pi, mu, cov
@@ -152,33 +160,42 @@ def gmm_sample(pi, mu, cov, u, z):
 
 
 # ----------------------------------------------------------------------------- batched KDE
-def kde_bandwidth_loocv(X, cnt, q_u, grid=None):
+def kde_bandwidth_loocv(X, cnt, q_u, iters=16, lo=-3.0, hi=0.3):
     """Isotropic Gaussian KDE bandwidth maximising leave-one-out log-likelihood.
 
     X [B,N,2] with valid prefix of length cnt[b]. The LOO likelihood is averaged over
-    Q query points drawn (with CRN uniforms q_u [B,Q]) from the valid prefix; when cnt <= Q
-    this is effectively the full LOO average (queries resampled with replacement).
-    Grid search over 48 log-spaced h in [1e-3, 1] (declared).
+    Q query points drawn (with CRN uniforms q_u [B,Q]) from the valid prefix.
+    Per-chain golden-section search over log10 h in [lo, hi] (declared), 2 + iters evaluations;
+    final bracket width 0.618^iters * 3.3 decades (~0.002 decades).
     """
-    if grid is None:
-        grid = torch.logspace(-3, 0, 48, dtype=X.dtype, device=X.device)
     B, N, _ = X.shape
     qi = (q_u * cnt[:, None]).long().clamp_max(N - 1)  # [B,Q]
     Qx = torch.gather(X, 1, qi[..., None].expand(-1, -1, 2))
-    D2 = torch.cdist(Qx, X) ** 2  # [B,Q,N]
-    valid = torch.arange(N, device=X.device)[None, None, :] < cnt[:, None, None]
-    notself = torch.arange(N, device=X.device)[None, None, :] != qi[..., None]
-    logmask = torch.where(valid & notself, 0.0, -float("inf")).to(X.dtype)
+    D2 = torch.cdist(Qx, X).pow_(2)  # [B,Q,N]
+    ar = torch.arange(N, device=X.device)
+    bad = (ar[None, None, :] >= cnt[:, None, None]) | (ar[None, None, :] == qi[..., None])
+    D2.masked_fill_(bad, float("inf"))
     lcnt = torch.log((cnt - 1).clamp_min(1).to(X.dtype))[:, None]
-    best = torch.full((B,), -float("inf"), dtype=X.dtype, device=X.device)
-    hbest = torch.ones(B, dtype=X.dtype, device=X.device)
-    for h in grid:
-        lk = torch.logsumexp(-0.5 * D2 / h**2 + logmask, 2) - lcnt - math.log(2 * math.pi) - 2 * torch.log(h)
-        ll = lk.mean(1)
-        better = ll > best
-        best = torch.where(better, ll, best)
-        hbest = torch.where(better, h.expand(B), hbest)
-    return hbest
+
+    def ll(logh):
+        h = 10.0 ** logh
+        lk = torch.logsumexp(-0.5 * D2 / (h * h)[:, None, None], 2) - lcnt - math.log(2 * math.pi) - 2 * torch.log(h)[:, None]
+        return lk.mean(1)
+
+    gr = (math.sqrt(5) - 1) / 2
+    a = torch.full((B,), lo, dtype=X.dtype, device=X.device)
+    b = torch.full((B,), hi, dtype=X.dtype, device=X.device)
+    c, d = b - gr * (b - a), a + gr * (b - a)
+    fc, fd = ll(c), ll(d)
+    for _ in range(iters):
+        left = fc > fd  # max in [a, d]: new b=d, d=c, c=new point
+        a, b = torch.where(left, a, c), torch.where(left, d, b)
+        c_new = torch.where(left, b - gr * (b - a), d)
+        d_new = torch.where(left, c, a + gr * (b - a))
+        f_new = ll(torch.where(left, c_new, d_new))
+        fc, fd = torch.where(left, f_new, fd), torch.where(left, fc, f_new)
+        c, d = c_new, d_new
+    return 10.0 ** (0.5 * (a + b))
 
 
 def kde_sample(X, cnt, h, u, z):
