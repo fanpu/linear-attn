@@ -142,10 +142,13 @@ def style_riso(labels, status, tconv, class_inks, inks, seed=0, misreg=((0, 0), 
 
 
 def style_dark_time(status, tconv, cmap='cmc.lajolla_r', div_rgb=np.array([0.02, 0.02, 0.03])):
-    """Dark ground, perceptually uniform map of log10 convergence time; diverged = near-black."""
+    """Dark ground, perceptually uniform map of convergence time, histogram-equalised over converged
+    pixels (declared: rank, not log-linear, so the slow EoS plateaus do not saturate); diverged = near-black."""
     import matplotlib
     conv = status == 0
-    q, rng = time_q(tconv, conv)
+    q = np.zeros(tconv.shape)
+    q[conv] = P.rank_normalize(np.log10(np.maximum(tconv[conv], 1.0)))
+    rng = None
     cm = matplotlib.colormaps[cmap]
     rgb = cm(1 - q)[..., :3]
     rgb[~conv] = div_rgb

@@ -93,6 +93,7 @@ def zoom_sheet(tag='zA', style='newton'):
 if __name__ == '__main__':
     what = sys.argv[1:] or ['heroes', 'triptych', 'eta', 'zoom']
     if 'heroes' in what: heroes()
+    if 'heroes2' in what: heroes(['f3_s0_e0.3_wide', 'f3_s0.5_e1.1_tassel', 'f3_s0.5_e1.1_tasselzoom', 'f3_s1.5_e1.2'])
     if 'triptych' in what: triptych()
     if 'eta' in what: eta_sheet()
     if 'zoom' in what:

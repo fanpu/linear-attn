@@ -37,7 +37,7 @@ def uncert(tag):
     f = f'cache/uncert/{tag}.npz'
     if not os.path.exists(f):
         return None
-    d = np.load(f)
+    d = np.load(f, allow_pickle=True)
     eps, fr = d['eps'], d['frac']
     M = len(d['A'])
     sel = fr > 20 / M

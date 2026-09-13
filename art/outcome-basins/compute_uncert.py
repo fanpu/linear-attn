@@ -48,12 +48,13 @@ def theta(a, b):
 t0 = time.time()
 r = run(theta(A, B)); base = cls(None, r)
 eps = 10 ** np.linspace(*args.eps[:2], int(args.eps[2]))
-frac, frac_se = [], []
+frac, frac_se, unc_idx = [], [], []
 for e in eps:
     da, db = e * W * np.cos(ang), e * W * np.sin(ang)
     rp = run(theta(A + da, B + db)); cp = cls(None, rp)
     rm = run(theta(A - da, B - db)); cm = cls(None, rm)
     unc = (cp != base) | (cm != base)
+    unc_idx.append(np.nonzero(unc)[0].astype(np.int32))
     frac.append(unc.mean()); frac_se.append(np.sqrt(unc.mean() * (1 - unc.mean()) / args.M))
     print(f'eps={e:.2e} f={unc.mean():.5f}', flush=True)
 frac = np.array(frac)
@@ -62,4 +63,4 @@ x, y = np.log10(eps[sel]), np.log10(frac[sel])
 alpha = np.polyfit(x, y, 1)[0] if sel.sum() >= 3 else np.nan
 print(f'alpha={alpha:.3f}  D=2-alpha={2 - alpha:.3f}  wall={time.time() - t0:.0f}s')
 np.savez(f'cache/uncert/{args.tag}.npz', eps=eps, frac=frac, frac_se=np.array(frac_se), base=base,
-         A=A, B=B, alpha=alpha, meta=json.dumps(vars(args)))
+         A=A, B=B, alpha=alpha, unc_idx=np.array(unc_idx, dtype=object), meta=json.dumps(vars(args)))
