@@ -82,9 +82,9 @@ if __name__ == "__main__":
                 print(n, "/", len(jobs), flush=True)
     mp4 = os.path.join(A.GAL, f"film_stars_{a.tag}_night.mp4")
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-framerate", "30", "-i", f"{out}/f%05d.png", "-c:v", "libx264",
-                    "-pix_fmt", "yuv420p", "-crf", "18", "-preset", "slow", mp4], check=True)
+                    "-pix_fmt", "yuv420p", "-crf", "30", "-preset", "slow", mp4], check=True)
     gif = os.path.join(A.GAL, f"film_stars_{a.tag}_night.gif")
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-framerate", "30", "-i", f"{out}/f%05d.png", "-vf",
-                    "fps=15,scale=540:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=192[p];[b][p]paletteuse=dither=sierra2_4a",
+                    "fps=8,scale=360:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=64:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle",
                     gif], check=True)
     print(mp4, gif, "exposure norm", norm)

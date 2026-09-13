@@ -52,6 +52,10 @@ def main(tag, pair, style, rows, cols, tile_px=300):
         v = P.signed_rank_normalize(dev[:, off].ravel(), near_boundary="small")
         cmap = P.split_cmap(P.SIDES["spectral_purple"], P.SIDES["spectral_red"])  # neg (more obtuse) purple, pos red
         colors = cmap((v + 1) / 2)[:, :3]
+    elif style.startswith("pal_"):  # palettes.py split pairing, e.g. pal_aurora_ember (declared variant)
+        pr = P.PAIRINGS[style[4:]]
+        bg = pr.get("ground") or "#0c0c10"
+        colors = P.render_split(dev[:, off].ravel(), style[4:], near_boundary="small")
     elif style == "riso":
         bg = P.RISO_PAPER
         v = P.signed_rank_normalize(dev[:, off].ravel(), near_boundary="small", pastel=1.0)
@@ -84,7 +88,7 @@ def main(tag, pair, style, rows, cols, tile_px=300):
     fig = A.canvas(W, H, bg)
     ax = A.panel(fig, [0, 0, 1, 1], (0, W, H, 0))
     ax.imshow(img, extent=(0, W, H, 0), interpolation="nearest")
-    tc = "#b9b4a6" if style == "spectral" else "#6d675c"
+    tc = "#6d675c" if style == "riso" else "#b9b4a6"
     for t, (e, _) in enumerate(sel):
         r, c = divmod(t, cols)
         y0 = pad + r * (tile_px + gap); x0 = pad + c * (tile_px + gap)

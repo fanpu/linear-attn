@@ -91,8 +91,8 @@ if __name__ == "__main__":
         raise SystemExit
     base = os.path.join(A.GAL, f"film_tetra_{a.tag}_{a.style}")
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-framerate", "30", "-i", f"{out}/f%05d.png", "-c:v", "libx264",
-                    "-pix_fmt", "yuv420p", "-crf", "18", "-preset", "slow", base + ".mp4"], check=True)
+                    "-pix_fmt", "yuv420p", "-crf", "30", "-preset", "slow", base + ".mp4"], check=True)
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-framerate", "30", "-i", f"{out}/f%05d.png", "-vf",
-                    "fps=15,scale=540:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=192[p];[b][p]paletteuse=dither=sierra2_4a",
+                    "fps=8,scale=360:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=64:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle",
                     base + ".gif"], check=True)
     print(base + ".mp4", base + ".gif")

@@ -4,7 +4,9 @@
 """
 import argparse
 import numpy as np
+import os
 import matplotlib.pyplot as plt
+from matplotlib.ticker import NullFormatter
 import nclib as N
 import artlib as A
 
@@ -32,7 +34,7 @@ def plate(tags, style, fname):
         ("NC2  norm spread  std/mean of ‖μ_c − μ_G‖ (ideal 0)", [("M_equinorm", "train"), ("Mtest_equinorm", "test")], "log"),
         ("NC3  ‖W/‖W‖ − M/‖M‖‖  classifier vs means", [("nc3", "train")], "log"),
         ("NC4  classifier ≠ nearest class mean (fraction)", [("nc4_train", "train"), ("nc4_test", "test")], "log"),
-        ("error rate", [("acc_train", "train"), ("acc_test", "test")], "log"),
+        ("error rate (0 drawn at 1e-5)", [("acc_train", "train"), ("acc_test", "test")], "log"),
     ]
     nc = len(tags)
     fig, axs = plt.subplots(len(rows), nc, figsize=(7.2 * nc, 2.1 * len(rows)), dpi=220, facecolor=s["bg"],
@@ -58,6 +60,13 @@ def plate(tags, style, fname):
                 ax.plot(xmap(x), y, color=col, lw=1.2, ls=ls)
                 ax.text(xmap(x)[-1] * 1.08, y[-1], f"{lab} {y[-1]:.2g}", color=s["ink"], fontsize=6.5, va="center")
             ax.set_xscale("log"); ax.set_yscale(yscale)
+            ax.yaxis.set_minor_formatter(NullFormatter())
+            nk = {"M_cos_std": "null256_cos_std", "M_equinorm": "null256_equinorm"}.get(keys[0][0])
+            mf = os.path.join(N.HERE, "cache", f"misfit_{tag}.npz")
+            if nk and os.path.exists(mf):
+                lo, md, hi = np.load(mf)[nk]
+                ax.axhspan(lo, hi, color=s["grid"], alpha=0.9, lw=0, zorder=0)
+                ax.text(0.0035, hi * 1.05, "random Gaussian means, d=256 (5–95 %)", color=s["muted"], fontsize=6, va="bottom")
             ax.set_xlim(0.003, E * 3.2)
             ax.set_title(title, loc="left", color=s["ink"], fontsize=8.5)
             if r == 0:
