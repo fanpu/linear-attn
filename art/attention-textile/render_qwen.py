@@ -22,6 +22,19 @@ def head_classes(ind, prev, sink):
     return cls
 
 
+def head_norm(Ah, q=99.0, gamma=0.5):
+    """Per-head display normalisation (declared): scale by the head's own q-th percentile
+    over causal, non-sink cells (column 0 excluded), clip, power gamma.
+    Returns (W, sink) where sink is column 0 on the same raw scale, for a separate muted ink."""
+    T = Ah.shape[0]
+    tri = np.tril(np.ones((T, T), bool))
+    tri[:, 0] = False
+    v = np.percentile(Ah[tri], q) + 1e-6
+    W = np.clip(Ah / v, 0, 1) ** gamma
+    W[:, 0] = 0
+    return W * np.tril(np.ones((T, T))), np.clip(Ah[:, 0], 0, 1) ** gamma
+
+
 def tapestry(key='P12R4', s=5, styles=('weave', 'dark', 'riso', 'indigo', 'quilt')):
     A = tap[f'{key}_attn'].astype(np.float64)        # single sequence, L,H,T,T
     M = tap[f'{key}_mean_attn'].astype(np.float64)
@@ -61,8 +74,8 @@ def tapestry(key='P12R4', s=5, styles=('weave', 'dark', 'riso', 'indigo', 'quilt
         lp = tile(imgs_p, NL, NH, gutter=g, bg='#000000')[..., 0]
         lb = tile(imgs_b, NL, NH, gutter=g, bg='#000000')[..., 0]
         ly = tile(imgs_y, NL, NH, gutter=g, bg='#000000')[..., 0]
-        img = riso([ly, lb, lp], ['#ffe800', '#0078bf', '#ff48b0'], paper='#f4efe4',
-                   offsets=[(0, 0), (4, -3), (-2, 3)], grain=0.25, seed=3)
+        img = riso([ly, lb, lp ** 0.8], ['#ffe800', '#0078bf', '#ff48b0'], paper='#f4efe4',
+                   offsets=[(0, 0), (4, -3), (-2, 3)], grain=0.15, dot=2, seed=3)
         img = frame(img, 'Attention, three-ink riso',
                     'pink = attention pattern; blue tint = induction score; yellow tint = previous-token score (all measured)',
                     rl, cl, tile_hw, g, g, bg='#f4efe4', fg='#2a2a2a')
@@ -76,13 +89,16 @@ def tapestry(key='P12R4', s=5, styles=('weave', 'dark', 'riso', 'indigo', 'quilt
     if 'quilt' in styles:
         cls = head_classes(ind, prev, sink)
         fabrics = ['#b5412f', '#2f4b7c', '#c99a2e', '#7d8f69']     # declared categorical palette
-        light = ['#f0d5cc', '#d3dcea', '#f2e4c2', '#dfe5d6']
+        light = ['#e8b4a4', '#b4c4e2', '#ecd092', '#cfd8c0']
+        ink = ['#7a1f12', '#172a52', '#6b4a0c', '#34402a']
         imgs = []
         for l in range(NL):
             for h in range(NH):
                 c = cls[l, h]
-                W = np.kron(to_unit(A[l, h], GAMMA), np.ones((s, s)))
-                base = hexrgb(light[c]) * (1 - W[..., None]) + hexrgb(fabrics[c]) * W[..., None]
+                Wn, sk = head_norm(A[l, h], 99.0, 0.6)
+                Wn[:, 0] = sk * 0.5
+                W = np.kron(Wn, np.ones((s, s)))
+                base = hexrgb(light[c]) * (1 - W[..., None]) + hexrgb(ink[c]) * W[..., None]
                 # printed-cotton texture + quilting stitch border (declared)
                 yy, xx = np.mgrid[0:T * s, 0:T * s]
                 tex = 1 - 0.035 * ((yy + xx) % 3 == 0)
@@ -94,21 +110,29 @@ def tapestry(key='P12R4', s=5, styles=('weave', 'dark', 'riso', 'indigo', 'quilt
                 imgs.append(im)
         img = tile(imgs, NL, NH, gutter=g, bg='#e9e0cc')
         img = frame(img, 'Attention, patchwork',
-                    'patch colour = head class from measured scores: red induction>0.2, blue prev-token>0.35, ochre sink>0.7, sage other',
+                    'patch colour = head class from measured scores: red induction>0.2, blue prev-token>0.35, ochre sink>0.7, sage other; pattern per-head normalised',
                     rl, cl, tile_hw, g, g, bg='#e9e0cc', fg='#3b2f25')
         save(img, f'{OUT}/qwen_tapestry_quilt_{key}.png')
     print('tapestry', key, 'classes:', np.bincount(head_classes(ind, prev, sink).ravel(), minlength=4))
 
 
 def hero_main():
-    """P=50 x 4 repeats, all heads, 1 px per attention cell."""
+    """P=50 x 4 repeats, all heads, 1 px per attention cell, per-head normalised,
+    sink column in a muted grey ink."""
     A = main['attn'].astype(np.float64)
     T = A.shape[-1]
     g = 4
-    imgs = [cmap_img(to_unit(A[l, h], GAMMA), 'magma') for l in range(NL) for h in range(NH)]
+    imgs = []
+    for l in range(NL):
+        for h in range(NH):
+            W, sk = head_norm(A[l, h], 99.5, 0.6)
+            im = cmap_img(W, 'magma')
+            im[:, 0] = np.array([0.35, 0.35, 0.38])[None] * sk[:, None] + 0.05
+            imgs.append(im)
     img = tile(imgs, NL, NH, gutter=g, bg='#000000')
     img = frame(img, 'Qwen3-0.6B  |  200 random tokens, period 50, four times',
-                'every head of every layer; 1 px = one attention weight (attention^0.5, magma)',
+                'every head of every layer; 1 px = one attention weight; each head scaled to its own 99.5th pct, ^0.6, magma; '
+                'first-token sink column in grey',
                 [f'L{l}' for l in range(NL)], [f'H{h}' for h in range(NH)], (T, T), g, g,
                 bg='#000000', fg='#cfc8b8', font_size=18)
     save(img, f'{OUT}/qwen_hero_dark_P50.png')
@@ -140,10 +164,12 @@ def stitch_top(key='P12R4', s=14):
     cols = ['#d9c7a7', '#8fa9c4', '#3f6e9a', '#b8452f', '#5a1e1b']   # 5 floss colours, declared
     edges = [0.03, 0.1, 0.25, 0.5, 0.8]                                 # on raw attention
     imgs = [cross_stitch(np.digitize(A[l, h], edges), cols, s=s, seed=k) for k, (l, h) in enumerate(heads)]
-    img = tile(imgs, 2, 4, gutter=36, bg='#e7dcc4', outer=36)
+    img = tile(imgs, 2, 4, gutter=70, bg='#e7dcc4', outer=36)
+    img = label_tiles(img, [f'L{l}H{h}  induction score {ind[l, h]:.2f}' for l, h in heads], 2, 4, (T * s, T * s), 70, 36,
+                      fg='#3b2f25', size=22)
     img = frame(img, 'Cross-stitch sampler: eight induction heads',
-                'period 12 x 4; floss by raw attention bins 0.03/0.10/0.25/0.50/0.80 (declared quantisation)',
-                None, [f'L{l}H{h}' for l, h in heads[:4]], (T * s, T * s), 36, 36, bg='#e7dcc4', fg='#3b2f25')
+                'period 12 x 4 random tokens; floss by raw attention bins 0.03/0.10/0.25/0.50/0.80 (declared quantisation)',
+                bg='#e7dcc4', fg='#3b2f25')
     save(img, f'{OUT}/qwen_top8_crossstitch_P12.png')
 
 

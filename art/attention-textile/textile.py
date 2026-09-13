@@ -64,8 +64,13 @@ def weave(W, s=8, warp_lo='#2a2233', warp_hi='#f2c46d', weft='#1b2a4a', gap='#07
     end_warp = 1 - 0.35 * np.abs(v - 0.5) ** 3 * 8 * (~(Wp > float_thr))
     end_weft = 1 - 0.35 * np.abs(u - 0.5) ** 3 * 8
     # fibre noise along thread direction (declared)
-    fn_warp = 1 + fibre * rng.standard_normal((n * s, m))[:, ix]
-    fn_weft = 1 + fibre * rng.standard_normal((n, m * s))[iy, :]
+    # periodic twist highlights with a random phase per thread (compresses far better than white noise)
+    ph_w = rng.random(m)[ix][None, :]
+    ph_f = rng.random(n)[iy][:, None]
+    yy = (np.arange(n * s) / s)[:, None]
+    xx = (np.arange(m * s) / s)[None, :]
+    fn_warp = 1 + fibre * np.sin(2 * np.pi * (yy * 1.5 + ph_w))
+    fn_weft = 1 + fibre * np.sin(2 * np.pi * (xx * 1.5 + ph_f))
     row_tone = (1 + weft_jitter * rng.standard_normal(n))[iy][:, None]
     warp_col = lo + (hi - lo) * Wp[..., None]
     img = np.empty((n * s, m * s, 3))
@@ -81,6 +86,15 @@ def weave(W, s=8, warp_lo='#2a2233', warp_hi='#f2c46d', weft='#1b2a4a', gap='#07
 
 
 # ------------------------------------------------------------ risograph ----
+def _shift(D, dy, dx):
+    out = np.zeros_like(D)
+    H, W = D.shape
+    ys, yd = (slice(0, H - dy), slice(dy, H)) if dy >= 0 else (slice(-dy, H), slice(0, H + dy))
+    xs, xd = (slice(0, W - dx), slice(dx, W)) if dx >= 0 else (slice(-dx, W), slice(0, W + dx))
+    out[yd, xd] = D[ys, xs]
+    return out
+
+
 def riso(layers, inks, paper='#f3ede1', offsets=None, grain=0.18, seed=0, dot=1):
     """Subtractive spot-colour overprint. layers: list of HxW densities in [0,1].
     Stochastic grain threshold emulates riso screen (declared); offsets are
@@ -90,7 +104,7 @@ def riso(layers, inks, paper='#f3ede1', offsets=None, grain=0.18, seed=0, dot=1)
     out = np.ones((Hh, Ww, 3)) * hexrgb(paper)
     offsets = offsets or [(0, 0)] * len(layers)
     for D, ink, (dy, dx) in zip(layers, inks, offsets):
-        D = np.roll(np.roll(D, dy, 0), dx, 1)
+        D = _shift(D, dy, dx)
         noise = rng.random((Hh // dot + 1, Ww // dot + 1))
         noise = np.kron(noise, np.ones((dot, dot)))[:Hh, :Ww]
         cover = np.clip((D - noise) / grain + 0.5, 0, 1) if grain > 0 else D
