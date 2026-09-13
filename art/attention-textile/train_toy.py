@@ -23,6 +23,7 @@ ap.add_argument('--ckpt', type=int, default=20)
 ap.add_argument('--ablate_every', type=int, default=25)
 ap.add_argument('--seed', type=int, default=0)
 ap.add_argument('--tag', default='main')
+ap.add_argument('--layers', type=int, default=2)
 args = ap.parse_args()
 
 dev = 'cuda'
@@ -31,7 +32,8 @@ torch.manual_seed(args.seed)
 os.makedirs('cache', exist_ok=True)
 
 Pbig = make_bigram(seed=1234, device=dev)
-model = AttnOnly().to(dev)
+L = args.layers
+model = AttnOnly(L=L).to(dev)
 opt = torch.optim.AdamW(model.parameters(), lr=args.lr, betas=(0.9, 0.98), weight_decay=0.0)
 sched = torch.optim.lr_scheduler.LambdaLR(opt, lambda s: min(1.0, (s + 1) / args.warmup))
 gtrain = torch.Generator(device=dev).manual_seed(args.seed + 1)
@@ -97,20 +99,7 @@ def evaluate(step, do_ablate):
     out['ind_score'] = torch.stack(ind).cpu().numpy()
     out['pm_score'] = torch.stack(pm).cpu().numpy()
     out['pm_baseline'] = torch.stack(pm_base).cpu().numpy()
-    # Olsson copying score from the direct OV circuit W_U W_O W_V W_E (LayerNorm ignored)
-    WE = model.emb.weight            # V,D
-    WU = model.unemb.weight          # V,D
-    cps = np.zeros((L, H))
-    dh = model.attn[0].dh
-    for li in range(L):
-        at = model.attn[li]
-        for h in range(H):
-            WV = at.v.weight[h * dh:(h + 1) * dh]                 # dh,D
-            WO = at.o.weight[:, h * dh:(h + 1) * dh]              # D,dh
-            M = (WU @ WO @ WV @ WE.T).double()                    # V,V
-            ev = torch.linalg.eigvals(M)
-            cps[li, h] = (ev.real.sum() / ev.abs().sum()).item()
-    out['copy_score'] = cps
+    # (copying score is computed post hoc from checkpoints in analyze_toy.py)
     # probe attention pattern (single repeated-random sequence)
     _, pp = model(PROBE, return_patterns=True)
     out['probe_attn'] = torch.stack([p[0] for p in pp]).half().cpu().numpy()   # L,H,T,T
