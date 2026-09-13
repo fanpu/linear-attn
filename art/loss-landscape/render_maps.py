@@ -198,6 +198,26 @@ def hachure(model, tag, sheet, out, dark=False):
     fig.savefig(out, dpi=300, facecolor=bg); plt.close(fig)
 
 
+def tanaka(ax, X, Y, Z, levels, gx, gy, lx=-np.sqrt(0.5), ly=np.sqrt(0.5)):
+    """Tanaka illuminated contours: segment brightness = facing of the downhill normal toward the light."""
+    from matplotlib.collections import LineCollection
+    cs = ax.contour(X, Y, Z, levels=levels, linewidths=0)
+    dx = X[1] - X[0]; segs, cols, lws = [], [], []
+    for path in [p for lvl in cs.allsegs for p in lvl]:
+        if len(path) < 2:
+            continue
+        mid = 0.5 * (path[1:] + path[:-1])
+        i = np.clip(((mid[:, 1] - Y[0]) / dx).astype(int), 0, Z.shape[0] - 1)
+        j = np.clip(((mid[:, 0] - X[0]) / dx).astype(int), 0, Z.shape[1] - 1)
+        g = np.stack([gx[i, j], gy[i, j]], 1); g /= np.linalg.norm(g, axis=1, keepdims=True) + 1e-12
+        f = -(g[:, 0] * lx + g[:, 1] * ly)            # +1: slope faces the light
+        segs += list(np.stack([path[:-1], path[1:]], 1))
+        cols += [(0.96, 0.9, 0.78, 0.15 + 0.6 * max(v, 0)) if v >= 0 else (0.0, 0.0, 0.0, 0.2 + 0.6 * -v) for v in f]
+        lws += list(0.25 + 0.45 * np.abs(f))
+    cs.remove()
+    ax.add_collection(LineCollection(segs, colors=cols, linewidths=lws, capstyle="round"))
+
+
 def raster_plate(model, tag, sheet, out, kind):
     xs, ys, L, meta = load(model, tag)
     X, Y, Z = upsample(xs, ys, height(L), 1600)
@@ -206,7 +226,12 @@ def raster_plate(model, tag, sheet, out, kind):
     hs = np.clip(hs / np.percentile(hs, 99.5), 0, 1)
     if kind == "hillshade":
         bg, fg = "#0b0a09", "#d8cdb6"
-        rgb = (np.array([0.04, 0.035, 0.03]) + hs[..., None] ** 1.6 * np.array([0.95, 0.88, 0.76]))
+        # raking light, aspect-dominated: direction of the surface normal vs a NW light, slope saturated by tanh
+        gy, gx = np.gradient(Z, dx); sl = np.hypot(gx, gy) + 1e-12
+        lx, ly = -np.sqrt(0.5), np.sqrt(0.5)
+        ill = (-(gx * lx + gy * ly) / sl) * np.tanh(sl / np.median(sl))
+        hs2 = np.clip(0.52 + 0.42 * ill, 0, 1)
+        rgb = (np.array([0.03, 0.028, 0.025]) + hs2[..., None] ** 1.4 * np.array([0.93, 0.86, 0.74]))
     elif kind == "hypsometric":
         bg, fg = PAPER, INK
         stops = ["#1f5a57", "#4f8c6a", "#9dbb7a", "#e8dc98", "#e2b26f", "#c47d4e", "#9b5a45", "#b99c93", "#e4dcd6", "#fbf8f4"]
@@ -225,9 +250,9 @@ def raster_plate(model, tag, sheet, out, kind):
     if kind == "hypsometric":
         ax.contour(X, Y, Z, levels=index, colors=INK, linewidths=0.45, alpha=0.8)
     if kind == "hillshade":
-        ax.contour(X, Y, Z, levels=minor, colors="#e9dcc0", linewidths=0.25, alpha=0.35)
+        tanaka(ax, X, Y, Z, minor, gx, gy)
     frame(ax, xs, ys, fg)
-    cap = {"hillshade": "Raking light from the north-west at 40°, vertical exaggeration 0.35, normalized to the 99.5th percentile on log10 loss (declared)",
+    cap = {"hillshade": "Raking light from the north-west on log10 loss (aspect shading, slope saturated at its median; declared) + Tanaka illuminated contours every 1/10 decade",
            "hypsometric": "Hypsometric tint: 24 stepped bands of log10 loss (declared palette) × hillshade; index contours",
            "spectral": "Spectral split at chance level ln 10: below (basin) purple→pale, above red→pale; rank-normalized per side",
            "hubble": "palettes.py hubble_sho split at chance level ln 10, rank-normalized per side (declared)"}[kind]

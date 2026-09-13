@@ -48,7 +48,7 @@ torch.backends.cudnn.benchmark = True
 
 net = load_model(args.model, args.epoch)
 if args.dirs:
-    _d = torch.load(args.dirs)
+    _d = torch.load(args.dirs, weights_only=False)
     dx = [t.cuda() for t in _d["dx"]]; dy = [t.cuda() for t in _d["dy"]]
 else:
     dx, dy = get_directions(net, args.seedx, args.seedy)

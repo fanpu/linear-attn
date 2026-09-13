@@ -75,7 +75,8 @@ def stl(tag):
         zz = (Z - np.log10(LO)) / (np.log10(HI) - np.log10(LO)) * 0.27
         rgb = ls.shade(zz, cmap=matplotlib.colors.LinearSegmentedColormap.from_list("m", ["#b9b2a6", "#b9b2a6"]),
                        vert_exag=1.2, blend_mode="soft", dx=X[1] - X[0], dy=Y[1] - Y[0])
-        ax.plot_surface(X, Y, zz, facecolors=rgb, rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False)
+        Xg, Yg = np.meshgrid(X, Y)
+        ax.plot_surface(Xg, Yg, zz, facecolors=rgb, rstride=1, cstride=1, linewidth=0, antialiased=False, shade=False)
         ax.view_init(elev=38, azim=-62); ax.set_box_aspect((1, 1, 0.3)); ax.set_axis_off()
         ax.set_xlim(-1, 1); ax.set_ylim(-1, 1); ax.set_zlim(0, 0.27)
         fig.text(0.25 + i * 0.5, 0.07, PRETTY[m], ha="center", color="#d8cdb6", fontsize=15, family=FONT)
@@ -93,20 +94,20 @@ def ridge(tag, dark=True):
         Z = height(d["loss"])
         xs = np.linspace(-1, 1, 400)
         Zx = ndimage.zoom(Z, (1, 400 / Z.shape[1]), order=3, mode="nearest")
-        rows = np.linspace(0, Z.shape[0] - 1, 61).astype(int)
+        rows = np.linspace(0, Z.shape[0] - 1, 41).astype(int)
         bg, fg = ("#0c0b0a", "#eee4cf") if dark else (PAPER, INK)
         fig = plt.figure(figsize=(8, 10), facecolor=bg)
         ax = fig.add_axes([0.1, 0.1, 0.8, 0.8], facecolor=bg)
-        amp = 0.9
+        amp = 3.2
         for k, r in enumerate(rows[::-1]):
             base = k * 0.1
-            yv = base + amp * (Zx[r] - np.log10(LO)) / (np.log10(HI) - np.log10(LO))
-            ax.fill_between(xs, base - 1, yv, color=bg, zorder=k)
-            ax.plot(xs, yv, color=fg, lw=0.8, zorder=k + 0.5)
-        ax.set_xlim(-1.05, 1.05); ax.set_ylim(-0.1, 0.1 * len(rows) + amp); ax.set_axis_off()
+            yv = base + amp * (np.log10(HI) - Zx[r]) / (np.log10(HI) - np.log10(LO)) - amp * 0.45
+            ax.fill_between(xs, base - 1, yv, color=bg, zorder=2 * (len(rows) - k))
+            ax.plot(xs, yv, color=fg, lw=0.8, zorder=2 * (len(rows) - k) + 1)
+        ax.set_xlim(-1.05, 1.05); ax.set_ylim(-0.6, 0.1 * len(rows) + amp * 0.3); ax.set_axis_off()
         fig.text(0.5, 0.93, PRETTY[m].upper(), ha="center", color=fg, fontsize=16, family=FONT)
-        fig.text(0.5, 0.06, f"61 parallel 1-D slices (rows β = const of the {Z.shape[0]}² filter-normalized surface); "
-                 "height = log10 training loss, shared scale", ha="center", color=fg, fontsize=7.5, family=FONT)
+        fig.text(0.5, 0.06, f"41 parallel 1-D slices (rows β = const of the {Z.shape[0]}² filter-normalized surface);\n"
+                 "inverted: peak height = −log10 training loss (low loss up; declared), shared scale", ha="center", color=fg, fontsize=7.5, family=FONT)
         out = os.path.join(GAL, f"ridge_{'dark' if dark else 'paper'}_{m}_{tag}.png")
         fig.savefig(out, dpi=260, facecolor=bg); plt.close(fig); print("wrote", out)
 
@@ -129,17 +130,20 @@ def sweep(tag, nframes=360):
         az = 300 + 360.0 * f / nframes
         canvas = np.full((1080, 1920, 3), 10, np.uint8)
         for i, (Z, dx) in enumerate(Zs):
-            hs = hillshade(Z, dx, az=az, alt=22, exag=0.12)[::-1]
-            rgb = (np.array([0.04, 0.035, 0.03]) + hs[..., None] ** 1.6 * np.array([0.95, 0.88, 0.76]))
+            gy, gx = np.gradient(Z, dx); sl = np.hypot(gx, gy) + 1e-12
+            th = np.radians(90.0 - az); lx, ly = np.cos(th), np.sin(th)      # compass azimuth -> unit vector
+            ill = (-(gx * lx + gy * ly) / sl) * np.tanh(sl / np.median(sl))
+            hs = np.clip(0.52 + 0.42 * ill, 0, 1)[::-1]
+            rgb = (np.array([0.03, 0.028, 0.025]) + hs[..., None] ** 1.4 * np.array([0.93, 0.86, 0.74]))
             im = (np.clip(rgb, 0, 1) * 255).astype(np.uint8)
             x0 = 80 + i * 900; canvas[90:90 + im.shape[0], x0:x0 + im.shape[1]] = im
         img = Image.fromarray(canvas); dr = ImageDraw.Draw(img)
         for i, m in enumerate(PAIR):
             dr.text((80 + i * 900 + 430, 1000), PRETTY[m], fill=(216, 205, 182), font=font, anchor="mm")
-        dr.text((960, 45), "raking light circling two filter-normalized loss slices  ·  log10 loss, shared scale",
+        dr.text((960, 45), "raking light circling two filter-normalized loss slices  ·  aspect shading of log10 loss (declared), shared scale",
                 fill=(150, 140, 125), font=small, anchor="mm")
         img.save(f"{fd}/{f:05d}.png")
-    encode(fd, os.path.join(GAL, f"sweep_{tag}.mp4"), fps=30, gif_w=720)
+    encode(fd, os.path.join(GAL, f"sweep_{tag}.mp4"), fps=30, gif_w=560)
 
 
 # ----------------------------------------------------------------------------- zoom test
@@ -170,7 +174,10 @@ def zoom():
             d = np.load(p); L = d["loss"]; a = d["xs"]
             h = np.log10(L)
             r, ext, rng = roughness(h)
-            table[m].append(dict(half_width=half[i], rel_rough=r, extrema=ext, log10_range=rng,
+            d1, d2 = np.diff(h), np.diff(h, 2)
+            table[m].append(dict(half_width=half[i], spacing=float(a[1] - a[0]), rel_rough=r, extrema=ext, log10_range=rng,
+                                 slope_sign_changes=int(np.sum(np.sign(d1[1:]) != np.sign(d1[:-1]))),
+                                 rms_d2=float(np.sqrt(np.mean(d2 ** 2))), curv_d2_over_s2=float(np.sqrt(np.mean(d2 ** 2)) / (a[1] - a[0]) ** 2),
                                  dtype=json.loads(str(d["meta"]))["dtype"]))
             ax.plot(a, L, color=INK, lw=0.8)
             ax.set_title(f"{PRETTY[m]}  ·  α ∈ 0.5 ± {half[i]:g}  ·  rough {r:.2e}, extrema {ext}", fontsize=8,
@@ -183,6 +190,26 @@ def zoom():
                  "two finest windows in float64)", fontsize=9, family=FONT, color=INK)
     fig.tight_layout(rect=[0, 0, 1, 0.94])
     out = os.path.join(GAL, "zoom_test.png"); fig.savefig(out, dpi=220, facecolor=PAPER); plt.close(fig)
+    # roughness-vs-spacing plate: RMS second difference of log10 loss vs grid spacing, against the smooth s^2 law
+    fig, axs = plt.subplots(1, 2, figsize=(11, 4.8), facecolor=PAPER)
+    for m, col in zip(PAIR, [INK, RED]):
+        T = table[m]
+        if len(T) < 2:
+            continue
+        sp = np.array([t["spacing"] for t in T]); r2 = np.array([t["rms_d2"] for t in T]); rg = np.array([t["log10_range"] for t in T])
+        k = np.polyfit(np.log10(sp[1:]), np.log10(r2[1:]), 1)[0]
+        for t in T:
+            t["d2_exponent_fine3"] = float(k)
+        axs[0].loglog(sp, r2, "o-", color=col, lw=1, label=f"{PRETTY[m]}  (slope {k:.2f} over 3 finest)")
+        axs[0].loglog(sp, r2[1] * (sp / sp[1]) ** 2, ":", color=col, lw=0.8)
+        axs[1].loglog([t["half_width"] for t in T], rg, "o-", color=col, lw=1, label=PRETTY[m])
+    axs[0].set_xlabel("spacing s (filter-normalized α units)", family=FONT); axs[0].set_ylabel("RMS Δ² log10 L", family=FONT)
+    axs[0].set_title("second differences: dotted = smooth law ∝ s², flat = noise floor", fontsize=9, family=FONT)
+    axs[1].set_xlabel("window half-width", family=FONT); axs[1].set_ylabel("range of log10 L in window", family=FONT)
+    axs[1].set_title("window range: slope 1 = locally linear (no hidden wiggles)", fontsize=9, family=FONT)
+    for ax in axs:
+        ax.set_facecolor(PAPER); ax.legend(fontsize=7.5, frameon=False); ax.tick_params(labelsize=7)
+    fig.tight_layout(); fig.savefig(os.path.join(GAL, "zoom_roughness.png"), dpi=220, facecolor=PAPER); plt.close(fig)
     json.dump(table, open(os.path.join(ROOT, "cache", "zoom_test.json"), "w"), indent=1)
     print(json.dumps(table, indent=1)); print("wrote", out)
 
@@ -196,9 +223,13 @@ def pca():
         d = np.load(p); D = torch.load(os.path.join(ROOT, "cache", "dirs", f"{dname}.pt"), weights_only=False)
         xs, ys = d["xs"], d["ys"]
         X, Y, Z = upsample(xs, ys, height(d["loss"]), 500)
+        _, _, Zf = upsample(xs, ys, np.log10(np.clip(d["loss"], LO, 1e30)), 500)
         fig = plt.figure(figsize=(10, 8.2), facecolor=PAPER)
         ax = fig.add_axes([0.07, 0.15, 0.86, 0.76], facecolor=PAPER)
         minor, index = loss_levels(10)
+        ax.contourf(X, Y, Zf, levels=[np.log10(HI), 99], colors=["#e3dccd"])
+        csf = ax.contour(X, Y, Zf, levels=np.arange(3, 30, 1.0), colors="#8a7f70", linewidths=0.35, linestyles="--")
+        ax.clabel(csf, levels=csf.levels[::3], fmt=lambda v: f"1e{v:.0f}", fontsize=5.5, colors="#8a7f70")
         ax.contour(X, Y, Z, levels=minor, colors=INK, linewidths=0.25)
         cs = ax.contour(X, Y, Z, levels=index, colors=INK, linewidths=0.8)
         ax.clabel(cs, fmt=lambda v: f"{10 ** v:g}", fontsize=6)
@@ -212,16 +243,16 @@ def pca():
         ex = D["explained"]
         ax.set_title(f"{PRETTY[m]}: training trail on the PCA plane of its own checkpoints", fontsize=13, family=FONT, color=INK)
         fig.text(0.5, 0.07, f"Directions = top-2 PCs of (w_epoch − w_final) over epochs {eps[0]}–{eps[-1]} "
-                 f"(explained variance {ex[0]:.1%}, {ex[1]:.1%}); unit-norm, not filter-normalized. "
-                 "Heights: log10 train loss on 1000 images at the final BN statistics.", ha="center", fontsize=7.5, family=FONT, color=INK)
-        fig.text(0.5, 0.045, "The trail lies in the plane only approximately (residual variance is off-plane); "
+                 f"(explained variance {ex[0]:.1%}, {ex[1]:.1%}); unit-norm, not filter-normalized.\n"
+                 "Heights: log10 train loss on 1000 images at the final BN statistics; grey = loss above 150 (dashed: decades up to 1e30).", ha="center", fontsize=7.5, family=FONT, color=INK)
+        fig.text(0.5, 0.025, "The trail lies in the plane only approximately (residual variance is off-plane); "
                  "the surface is evaluated with final-epoch BN running statistics.", ha="center", fontsize=7.5, family=FONT, color=INK)
         out = os.path.join(GAL, f"pca_trail_{m}.png"); fig.savefig(out, dpi=240, facecolor=PAPER); plt.close(fig)
         print("wrote", out)
 
 
 # ----------------------------------------------------------------------------- checkpoint slices
-def ckfilm(nf_between=12):
+def ckfilm(nf_between=24):
     eps = [1, 2, 3, 4, 5, 6, 8, 10, 13, 15, 16, 20, 25, 30, 35, 40]
     data = {}
     for m in PAIR:
