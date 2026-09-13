@@ -1,14 +1,14 @@
 # Theory posts: progress log
 
-**Status as of 2026-09-13: paused at the user's request.**
+**Status as of 2026-09-13: paused at the user's request. All agents stopped cleanly; no theory processes running; each started project has a `PAUSED.md` with rerun commands.**
 
 Each project becomes a blog post, following `_shared/BRIEF.md`. At most 3 agents run at a time.
 
 | # | Directory | State | Notes |
 |---|---|---|---|
-| 2 | `02-implicit-bias/` | paused mid-project | Draft post, 18 figures, 2 widgets, Adam build-on in progress. See `PAUSED.md`. |
-| 3 | `03-saxe-dynamics/` | paused mid-project | Draft post, 11 figures, widget drafts, attention build-on in progress. See `PAUSED.md`. |
-| 8 | `08-icl-linear-attention/` | paused mid-project | Core math, models, and tests done; training underway, no post yet. See `PAUSED.md`. |
+| 2 | `02-implicit-bias/` | paused, nearly done | Full post (4 animations, 9 figures, 2 widgets, no JS errors). All experiments done. Left: screenshot check, proofread. |
+| 3 | `03-saxe-dynamics/` | paused, nearly done | Draft post (4 animations, 6 figures, 2 widgets), build-on done. Left: swarm re-render, final render/check. |
+| 8 | `08-icl-linear-attention/` | paused, early | LSA closed-form match done, 1 animation + 1 widget. Left: relaunch task-diversity sweep (OOM'd, now fixed) and DeltaNet depth-2; hero, post, citations. |
 | 4 | `04-lazy-rich-mup/` | queued | Prompt in `_shared/prompts/`. |
 | 1 | `01-double-descent/` | queued | Prompt in `_shared/prompts/`. |
 | 5 | `05-parities-single-index/` | queued | Prompt in `_shared/prompts/`. |
