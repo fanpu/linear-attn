@@ -60,6 +60,8 @@ axes = w.get('axes', 'lr_lr')
 xl = {'lr_lr': 'Input layer learning rate', 'sigma_lr': 'Weight init scale sigma',
       'wd_lr': 'Weight decay lambda'}[axes]
 yl = {'lr_lr': 'Output layer learning rate'}.get(axes, 'Learning rate')
+if w['nonlin'] == 'liu_cos':
+    xl, yl = 'Learning rate for parameter a', 'Learning rate for parameter b'
 ax.set_xlabel(xl); ax.set_ylabel(yl)
 ax.set_xticks([x0, x1], truncate_sci_notation(10.0 ** np.array([x0, x1])))
 ax.set_yticks([y0, y1], truncate_sci_notation(10.0 ** np.array([y0, y1])), rotation=90)
@@ -67,6 +69,9 @@ lab = ax.get_xticklabels(); lab[0].set_horizontalalignment('left'); lab[1].set_h
 lab = ax.get_yticklabels(); lab[0].set_verticalalignment('bottom'); lab[1].set_verticalalignment('top')
 title = (f'Trainability dependence on per-layer learning rates\n1 hidden layer, {label_of(w)}'
          if axes == 'lr_lr' else f'Trainability, {xl.lower()} vs learning rate\n1 hidden layer, {label_of(w)}')
+if w['nonlin'] == 'liu_cos':
+    title = (f'Trainability of a two-parameter rippled quadratic (no network)\n'
+             f'L = a^2 + 0.6ab + b^2 + {float(w.get("eps", 0.05))}(1 + cos(2pi(a-b)/{float(w.get("lam", 0.2))}))')
 ax.set_title(title)
 fig.tight_layout()
 fig.savefig(f'gallery/hero_{args.out}_{args.style}_labelled.png')

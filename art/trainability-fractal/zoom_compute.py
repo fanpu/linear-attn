@@ -82,36 +82,41 @@ def coherent_labels(M, min_size=6):
 
 
 def choose_next(M, hw, c0, c1):
-    """Greedy target: the next-size sub-window with the most occupied 4-px boxes of
-    *coherent* boundary (dust removed), both phases >= 15% of the sub-window, with a mild
-    preference for staying central. (v1 counted raw edges and walked into a region of
-    isolated diverged 'dust' pixels at eta0 ~ 1e5.5; kept as a documented negative.)"""
-    R = M.shape[0]                            # keyframes may differ in resolution
-    L = coherent_labels(M)
-    E = edges(np.where(L, -1.0, 1.0))
+    """Next centre = a boundary pixel of the current keyframe, chosen as the one with the
+    highest local converge/diverge mixing, weighted by boundary coherence:
+      mixing(p)    = min(f, 1-f), f = converged fraction in a box of the next window size
+                     centred on p (raw labels);
+      coherence(p) = fraction of the box's raw edge pixels that survive dust removal
+                     (components < 6 px flipped) - penalises salt-and-pepper regions;
+      score        = mixing * coherence * (1 - 0.3 * distance from frame centre / R).
+    Candidates are restricted to edge pixels whose next window lies inside the current
+    frame. (v1 counted raw edge boxes and walked into a dust region; v2 centred windows
+    on a 13x13 grid and could drift off the boundary.)"""
+    from scipy import ndimage
+    R = M.shape[0]
     s = int(round(R * ratio))
-    ncand = 13
-    best = None
-    for iy in np.linspace(0, R - s, ncand).astype(int):
-        for ix in np.linspace(0, R - s, ncand).astype(int):
-            e = E[iy:iy + s - 1, ix:ix + s - 1]
-            fc = L[iy:iy + s, ix:ix + s].mean()
-            if min(fc, 1 - fc) < 0.15:
-                continue
-            b = 4
-            hh = (e.shape[0] // b) * b
-            occ = e[:hh, :hh].reshape(hh // b, b, hh // b, b).any(axis=(1, 3)).sum()
-            dist = math.hypot(ix + s / 2 - R / 2, iy + s / 2 - R / 2) / R
-            score = occ * (1.0 - 0.3 * dist)
-            if best is None or score > best[0]:
-                best = (score, ix, iy)
-    if best is None:
+    raw = (M < 0).astype(np.float64)
+    L = coherent_labels(M)
+    E_raw = np.zeros((R, R)); E_raw[:-1, :-1] = edges(M)
+    E_coh = np.zeros((R, R)); E_coh[:-1, :-1] = edges(np.where(L, -1.0, 1.0))
+    f = ndimage.uniform_filter(raw, s, mode='nearest')
+    mix = np.minimum(f, 1 - f)
+    er = ndimage.uniform_filter(E_raw, s, mode='nearest')
+    ec = ndimage.uniform_filter(E_coh, s, mode='nearest')
+    coh = np.where(er > 0, np.minimum(ec / np.maximum(er, 1e-12), 1.0), 0.0)
+    yy, xx = np.mgrid[0:R, 0:R]
+    dist = np.hypot(xx + 0.5 - R / 2, yy + 0.5 - R / 2) / R
+    score = mix * coh * (1 - 0.3 * dist)
+    h = s / 2
+    valid = (E_coh > 0) & (xx + 0.5 - h >= 0) & (xx + 0.5 + h <= R) & (yy + 0.5 - h >= 0) & (yy + 0.5 + h <= R)
+    if not valid.any():
         return c0, c1, None
-    _, ix, iy = best
+    score = np.where(valid, score, -1)
+    iy, ix = np.unravel_index(np.argmax(score), score.shape)
     px = 2 * hw / R
-    nc0 = c0 - hw + (ix + s / 2) * px
-    nc1 = c1 - hw + (iy + s / 2) * px
-    return nc0, nc1, float(best[0])
+    nc0 = c0 - hw + (ix + 1.0) * px       # edge pixel (ix,iy) marks the 2x2 block corner
+    nc1 = c1 - hw + (iy + 1.0) * px
+    return nc0, nc1, float(score[iy, ix])
 
 
 t_all = time.time()
@@ -124,6 +129,7 @@ for k in range(K):
     if os.path.exists(fn):
         d = np.load(fn)
         M = d['measure']
+        c0, c1, hw = float(d['c0']), float(d['c1']), float(d['hw'])   # trust the cache
         print(f'[{k}] cached', flush=True)
     else:
         t0 = time.time()

@@ -43,7 +43,7 @@ def label_of(w):
     if w['minibatch'] > 0:
         return f'tanh, minibatch {w["minibatch"]}'
     return {'tanh': 'tanh, full batch', 'relu': 'ReLU, full batch', 'sin': 'sin, full batch',
-            'quadratic': 'quadratic null'}.get(w['nonlin'], w['nonlin'])
+            'quadratic': 'quadratic null', 'liu_cos': 'quadratic + cosine ripple (Liu-type toy)'}.get(w['nonlin'], w['nonlin'])
 
 
 # --------------------------------------------------------------------------- diptych
@@ -204,7 +204,8 @@ if __name__ == '__main__':
 
 
 # --------------------------------------------------------------------------- Liu toy
-def liu():
+def liu(style='spectral'):
+    fn = {'spectral': S.spectral, 'magma': S.dark_magma}[style]
     from boxcount import dimension_of_measure
     panels = [('liu_eps0_1024', 'pure quadratic  (eps = 0)'),
               ('liu_eps05_1024', 'quadratic + cosine ripple  (eps = 0.05, lam = 0.2)')]
@@ -218,7 +219,7 @@ def liu():
         w = load(n)
         f, s, c = dimension_of_measure(w['M'], 2, 256)
         x = pad + i * (P + pad)
-        page.paste(Image.fromarray(S.dark_magma(w['M'])), (x, top))
+        page.paste(Image.fromarray(fn(w['M'])), (x, top))
         d.text((x, top + P + 24), lab, font=font(SERIF, 38), fill=INKC)
         d.text((x, top + P + 84), f'box-counting D = {f["D"]:.2f} +- {f["se"]:.2f} over {f["decades"]:.1f} decades (r2 {f["r2"]:.4f})', font=font(MONO, 25), fill=GREY)
     w = load(panels[0][0])
@@ -227,10 +228,10 @@ def liu():
            font=font(SERIF, 30), fill=INKC)
     d.text((pad, top + P + 210), 'After Liu (2024), arXiv:2406.13971: a fractal-looking trainability boundary needs only a '
                                  'rough, non-convex loss, not a neural network.', font=font(SERIF, 30), fill=INKC)
-    page.save('gallery/deflation_liu_diptych.png')
+    page.save(f'gallery/deflation_liu_diptych_{style}.png')
     Image.fromarray(S.line_boundary(load('liu_eps05_2048')['M'], scale=1, weight=0.8)).save('gallery/deflation_liu_2048_line.png')
     print('liu done')
 
 
 if __name__ == '__main__' and sys.argv[1] == 'liu':
-    liu()
+    liu('spectral'); liu('magma')
