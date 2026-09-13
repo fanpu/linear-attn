@@ -90,10 +90,20 @@ def zoom_sheet(tag='zA', style='newton'):
     fig.savefig(f'{G}/zoom_{tag}_{style}.png', dpi=100, facecolor=fig.get_facecolor()); plt.close(fig)
 
 
+def splits(tags=('f3_s0.5_e1.1_tassel', 'f3_s0.5_e1.1_tasselzoom', 'f3_s0.5_e1.1'), pairings=('hubble_sho', 'aurora_ember')):
+    """extra boundary-split palettes from art/color-research (declared variants of the Spectral split)."""
+    for tag in tags:
+        d = load(f'cache/maps/hero_{tag}.npz')
+        for pr in pairings:
+            save(style_spectral(d['status'], d['tconv'], pr, nan_color='#101010'), f'{G}/{tag}_split_{pr}.png')
+        print('splits', tag, flush=True)
+
+
 if __name__ == '__main__':
     what = sys.argv[1:] or ['heroes', 'triptych', 'eta', 'zoom']
     if 'heroes' in what: heroes()
     if 'heroes2' in what: heroes(['f3_s0_e0.3_wide', 'f3_s0.5_e1.1_tassel', 'f3_s0.5_e1.1_tasselzoom', 'f3_s1.5_e1.2'])
+    if 'splits' in what: splits()
     if 'triptych' in what: triptych()
     if 'eta' in what: eta_sheet()
     if 'zoom' in what:

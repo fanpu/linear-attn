@@ -156,12 +156,12 @@ def style_dark_time(status, tconv, cmap='cmc.lajolla_r', div_rgb=np.array([0.02,
     return rgb, rng
 
 
-def style_spectral(status, tconv):
+def style_spectral(status, tconv, pairing='sd_spectral', nan_color='#3b0f2e'):
     """Sohl-Dickstein split: converged ranked by convergence time (purple at boundary -> yellow),
     diverged ranked by escape time (deep red at boundary -> yellow). Not-converged sits on the seam."""
     x = np.where(status == 0, -np.maximum(tconv, 1e-3), np.maximum(tconv, 1e-3))
     x = np.where(status == 1, np.nan, x)
-    return P.render_split(x, 'sd_spectral', near_boundary='large', nan_color='#3b0f2e')
+    return P.render_split(x, pairing, near_boundary='large', nan_color=nan_color)
 
 
 def save(rgb, path, flip=True):

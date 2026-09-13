@@ -37,12 +37,20 @@ for i, f in enumerate(fs):
     else:
         rgb, _ = style_newton(lab, st, tc, cols, tq=TQ, vmin=0.3)
     img = Image.fromarray((np.clip(rgb[::-1], 0, 1) * 255 + 0.5).astype(np.uint8))
-    if img.size[0] < 1080:
-        img = img.resize((1080, 1080), Image.NEAREST)     # declared nearest-neighbour upscale (XOR film)
+    if img.size[0] < 1080:     # declared: integer nearest-neighbour upscale, centred on a dark 1080^2 mat (XOR film)
+        k = 1080 // img.size[0]
+        img = img.resize((img.size[0] * k, img.size[1] * k), Image.NEAREST)
+        mat = Image.new('RGB', (1080, 1080), (20, 18, 23)); o = (1080 - img.size[0]) // 2
+        mat.paste(img, (o, o)); img = mat; mat_lbl = True
+    else:
+        mat_lbl = False
     dr = ImageDraw.Draw(img)
     eta = float(d['eta']); w = float(d['win'][1] - d['win'][0])
     label = f'η = {eta:.3f}' if args['mode'] == 'eta' else f'width {w:.2e}   ×{(args["half0"] * 2) / w:.1e}'
-    dr.text((28, 1080 - 50), label, fill=(232, 226, 214) if style != 'spectral' else (30, 30, 30), font=font)
+    if mat_lbl:
+        dr.text((o, 1080 - o + 12), label, fill=(232, 226, 214), font=font)
+    else:
+        dr.text((28, 1080 - 50), label, fill=(232, 226, 214) if style != 'spectral' else (30, 30, 30), font=font)
     img.save(p)
     if i % 50 == 0:
         print('frame', i, flush=True)

@@ -24,11 +24,13 @@ ap.add_argument('--s', type=float, default=1.0)
 ap.add_argument('--seed', type=int, default=0)
 ap.add_argument('--H', type=int, default=2)
 ap.add_argument('--tag', required=True)
+ap.add_argument('--part', type=int, default=0); ap.add_argument('--parts', type=int, default=1, help='compute only frames i %% parts == part (parallel slots)')
 args = ap.parse_args()
 gpu_setup()
 d = f'cache/frames/{args.tag}'
 os.makedirs(d, exist_ok=True)
-json.dump(vars(args), open(f'{d}/args.json', 'w'))
+if args.part == 0:
+    json.dump({k: v for k, v in vars(args).items() if k not in ('part', 'parts')}, open(f'{d}/args.json', 'w'))
 if args.problem == 'fact3':
     prob, c0, u, v = PR.fact3(args.s)
 else:
@@ -37,7 +39,7 @@ R = args.res
 T0 = time.time()
 for i in range(args.n):
     f = f'{d}/{i:04d}.npz'
-    if os.path.exists(f):
+    if i % args.parts != args.part or os.path.exists(f):
         continue
     x = i / max(args.n - 1, 1)
     if args.mode == 'eta':
