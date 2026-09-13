@@ -24,3 +24,27 @@
 - Plates: symlog tau=2e-3 (render_plates.py --tau), photographic exposure model 1-exp(-density/0.7), every
   eigenvalue a Gaussian line sigma=1.3px. Hue by x-position (declared spectroscope idiom).
 ## Jobs (nohup, logs/): run_exact_series.sh, run_lanczos_series.sh, run_film.sh (waits for exact series)
+
+## HANDOFF (session 2 end, context budget) -- what exists and what to do next
+Background jobs STILL RUNNING (nohup, safe to leave; check with `pgrep -af "run_|analyze"`):
+- run_exact_series.sh -> cache/exact/s_mlps_C10 (last one, N=5000, ~15 min), log logs/exact_series.log
+- run_lanczos_series.sh -> cache/spectra/s_mlp_C10, log logs/lanczos_series.log
+- run_film.sh -> starts when exact series done: cache/exact/film_mlps_C10_pc200/step_*.npz (49 ckpts, H only,
+  N=2000, ~2-3 min each => ~2 h), log logs/film.log
+Written but NOT yet run/viewed:
+- render_barcode.py (barcode_paper/night, gel) -- run after C=10 exists; view downscaled; fix layout.
+- render_film.py --stills --film (waterfall stills in 5 styles incl. Spectral split + 1080p mp4/gif).
+  Note: it defines its own islog_ with tau=1e-4 matching render_common default TAU; if you change tau, keep consistent.
+  The 'split' colorize branch has dead lines (neg=..., first t=) -- clean up; check the look.
+- verify.py -> prints markdown table for README (count by gap, by eigenvector overlap, chance C/P).
+Rendered + viewed: gallery/plates_exact_emission.png (good; C-1 red lines clearly visible). Re-run once C=10 done:
+  `OMP_NUM_THREADS=2 .venv/bin/python render_plates.py` (all 4 styles) and `--src lanczos`.
+TODO after: view absorption/silver/negative; maybe a riso 2-ink plate colouring lines by ov_dc (lines in class-mean
+  subspace = red ink, bulk = blue ink) -- meaningful; a palettes.py variant (e.g. P.render_split on film sheet,
+  pairings 'aurora_ember'/'cyanotype_vandyke'); a Papyan hierarchy plate (H vs G vs E_eig, G1/G12 eigs in npz);
+  README.md (full per BRIEF) with verify table; optional FashionMNIST C=10 exact check
+  (`train.py --ds FashionMNIST --arch mlps --down 10 --C 10 --epochs 10 --lr 0.05 --name f_mlps_C10` then exact_analyze).
+Headline so far: outliers = C-1 (not C), identified by eigenvectors lying in span of class-mean gradients
+(overlap 0.84-0.96 vs chance C/P ~1e-3); widest-gap count fragile for C>=5-7. Wall: exact ~3-12 min/ckpt on
+contended CPU (4 threads); Lanczos m=200 ~2-9 min. GPU used: 0.
+Python: /home/fzeng/ml/research/art/.venv/bin/python ; run scripts from the project dir.
