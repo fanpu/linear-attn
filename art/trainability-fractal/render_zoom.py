@@ -27,6 +27,9 @@ p.add_argument('--style', default='spectral')
 p.add_argument('--fps', type=int, default=30)
 p.add_argument('--sec', type=float, default=4.0, help='seconds per keyframe transition')
 p.add_argument('--size', type=int, default=1080)
+p.add_argument('--crf', type=int, default=24)
+p.add_argument('--gif_px', type=int, default=360)
+p.add_argument('--gif_fps', type=int, default=10)
 p.add_argument('--maxk', type=int, default=None)
 p.add_argument('--floor_cut', type=float, default=0.5,
                help='stop the sequence at the first keyframe whose 1-ulp flip fraction of boundary px exceeds this')
@@ -182,8 +185,10 @@ if args.video:
         layers = [l for l in (j, j + 1, j + 2) if l < K]
         # his colour blending: every layer rank-normalised against keyframe j and j+1
         Yref = {(l, rr): cdf_img(kfs[l]['M'], kfs[rr]['M']) for l in layers for rr in (j, j + 1)}
-        for t in range(fpt):
-            a = t / fpt
+        # frames proportional to the log-magnification of this step (half-decade = args.sec)
+        nf = max(1, int(round(fpt * math.log10(kfs[j]['hw'] / kfs[j + 1]['hw']) / 0.5)))
+        for t in range(nf):
+            a = t / nf
             s_ = math.sin(a * math.pi / 2) ** 2
             d0, d1, hw = window(a, j)
             rgb = None
@@ -205,9 +210,9 @@ if args.video:
         Image.fromarray(arr).save(f'{frames_dir}/f_{idx:05d}.png'); idx += 1
     mp4 = f'gallery/zoom_{args.tag}_{args.style}.mp4'
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-framerate', str(args.fps), '-i', f'{frames_dir}/f_%05d.png',
-                    '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '16', '-preset', 'slow', mp4], check=True)
+                    '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', str(args.crf), '-preset', 'slow', mp4], check=True)
     gif = f'gallery/zoom_{args.tag}_{args.style}.gif'
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', mp4, '-vf',
-                    'fps=12,scale=480:480:flags=lanczos,split[a][b];[a]palettegen=max_colors=192[p];[b][p]paletteuse=dither=sierra2_4a',
+                    f'fps={args.gif_fps},scale={args.gif_px}:{args.gif_px}:flags=lanczos,split[a][b];[a]palettegen=max_colors=64[p];[b][p]paletteuse=dither=none',
                     gif], check=True)
     print('video', mp4, os.path.getsize(mp4) / 1e6, 'MB; gif', os.path.getsize(gif) / 1e6, 'MB')

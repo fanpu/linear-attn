@@ -23,6 +23,12 @@ Logs in logs/s3_*.log; each script ends with `echo DONE`. Outputs in cache/windo
   **cache/windows/deep_zoomA3_1024_f64.npz is a 0-byte DUMMY** placed to make the script skip A3; delete it (`rm`) after s3_deep1024 prints DONE.
 - s3_fill: zoom_compute --tag fill --path cache/fill_path.json (4 half-decade in-betweens 10^3,10^4,10^5,10^6, centred on the next deeper centre, nesting checked).
 
+## Session 4 changes (12:40)
+- Killed the queued (never-started) s3_fill and s3_relu waiters; APPENDED them to scripts already holding slots:
+  s3_sem.sh: sem_sigma -> (sem_wd skipped via 0-byte DUMMY cache/windows/sem_wd_lr_384.npz) -> DONE -> fill -> FILL_DONE -> rm dummy -> sem_wd -> SEMWD_DONE
+  s3_steps.sh: steps -> DONE -> ov_relu_512_f64 -> RELU_DONE
+- Preliminary video from 10 kf rendering (logs/s4_video_prelim.log); re-render after fill merge.
+
 ## Next (in order)
 1. When fill DONE: `python merge_zoom.py` (-> 14 kf), `python verify.py zoomAB null_quadratic liu`, `python readme_tables.py` -> replace DTABLE block;
    re-render plates for spectral riso isolines aurora_ember; `python render_zoom.py zoomAB --video` (spectral; also --style magma) -> gallery/zoom_zoomAB_spectral.mp4/.gif;
