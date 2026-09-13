@@ -99,6 +99,18 @@ Reading down the Heaviside column: D = 1.41, 1.62, 1.77, 1.85, 1.88, 1.89, 1.90,
 <td width="33%"><a href="gallery/plate_spectra.png"><img src="gallery/plate_spectra.png"></a><br><b>Plate I</b>: angular power l(l+1)C_l/2π per depth. Heaviside flattens toward l⁻² (slope −2^{1−L}), while regular activations fall off a cliff.</td>
 </tr></table>
 
+### 2.7 Spectral split (declared style, after Sohl-Dickstein's trainability fractals)
+
+The level set splits the field into two sides. Each side is **rank (CDF) normalised on its own** and mapped onto half of matplotlib `Spectral`. In the requested **seam** mapping, the two dark ends meet at the level set: f &lt; u runs pale yellow → green → blue → purple (#5e4fa2) toward the coastline, and f &gt; u runs pale yellow → orange → deep red (#9e0142) toward it, so the coastline is the dark seam. The **colab** mapping reproduces `cdf_img` from github.com/Sohl-Dickstein/fractal exactly (readout = 'loss': negatives ranked onto [−1, −0.25], non-negatives onto [0.25, 1], sign flipped, then Spectral on [−1, 1]). There the dark ends sit at the extremes and the boundary is a pastel jump. Both are declared aesthetic mappings: rank normalisation deliberately flattens the value distribution, so colour shows *order* relative to the level, not amplitude.
+
+<table><tr>
+<td width="50%"><a href="gallery/poster_hammer_heaviside_L2_spectral_3000px.png"><img src="gallery/poster_hammer_heaviside_L2_spectral_3000px.png"></a><br>Whole sphere, depth 2, seam mapping (3000 px; 6000 px master not committed).</td>
+<td width="50%"><a href="gallery/poster_hammer_heaviside_L2_spectral_colab_3000px.png"><img src="gallery/poster_hammer_heaviside_L2_spectral_colab_3000px.png"></a><br>Same draw, the colab's exact normalisation.</td>
+</tr><tr>
+<td><a href="gallery/globe_hero_heaviside_L2_spectral.png"><img src="gallery/globe_hero_heaviside_L2_spectral.png"></a><br>Globe, depth 2, seam mapping, rank-normalised over the visible disc.</td>
+<td><a href="gallery/zoom_plates_heaviside_L2_spectral.png"><img src="gallery/zoom_plates_heaviside_L2_spectral.png"></a><br>The twelve windows, seam mapping, rank-normalised per window (so every window uses the full palette whatever its local amplitude).</td>
+</tr></table>
+
 ---
 
 ## 3. What was computed
