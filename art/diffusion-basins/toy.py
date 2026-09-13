@@ -15,7 +15,13 @@ from common import CACHE, T_MIN, alpha_bar, sigma_of_t, gpu_setup
 
 def mixture(name):
     """returns means (k,2), weights (k,), component std s"""
-    if name == "ring8":
+    if name.startswith("ring") and name != "ring8":
+        k = int(name[4:])
+        ang = 2 * math.pi * np.arange(k) / k + math.pi / 2
+        mu = 2.0 * np.stack([np.cos(ang), np.sin(ang)], 1)
+        w = np.ones(k) / k
+        s = 0.10
+    elif name == "ring8":
         k = 8
         ang = 2 * math.pi * np.arange(k) / k
         mu = 2.0 * np.stack([np.cos(ang), np.sin(ang)], 1)
@@ -37,6 +43,15 @@ def mixture(name):
         w = rng.uniform(0.5, 1.5, 12)
         w /= w.sum()
         s = 0.09
+    elif name == "pair2":
+        mu = np.array([[-1.0, 0.0], [1.0, 0.0]])
+        w = np.array([0.5, 0.5])
+        s = 0.10
+    elif name == "tri3":
+        ang = 2 * math.pi * np.arange(3) / 3 + math.pi / 2
+        mu = 1.5 * np.stack([np.cos(ang), np.sin(ang)], 1)
+        w = np.ones(3) / 3
+        s = 0.10
     else:
         raise ValueError(name)
     return mu, w, s
@@ -121,11 +136,11 @@ def load_net(name, device, dtype=torch.float64):
     return net.to(dtype).eval()
 
 
-def train(name, device, steps=40000, bs=8192, lr=1e-3, seed=0):
+def train(name, device, steps=12000, bs=4096, lr=2e-3, seed=0):
     torch.manual_seed(seed)
     gen = torch.Generator(device=device).manual_seed(seed)
     gmm = GMM(name, device, torch.float32)
-    cfg = dict(width=512, depth=4, nfreq=16)
+    cfg = dict(width=256, depth=3, nfreq=16)
     net = EpsMLP(**cfg).to(device)
     ema = EpsMLP(**cfg).to(device)
     ema.load_state_dict(net.state_dict())
@@ -149,7 +164,7 @@ def train(name, device, steps=40000, bs=8192, lr=1e-3, seed=0):
         with torch.no_grad():
             dec = min(0.999, (1 + it) / (10 + it))
             torch._foreach_lerp_(list(ema.parameters()), list(net.parameters()), 1 - dec)
-        if it % 2000 == 0 or it == steps - 1:
+        if it % 1000 == 0 or it == steps - 1:
             torch.cuda.synchronize()
             print(f"[{name}] it {it} loss {loss.item():.4f} ({time.time()-t0:.0f}s)", flush=True)
     # excess loss over the Bayes-optimal (analytic) eps, measured on fresh data, float64
@@ -159,7 +174,7 @@ def train(name, device, steps=40000, bs=8192, lr=1e-3, seed=0):
     rows = []
     with torch.no_grad():
         for tt in [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1.0]:
-            n = 200000
+            n = 50000
             x0 = g64.sample(n, gen2)
             ab = alpha_bar(tt)
             sig = math.sqrt((1 - ab) / ab)
