@@ -135,6 +135,15 @@ def main():
                 r['box_slope_ideal_fine(1-9)'] = fit(eps[:3], nb_ideal[:3])[0]
                 r['box_slope_ideal_coarse(9-81)'] = fit(eps[2:], nb_ideal[2:])[0]
                 r['precision_at_N'] = float((B & C).sum() / N) if m['name'] == 'cantor' else None
+                # same on attention enrichment over uniform (A[i,j] * (i+1)), which removes the 1/i dilution
+                E = A * (np.arange(n)[:, None] + 1)
+                BE = binarise_topN(E, N)
+                nbe = box_count(BE, eps)
+                r['box_N_enrich'] = nbe
+                r['box_slope_enrich'] = fit(eps, nbe)[0]
+                r['box_slope_enrich_fine(1-9)'] = fit(eps[:3], nbe[:3])[0]
+                r['box_slope_enrich_coarse(9-81)'] = fit(eps[2:], nbe[2:])[0]
+                r['precision_at_N_enrich'] = float((BE & C).sum() / N)
                 r['theory_log4_log3'] = float(np.log(4) / np.log(3))
             res[key] = r
             print(key, json.dumps({k: v for k, v in r.items() if k.startswith(('auc_top4', 'decim', 'box_slope', 'precision'))}))

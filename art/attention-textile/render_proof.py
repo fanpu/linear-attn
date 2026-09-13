@@ -150,3 +150,22 @@ if __name__ == '__main__':
     if 'movies' in sys.argv:
         zoom_movie('sierpinski-doubling', 2, levels=3)
         zoom_movie('cantor', 3, levels=3)
+
+
+def overlay_print(name='sierpinski-doubling', s=8, lw=2):
+    """Single-panel artwork: measured enrichment as indigo fill, ideal cells as a madder outline."""
+    from scipy.ndimage import binary_erosion
+    A = measured(name, enrich=True)
+    C = ideal(meta[names.index(name)]['word'])
+    C[:, 0] = False
+    n = A.shape[0]
+    img = indigo(A, s=s, bleed=0.12, absorb=2.6, seed=3)
+    Cu = np.kron(C, np.ones((s, s), bool))
+    edge = Cu & ~binary_erosion(Cu, iterations=lw, border_value=0)
+    img[edge] = img[edge] * 0.25 + hexrgb('#9b2d1f') * 0.75
+    aucs = scale_aucs(A, C, 2)
+    img = frame(img, f'{name}, {n} letters: where the heads look, and where they should',
+                f'indigo fill = measured attention enrichment over uniform (log2, 1x..32x), Qwen3-0.6B top-4 induction heads, '
+                f'8 random tokens per letter, 4 draws;  madder outline = ideal cells;  AUC {aucs[0]:.2f}',
+                bg='#f1eee6', fg='#15306b', margin=(110, 40, 80, 40), title_size=34, font_size=18)
+    save(img, f'{OUT}/overlay_{name}_indigo.png')

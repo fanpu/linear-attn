@@ -50,7 +50,7 @@ def tapestry(key='P12R4', s=5, styles=('weave', 'dark', 'riso', 'indigo', 'quilt
     sub = f'Qwen3-0.6B, random tokens period {P} x {T // P}; rows = query, columns = key; value = attention^{GAMMA}'
     if 'weave' in styles:
         imgs = [weave(to_unit(A[l, h], 0.4) * mask, s=s, warp_lo='#34304a', warp_hi='#ffd98a', weft='#233466',
-                      gap='#090b12', float_thr=0.3, seed=l * 16 + h) for l in range(NL) for h in range(NH)]
+                      gap='#090b12', float_thr=0.3, seed=l * 16 + h, fibre=0.03) for l in range(NL) for h in range(NH)]
         img = tile(imgs, NL, NH, gutter=g, bg='#090b12')
         img = frame(img, 'Attention, woven', sub.replace(f'{GAMMA}', '0.4') + '  |  weave = declared aesthetic',
                     rl, cl, tile_hw, g, g, bg='#090b12', fg='#e6dcc0')
@@ -173,8 +173,25 @@ def stitch_top(key='P12R4', s=14):
     save(img, f'{OUT}/qwen_top8_crossstitch_P12.png')
 
 
+def weave_closeup(s=14):
+    """Native-resolution close-up so the thread structure reads: L20H14 on the P=50 probe,
+    queries 100-199 x keys 40-159, plus a 1:1 crop of the full woven tapestry."""
+    A = main['attn'].astype(np.float64)[20, 14]
+    W = to_unit(A, 0.4)[100:200, 40:160]
+    img = weave(W, s=s, warp_lo='#34304a', warp_hi='#ffd98a', weft='#233466', gap='#090b12', float_thr=0.3, seed=7,
+                fibre=0.08)
+    img = frame(img, 'Close-up: L20H14, queries 100-199 x keys 40-159 (period 50)',
+                'one cell = one thread crossing; warp colour, width and float over the weft encode attention^0.4 (declared weave)',
+                bg='#090b12', fg='#e6dcc0', margin=(110, 40, 80, 40), title_size=32, font_size=19)
+    save(img, f'{OUT}/qwen_weave_closeup_L20H14.png')
+    from PIL import Image
+    Image.MAX_IMAGE_PIXELS = None
+    full = Image.open(f'{OUT}/qwen_tapestry_weave_P12R4.png')
+    full.crop((1500, 3900, 3100, 4900)).save(f'{OUT}/qwen_tapestry_weave_P12R4_detail_1to1.png')
+
+
 if __name__ == '__main__':
-    which = sys.argv[1:] or ['tapestry', 'hero', 'detail', 'stitch']
+    which = sys.argv[1:] or ['tapestry', 'hero', 'detail', 'stitch', 'closeup']
     if 'tapestry' in which:
         tapestry()
     if 'hero' in which:
@@ -183,3 +200,5 @@ if __name__ == '__main__':
         detail_top()
     if 'stitch' in which:
         stitch_top()
+    if 'closeup' in which:
+        weave_closeup()

@@ -85,7 +85,8 @@ def page_rhythm(style, s=4):
     for i in idx:
         im = swatch(i, style, s)
         pad = np.ones((200 * s, 200 * s, 3)) * hexrgb(bg)
-        pad[:im.shape[0], :im.shape[1]] = im
+        oy, ox = (200 * s - im.shape[0]) // 2, (200 * s - im.shape[1]) // 2      # centre short swatches
+        pad[oy:oy + im.shape[0], ox:ox + im.shape[1]] = im
         imgs.append(pad)
     gut, out = 90, 60
     img = tile(imgs, 3, 4, gutter=gut, bg=bg, outer=out)
