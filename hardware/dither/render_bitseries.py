@@ -47,22 +47,23 @@ def column(style):
             "STFT 4096 Blackman-Harris, hop 256, power averaged into pixels", 26, fg, rc.FONT_MONO)
     rc.text(cv, (LM, H - 50), "colour = dB re a full-scale sine; " + ("one absolute scale for all plates" if style == "shared" else
             "each plate's floor at its own 3rd percentile, 70 dB span (declared)") + "  |  " + rc.STACK, 26, fg, rc.FONT_MONO)
-    cv.save(f"{rc.GAL}/bitseries_column_{style}.png", optimize=True)
+    rc.save_png(cv, f"{rc.GAL}/bitseries_column_{style}.png")
     print("column", style)
 
 
 def riso_grid():
     PW, PH, PAD = 1402, 683, 30
-    W, H = 2 * PW + 3 * PAD, 4 * (PH + PAD) + PAD + 110
+    W, H = 2 * PW + 3 * PAD, 5 * (PH + PAD) + PAD + 150
     layers_b, layers_p = np.zeros((H, W)), np.zeros((H, W))
     labels = []
-    for i, b in enumerate(BITS8):
+    names = [(f"int{b}", f"{b}-bit") for b in BITS8] + [("int4", "4-bit, undithered"), ("int4_tpdf", "4-bit + TPDF dither: the cure")]
+    for i, (nm, lab) in enumerate(names):
         r, c = divmod(i, 2)
-        x0, y0 = PAD + c * (PW + PAD), 110 + r * (PH + PAD)
-        v, _ = plate(f"int{b}", PW, PH, span=62, gamma=0.85)
+        x0, y0 = PAD + c * (PW + PAD), 110 + r * (PH + PAD) + (40 if r == 4 else 0)
+        v, _ = plate(nm, PW, PH, span=62, gamma=0.85)
         layers_b[y0:y0 + PH, x0:x0 + PW] = rc.floyd_steinberg(v)           # blue: full dB image, 1-bit error diffusion
         layers_p[y0:y0 + PH, x0:x0 + PW] = rc.floyd_steinberg(np.clip((v - 0.42) / 0.33, 0, 1) ** 1.0)  # pink: upper dB range only
-        labels.append((x0 + 14, y0 + 10, f"{b}-bit"))
+        labels.append((x0 + 14, y0 + 10, lab))
     rgb = rc.multiply_layers([(layers_b, rc.RISO_BLUE), (rc.shift(layers_p, 3, -2), rc.RISO_PINK)])
     cv = rc.canvas(W, H, rc.PAPER)
     rc.paste(cv, rgb, 0, 0)
@@ -70,18 +71,26 @@ def riso_grid():
             40, rc.INK, rc.FONT_SANS)
     for x, y, s in labels:
         rc.text(cv, (x, y), s, 34, rc.INK, rc.FONT_SERIF)
-    cv.save(f"{rc.GAL}/bitseries_grid_riso.png", optimize=True)
+    rc.save_png(cv, f"{rc.GAL}/bitseries_grid_riso.png")
     print("riso grid")
 
 
 def hero():
-    S = rc.load_spec("int3")
-    S = rc.resample_power(S)  # native: 2049 x 5610
-    lo = np.percentile(S, 3)
-    for cm in ("magma",):
-        rc.save_rgb(rc.cmap_rgb(rc.unit(S, lo, lo + 72), cm), f"{rc.GAL}/hero_int3_native_{cm}.png")
-    rc.save_rgb(rc.ink_on_paper(rc.unit(S, lo + 8, lo + 72, 1.5)), f"{rc.GAL}/hero_int3_native_sonograph.png")
-    print("hero")
+    for name in ("int3", "int4"):
+        S = rc.resample_power(rc.load_spec(name))  # native: 2049 x 5610
+        p3, p65 = np.percentile(S, 3), np.percentile(S, 65)
+        # full dynamic range (floor at 3rd pct) -- the honest "everything" version
+        rc.save_rgb(rc.cmap_rgb(rc.unit(S, p3, p3 + 72), "magma"), f"{rc.GAL}/hero_{name}_native_magma_full.png")
+        # glow: black point at the 65th percentile of dB (declared), so the noise floor drops to black
+        rc.save_rgb(rc.cmap_rgb(rc.unit(S, p65, p65 + 50, 0.9), "magma"), f"{rc.GAL}/hero_{name}_native_magma_glow.png")
+        rc.save_rgb(rc.ink_on_paper(rc.unit(S, p3 + 8, p3 + 72, 0.8)), f"{rc.GAL}/hero_{name}_native_sonograph.png")
+        # log-frequency axis, 250 Hz - 24 kHz: harmonics k f(t) become parallel copies shifted by log k
+        L = rc.logfreq_power(rc.load_spec(name), 2049, fmin=250.0)
+        q65 = np.percentile(L, 65)
+        rc.save_rgb(rc.cmap_rgb(rc.unit(L, q65, q65 + 50, 0.9), "magma"), f"{rc.GAL}/hero_{name}_logf_magma_glow.png")
+        rc.save_rgb(rc.ink_on_paper(rc.unit(L, np.percentile(L, 3) + 8, np.percentile(L, 3) + 72, 0.8)),
+                    f"{rc.GAL}/hero_{name}_logf_sonograph.png")
+        print("hero", name, "black point p65 =", round(float(p65), 1), "dB")
 
 
 if __name__ == "__main__":

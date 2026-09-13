@@ -70,6 +70,10 @@ def shift(a, dx, dy):
 
 
 def save_rgb(rgb, path):
+    return save_png(rgb, path)
+
+
+def _old_save_rgb(rgb, path):
     Image.fromarray((np.clip(rgb, 0, 1) * 255 + 0.5).astype(np.uint8)).save(path, optimize=True)
 
 
@@ -138,3 +142,36 @@ def text(cv, xy, s, size=24, color=(0.8, 0.8, 0.8), font=FONT_SANS, anchor="la")
 
 def line(cv, xy, color, width=1):
     ImageDraw.Draw(cv).line(xy, fill=tuple(int(c * 255) for c in color), width=width)
+
+
+def save_png(img, path, max_mb=19.0):
+    """Lossless RGB PNG if it fits under max_mb, else a 256-colour palette PNG (colormaps are 256-entry LUTs anyway;
+    only antialiased text/blends are approximated). Declared in the README."""
+    if not isinstance(img, Image.Image):
+        img = Image.fromarray((np.clip(img, 0, 1) * 255 + 0.5).astype(np.uint8))
+    img.save(path, optimize=True)
+    if os.path.getsize(path) > max_mb * 1e6:
+        img.quantize(256, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE).save(path, optimize=True)
+        print(f"  palette PNG: {os.path.basename(path)} {os.path.getsize(path) / 1e6:.1f} MB")
+
+
+def logfreq_power(S_db, out_h, fmin=100.0, fmax=24000.0, fs=48000, nfft=4096, out_w=None):
+    """Re-grid the frequency axis logarithmically: each output row averages the linear power of the STFT bins whose
+    centres fall in its [f_lo, f_hi) band (or takes the nearest bin when the band is narrower than a bin).
+    Returns image rows (high f at top) x columns."""
+    P = 10 ** (S_db.astype(np.float64) / 10)
+    if out_w and out_w < P.shape[0]:
+        k = P.shape[0] // out_w
+        P = P[:k * out_w].reshape(out_w, k, -1).mean(1)
+    edges = np.geomspace(fmin, fmax, out_h + 1)
+    df = fs / nfft
+    out = np.empty((out_h, P.shape[0]))
+    cs = np.concatenate([np.zeros((P.shape[0], 1)), np.cumsum(P, axis=1)], axis=1)
+    for r in range(out_h):
+        a = int(np.floor(edges[r] / df + 0.5))
+        b = int(np.floor(edges[r + 1] / df + 0.5))
+        if b <= a:
+            out[r] = P[:, min(a, P.shape[1] - 1)]
+        else:
+            out[r] = (cs[:, b] - cs[:, a]) / (b - a)
+    return (10 * np.log10(out + 1e-30))[::-1]
