@@ -49,7 +49,7 @@ if 'strata' in args.pieces:
             for k in range(K):
                 base = (K - 1 - k) * step
                 y = base + amp * (np.log(np.interp(xs, le, M[k])) - lo)
-                col = cm(0.1 + 0.8 * k / (K - 1)) if style == 'paper' else cm(0.25 + 0.72 * k / (K - 1))
+                col = cm(0.0 + 0.72 * k / (K - 1)) if style == 'paper' else cm(0.25 + 0.72 * k / (K - 1))
                 ytop = max(ytop, y.max())
                 ax.fill_between(xs, -1, y, color=bg, lw=0, zorder=2 * k)
                 ax.plot(xs, y, color=col, lw=1.4, zorder=2 * k + 1)
@@ -65,7 +65,7 @@ if 'strata' in args.pieces:
                f'that epoch (top: initialisation, bottom: epoch {E[-1]:g}); later profiles occlude earlier ones. Left: raw. '
                f'Right: after weight matching those checkpoints. At initialisation both are flat (barrier {bn[0]:.3f} / {bm[0]:.3f}); '
                f'the naive barrier peaks at {bn.max():.2f} nats, while the matched barrier ends at {bm[-1]:.3f}. '
-               f'Colour encodes epoch ({"batlow" if style == "paper" else "magma"}).')
+               f'Colour encodes epoch ({"batlow, truncated at 0.72 for contrast on paper" if style == "paper" else "magma"}).')
         fig.text(0.5, 1 - 2830 / H, '\n'.join(textwrap.wrap(txt, 125)), ha='center', va='top', color=sub, fontsize=11, linespacing=1.6)
         save(fig, f'emergence_{args.ds}{args.tag}_strata_{style}.png')
     print('strata done')

@@ -51,7 +51,19 @@ Fashion-MNIST, same pipeline (vertical exaggeration ×5, because the matched bar
 <td><img src="gallery/plane_mnist_perm_night.png"><br><i>Magma (reversed), linear in log-loss, with 30 faint contours.</i></td>
 </tr></table>
 
-BEZIER_PLANE_TBD
+### 2.2b The plane that contains the Bézier curve
+
+A quadratic Bézier curve A → C → B lies exactly in the affine plane through its three control points, so this plane shows the whole trained curve with no projection error. The seam in both split plates is L = 0.006, the highest train loss along the curve.
+
+<table><tr>
+<td width="50%"><img src="gallery/plane_mnist_bezier_spectral_basin.png"><br><i>Plane {A, B, C}, Spectral split. The trained curve bends through a banana-shaped low-loss valley. The chord A–B (dashed) crosses the deep-red high-loss side. The control point C itself sits outside the basin. The maximum loss in the frame is 2005 nats.</i></td>
+<td width="50%"><img src="gallery/plane_mnist_bezier_topo.png"><br><i>Same plane as a topographic survey: 44 log-spaced contours, with the seam level in red. Two shallow minima flank A and B inside one closed contour.</i></td>
+</tr><tr>
+<td><img src="gallery/plane_mnist_bezm_spectral_basin.png"><br><i>Plane {A, π(B), C′}: the Bézier curve trained <b>after</b> matching. The valley is wider and flatter, and the straight chord already runs inside it (matched barrier 0.0055).</i></td>
+<td><img src="gallery/plane_mnist_bezier_night.png"><br><i>{A, B, C} in magma (reversed), linear in log-loss, with 30 faint contours.</i></td>
+</tr></table>
+
+Also: [bezier aurora split](gallery/plane_mnist_bezier_aurora_basin.png), [bezm topo](gallery/plane_mnist_bezm_topo.png). All three are MNIST train loss on a fixed 10k subset, 141² grid, bicubic-upsampled log-loss for display.
 
 ### 2.3 Width: the bookkeeping only works for wide networks
 
@@ -75,6 +87,12 @@ WIDTH_PLANES_TBD
 <table><tr><td><img src="gallery/emergence_mnist_strata_paper.png"></td><td><img src="gallery/emergence_mnist_strata_night.png"></td></tr></table>
 
 *Each line is one checkpoint's profile, with log-loss on the same scale throughout. Left: raw. Right: matched.*
+
+Fashion-MNIST shows the same story with a slower settling. The naive barrier grows to 0.96 by epoch 0.05 and ends at 1.43. The matched barrier reaches 0.70 at epoch 0.035, then falls to 0.35 by epoch 0.075 and stays around 0.04–0.05 from epoch 8 on. As on MNIST, applying the *final* permutation to early checkpoints gives a lower barrier than their own π_k does (0.13 vs 0.58 at epoch 0.05). So the permutation that connects the trained networks is already in place very early.
+
+<table><tr><td><img src="gallery/emergence_fmnist_strata_paper.png"></td><td><img src="gallery/emergence_fmnist_strata_night.png"></td></tr></table>
+
+FMNIST_FILMS_TBD
 
 ### 2.5 The permutation itself
 
@@ -126,7 +144,7 @@ All numbers come from `cache/*.log` and `cache/*.npz`.
 - **Evaluation:** 1-D paths use 201 λ on the full train and test sets, with cross-entropy summed in float64 and batched with `baddbmm`. Width series: 25 λ. Barrier: max over λ of L(λ) − [(1−λ)L(0) + λL(1)]; the midpoint definition max L − (L₀+L₁)/2 is also logged.
 - **Emergence:** checkpoints at 28 epochs (0 … 20) of both hero runs. At each one, weight-match the two checkpoints and evaluate 25-point lerps. Also logged: the final π applied to that checkpoint.
 - **Planes:** θ = A + x·u + y·v with u, v orthonormal (Gram–Schmidt through the three points), in raw L2 weight units. Hero: 141² grid, 10k fixed train images (+ full test for the perm plane). Width planes: 97², 5k train images. Rendered as bicubic-upsampled log-loss.
-- **Compute:** the GPU queue was full, and the Grace CPU turned out to be fast for these MLPs, so most runs used the CPU (`MC_DEV=cpu`). Hero MNIST: 3061 s CPU. Hero Fashion-MNIST: about 3000 s CPU. Width 32–512: about 45 min CPU. Width 1024: 521 s GPU. Width 2048: 1821 s GPU. Hero planes: 1590 s GPU for the perm plane, PLANE_TIME_TBD. Width planes: WPLANE_TIME_TBD. Rendering is CPU only.
+- **Compute:** the GPU queue was full, and the Grace CPU turned out to be fast for these MLPs, so most runs used the CPU (`MC_DEV=cpu`). Hero MNIST: 3061 s CPU. Hero Fashion-MNIST: 5234 s CPU (training, paths, and 28-checkpoint emergence). Width 32–512: about 45 min CPU. Width 1024: 521 s GPU. Width 2048: 1821 s GPU. Hero planes: 1590 s GPU for the perm plane, 811 s GPU for the Bézier plane and 814 s GPU for the matched-Bézier plane (141², 10k train images each). Width planes: W811 s GPU for the Bézier plane and 814 s GPU for the matched-Bézier plane (141², 10k train images each). Rendering is CPU only.
 
 Reproduce (from this directory; add `MC_DEV=cpu OMP_NUM_THREADS=4` to run on CPU):
 ```

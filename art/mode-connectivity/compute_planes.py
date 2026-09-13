@@ -111,9 +111,9 @@ else:
     path = os.path.join(CACHE, tag + '.npz')
     out = dict(np.load(path)) if os.path.exists(path) else dict(res=args.res, ntrain=args.ntrain)
     files = sorted(glob.glob(os.path.join(CACHE, f'width_{args.ds}_w*_weights.pt')),
-                   key=lambda f: int(f.split('_w')[-1].split('_')[0]))
+                   key=lambda f: int(os.path.basename(f).rsplit('_weights', 1)[0].split('_w')[-1]))
     for f in files:
-        w = int(f.split('_w')[-1].split('_')[0])
+        w = int(os.path.basename(f).rsplit('_weights', 1)[0].split('_w')[-1])
         if f'w{w}_train' in out:
             continue
         Wt = torch.load(f, weights_only=False)

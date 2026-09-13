@@ -111,19 +111,20 @@ if 'barrier' in args.pieces:
 
 if 'planes' in args.pieces and os.path.exists(os.path.join(CACHE, f'planes_width_{args.ds}.npz')):
     Pd = load(f'planes_width_{args.ds}.npz')
+    FIXED_C = 0.1
     ws = [w for w in widths if f'w{w}_train' in Pd]
-    for style in ['spectral', 'topo']:
+    for style in ['spectral', 'aurora', 'topo', 'fixed']:
         W = 3600
         ncol = min(4, len(ws))
         nrow = int(np.ceil(len(ws) / ncol))
         tile, gap = 780, 70
-        H = 330 + nrow * (tile + gap + 60) + 300
-        bg, ink = ('#faf7f0', INK) if style == 'spectral' else (PAPER, INK)
+        H = 330 + nrow * (tile + gap + 90) + 300
+        bg, ink = ('#faf7f0', INK) if style in ('spectral', 'aurora', 'fixed') else (PAPER, INK)
         fig = fig_px(W, H, bg=bg)
         x0 = (W - ncol * tile - (ncol - 1) * gap) / 2
         for i, w in enumerate(ws):
             r, c = divmod(i, ncol)
-            ax = ax_px(fig, x0 + c * (tile + gap), 300 + r * (tile + gap + 60), tile, tile, W, H)
+            ax = ax_px(fig, x0 + c * (tile + gap), 300 + r * (tile + gap + 90), tile, tile, W, H)
             Lg = Pd[f'w{w}_train']
             xs, ys, pts = Pd[f'w{w}_xs'], Pd[f'w{w}_ys'], Pd[f'w{w}_pts']
             ext = [xs[0], xs[-1], ys[0], ys[-1]]
@@ -132,8 +133,11 @@ if 'planes' in args.pieces and os.path.exists(os.path.join(CACHE, f'planes_width
             seg = pts[0][None] + np.linspace(0, 1, 400)[:, None] * (pts[2] - pts[0])[None]
             cth = float(np.exp(map_coordinates(np.log(Lg), [(seg[:, 1] - ys[0]) / (ys[1] - ys[0]),
                                                             (seg[:, 0] - xs[0]) / (xs[1] - xs[0])], order=3).max()))
-            if style == 'spectral':
-                ax.imshow(P.render_split(F_ - np.log(cth), 'sd_spectral', near_boundary='small'), origin='lower',
+            seg_max = cth
+            if style == 'fixed':
+                cth = FIXED_C
+            if style in ('spectral', 'aurora', 'fixed'):
+                ax.imshow(P.render_split(F_ - np.log(cth), 'aurora_ember' if style == 'aurora' else 'sd_spectral', near_boundary='small'), origin='lower',
                           extent=ext, interpolation='lanczos')
                 mk = INK
             else:
@@ -147,11 +151,14 @@ if 'planes' in args.pieces and os.path.exists(os.path.join(CACHE, f'planes_width
             for p in pts:
                 ax.plot(*p, '^', ms=6, mfc=bg, mec=mk, mew=1)
             ax.set_xlim(ext[0], ext[1]); ax.set_ylim(ext[2], ext[3])
-            fig.text((x0 + c * (tile + gap) + tile / 2) / W, 1 - (300 + r * (tile + gap + 60) + tile + 40) / H,
-                     f'width {w}', ha='center', va='center', color=ink, fontsize=15, style='italic')
+            fig.text((x0 + c * (tile + gap) + tile / 2) / W, 1 - (300 + r * (tile + gap + 90) + tile + 52) / H,
+                     f'width {w}\nmax loss on A–π(B): {seg_max:.3g}', ha='center', va='center', color=ink, fontsize=14, linespacing=1.4, style='italic')
         fig.text(0.5, 1 - 120 / H, f'ONE BASIN, BY WIDTH  ·  planes through A, B, π(B)  ·  {DSNAME}', ha='center', color=ink, fontsize=24)
         desc = ('Seam (Spectral split): train loss equal to the highest loss on the segment A–π(B) of that width; purple side lower, '
                 'red side higher, each side rank-normalised per tile (declared aesthetic).' if style == 'spectral' else
+                f'Seam at ONE absolute level for every tile, L = {FIXED_C:g} nats (Spectral split): where A and π(B) share a purple region '
+                'the matched segment stays below it; narrow widths split into separate basins. Each side rank-normalised per tile (declared aesthetic).' if style == 'fixed' else
+                'Seam: same level set; palettes.py aurora_ember split, each side rank-normalised per tile (declared aesthetic).' if style == 'aurora' else
                 'Ink: 32 log-spaced loss contours per tile; red: loss equal to the highest loss on the segment A–π(B).')
         cap(fig, H, H - 230, f'Each tile: train loss (5k fixed images) on an affine plane, {Lg.shape[0]}² grid, bicubic-upsampled '
             'log-loss; tiles are scaled independently (each spans its own triangle). Triangles: A (lower left), B (dashed line), '

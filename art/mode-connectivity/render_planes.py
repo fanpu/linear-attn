@@ -92,7 +92,7 @@ def plate(rgb, style, ink, bg, sub, caption, contours=None, mark_ink=None, mark_
 
 
 common = (f'Measured: train cross-entropy (10k fixed images) on a {Lg.shape[0]}² grid, bicubic-upsampled log-loss. '
-          f'|A−B| = {np.hypot(*pts[1]):.1f}.')
+          f'|A−{"π(B)" if args.plane == "bezm" else "B"}| = {np.hypot(*pts[1]):.1f}.')
 for style in args.styles.split(','):
     if style in ('spectral', 'aurora', 'hubble', 'indigo'):
         pair = {'spectral': 'sd_spectral', 'aurora': 'aurora_ember', 'hubble': 'hubble_sho', 'indigo': 'indigo_madder'}[style]
