@@ -122,13 +122,16 @@ def traj():
 
 if __name__ == '__main__':
     what = sys.argv[1] if len(sys.argv) > 1 else 'all'
-    if what in ('repro', 'all'):
+    if what in ('repro', 'all') and not __import__('os').path.exists(f'{CACHE}/saf_repro.npz'):
         repro()
     if what in ('kam', 'all'):
         # H0 = 2.8 sits between SAF's k=3 (2.807) and k=4 orbits: a mixed phase space at eps=0.5
+        import os
         for eps in (0.0, 0.1, 0.25, 0.4, 0.5):
-            kam(eps, 2.8, n=40, T=40000.0)
-        kam(0.5, 3.0, n=40, T=40000.0, name='kam_eps0.50_H3.0')
+            if not os.path.exists(f'{CACHE}/kam_eps{eps:.2f}.npz'):
+                kam(eps, 2.8, n=40, T=40000.0)
+        if not os.path.exists(f'{CACHE}/kam_eps0.50_H3.0.npz'):
+            kam(0.5, 3.0, n=40, T=40000.0, name='kam_eps0.50_H3.0')
     if what in ('traj', 'all'):
         traj()
     if what == 'energies':
