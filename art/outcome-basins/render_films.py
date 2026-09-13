@@ -19,7 +19,7 @@ try:
     font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf', 26)
 except Exception:
     font = ImageFont.load_default()
-TQ = (1.0, 3.3)       # fixed log10-step brightness range for every frame (no flicker); declared
+TQ = (1.0, 3.3) if args['problem'] == 'fact3' else (1.6, 4.1)   # fixed log10-step brightness range for every frame (pooled 0.5-99.5 pct; no flicker); declared
 for i, f in enumerate(fs):
     p = f'{out}/{i:04d}.png'
     if os.path.exists(p):

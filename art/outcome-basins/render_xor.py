@@ -99,6 +99,13 @@ def eta_sheet():
             ax.imshow(downs(rgb[::-1], k), interpolation='lanczos'); ax.axis('off')
             s = d['sharp'][d['status'] == 0]
             ax.set_title(f'η = {eta:g}   max λ at solution {s.max():.3f}  (2/η = {2 / eta:.3f})', color='#e8e2d6', fontsize=13, family='serif')
+        if n % cols:
+            ax = fig.add_axes([n % cols / cols + 0.02, 1 - rows / rows + 0.03, 1 / cols - 0.04, 1 / rows - 0.08]); ax.axis('off')
+            txt = ('XOR 2-2-1 tanh net, full-batch GD.\nOne random 2-plane (seed 4) through\ninitialisation space, ±3, 1024² runs each.\n\n'
+                   + ('Hue = raw solution identity\n(ordered pair of hidden-unit functions).' if key == 'raw' else
+                      'Hue = canonical solution\n(modulo unit permutation and sign flip).')
+                   + '\nGrey = plateau at T = 20 000, near-black = diverged.\n\nThe fan on the left appears near\nη = 1.0 and thickens with η.')
+            ax.text(0, 1, txt, color='#cfc8bb', fontsize=14, family='serif', va='top', linespacing=1.5)
         fig.savefig(f'{G}/eta_series_xor_{key}.png', dpi=100, facecolor=BG); plt.close(fig)
 
 
