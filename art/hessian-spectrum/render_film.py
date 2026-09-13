@@ -10,7 +10,7 @@ python render_film.py --stills --film
 import argparse, glob, os, subprocess
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
-from render_common import slog, exposure_profile, log_density, wavelength_rgb, hexrgb, GAL, CACHE
+from render_common import n_structural, slog, exposure_profile, log_density, wavelength_rgb, hexrgb, GAL, CACHE
 import sys
 sys.path.insert(0, '/home/fzeng/ml/research/art/color-research')
 
@@ -18,6 +18,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument('--run', default='film_mlps_C10_pc200')
 ap.add_argument('--stills', action='store_true')
 ap.add_argument('--film', action='store_true')
+ap.add_argument('--styles', default='hue,silver,magma,paper,split,aurora_ember,cyanotype_vandyke')
 ap.add_argument('--frames', type=int, default=720)
 args = ap.parse_args()
 
@@ -26,7 +27,8 @@ ck = [np.load(f) for f in fs]
 steps = np.array([int(d['step']) for d in ck])
 S = np.stack([np.sort(slog(d['H_eig'])) for d in ck])        # (T, P) sorted symlog eigenvalues
 loss = np.array([float(d['loss']) for d in ck]); acc = np.array([float(d['acc']) for d in ck])
-count = np.array([int(d['count_H'][0]) for d in ck])
+count = np.array([n_structural(d) for d in ck])          # eigvecs in span{d_c}
+gapcount = np.array([int(d['count_H'][0]) for d in ck])
 u = np.log10(steps + 1)
 x0, x1 = np.floor(S.min() * 2) / 2 - 0.2, np.ceil(S.max() * 2) / 2 + 0.2
 print('checkpoints', len(steps), 'x range', x0, x1, 'counts', count)
@@ -46,13 +48,27 @@ def islog_(s, tau=1e-4):
     return np.sign(s) * tau * (10 ** np.abs(s) - 1)
 
 
-def expo_row(s, W, sigma=1.1, d0=0.7):
-    return exposure_profile(islog_(s), x0, x1, W, sigma_px=sigma, d0=d0)[0]
+DREF = 60.0   # reference line density for the log texture term (declared tone curve)
+
+
+def tone(D, d0=0.7):
+    """Declared tone curve: 60% photographic exposure (a lone eigenvalue reaches ~0.46) + 40% log density
+    (keeps texture inside the bulk instead of saturating it)."""
+    return np.clip(0.6 * (1 - np.exp(-D / d0)) + 0.4 * np.log1p(D) / np.log1p(DREF), 0, 1)
+
+
+def dens_row(s, W, sigma=1.1):
+    return exposure_profile(islog_(s), x0, x1, W, sigma_px=sigma)[1]
+
+
+def expo_row(s, W, sigma=1.1):
+    return tone(dens_row(s, W, sigma))
 
 
 def waterfall(W, Hrows):
     uu = np.linspace(u[0], u[-1], Hrows)
-    return np.stack([expo_row(spectrum_at(v)[0], W) for v in uu]), uu
+    D = np.stack([dens_row(spectrum_at(v)[0], W) for v in uu])
+    return tone(D), D, uu
 
 
 def colorize(E, style, W):
@@ -67,27 +83,23 @@ def colorize(E, style, W):
         return cm.magma(E ** 0.9)[..., :3]
     if style == 'paper':
         return hexrgb('#f3eee3') * (1 - E[..., None]) + hexrgb('#1c1a17') * E[..., None]
-    if style == 'split':
-        # Sohl-Dickstein Spectral split at lambda = 0: negative eigenvalues on the purple half, positive on red.
+    if style in ('split', 'aurora_ember', 'cyanotype_vandyke'):
+        # Signed field: sign(lambda) * log line density; per-side rank normalisation (palettes.render_split,
+        # Sohl-Dickstein convention). Empty spectrum = |field| 0 = the dark ends of both halves; the densest bulk
+        # glows pale. Negative eigenvalues take the purple/cool half, positive the red/warm half.
         import palettes as P
-        from matplotlib.colors import LinearSegmentedColormap
-        import matplotlib.cm as cm
-        sgn = np.where(xs < 0, -1.0, 1.0)[None]
-        M = sgn * E
-        # dark seam colours where exposure is low, pale where the plate saturates; no rank-normalisation needed
-        sp = cm.Spectral
-        neg = sp(0.5 + 0.5 * (1 - E)) if False else None
-        t = np.where(M < 0, 1.0 - 0.5 * E, 0.5 * E)          # 0 = deep red end, 1 = purple end, 0.5 = pale centre
-        t = np.where(M < 0, 0.5 + 0.5 * (1 - E), 0.5 - 0.5 * (1 - E))
-        rgb = sp(t)[..., :3]
-        return rgb * (0.15 + 0.85 * E[..., None] ** 0.6)
+        M = np.where(xs[None] < 0, -1.0, 1.0) * np.log1p(D)
+        M = np.where(D < 1e-3, 0.0, M)
+        pairing = 'sd_spectral' if style == 'split' else style
+        rgb = P.render_split(M, pairing, near_boundary='small')
+        return rgb * (0.08 + 0.92 * np.clip(D / 0.05, 0, 1)[..., None])  # fade to black where no eigenvalue falls
     raise ValueError(style)
 
 
 if args.stills:
     W, Hr = 2400, 1600
-    E, uu = waterfall(W, Hr)
-    for style in ['hue', 'silver', 'magma', 'paper', 'split']:
+    E, D, uu = waterfall(W, Hr)
+    for style in args.styles.split(','):
         rgb = colorize(E, style, W)
         img = Image.fromarray((np.clip(rgb, 0, 1) * 255).astype(np.uint8))
         ground = (243, 238, 227) if style == 'paper' else (6, 6, 6)
@@ -126,7 +138,7 @@ if args.film:
     L, W = 120, 1680
     trace_y, strip_y, strip_h = 120, 250, 130
     wf_y, wf_h = 470, 520
-    E, uu = waterfall(W, wf_h)
+    E, D, uu = waterfall(W, wf_h)
     wf = (np.clip(colorize(E, 'hue', W), 0, 1) * 255).astype(np.uint8)
     xs = np.linspace(x0, x1, W)
     hue = wavelength_rgb(np.interp(xs, [x0, x1], [395, 690])) * 0.85 + 0.15
@@ -163,7 +175,7 @@ if args.film:
                 fill=(130, 124, 112), anchor='rt')
         li = int(np.clip(np.searchsorted(u, v), 0, len(u) - 1))
         dr.text((L, FH - 60), f'step {stepv:7.0f}    train loss {np.interp(v, u, loss):.3f}    '
-                f'lines above widest gap: {count[jn]}', font=fM, fill=(200, 194, 182))
+                f'lines (eigvecs in class-mean span): {count[jn]}', font=fM, fill=(200, 194, 182))
         dr.text((L + W, FH - 60), 'time ↓  symlog λ →', font=fM, fill=(130, 124, 112), anchor='rt')
         im.save(os.path.join(tmp, f'f{fi:04d}.png'))
     mp4 = f'{GAL}/spectrograph_film.mp4'
