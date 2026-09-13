@@ -85,7 +85,7 @@ def main(f, m, tag, spf=5, ts=40):
                     "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18", "-preset", "slow", mp4], check=True)
     gif = os.path.join(GAL, f"film_{tag}.gif")
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", mp4, "-vf",
-                    "fps=15,scale=720:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=96[p];[b][p]paletteuse=dither=bayer:bayer_scale=3",
+                    "fps=12,scale=640:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=64[p];[b][p]paletteuse=dither=bayer:bayer_scale=3",
                     gif], check=True)
     print("wrote", mp4, gif)
 

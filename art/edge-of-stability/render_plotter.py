@@ -6,8 +6,9 @@ c_t (oscillation coordinate; windowed PCA by default, EOS_COORD=u1 for the curre
 drum sheet: rows of `steps_per_row` steps, joined boustrophedon so the whole sheet is one polyline
 with one vertex per GD step. One global gain for every row (the 99.5th percentile of |x| equals 0.9
 row spacings); larger excursions cross into neighbouring rows (declared, as on a drum recorder).
-Pen 2 (optional red layer): the steps at which lambda_1 > 2/eta, i.e. the GD step is locally
-unstable on the quadratic model. Outputs an A2-landscape SVG in mm (plotter ready, layers as
+Pen 2 (optional red layer): steps after the edge is first reached at which lambda_1 < 2/eta, i.e.
+the rare moments the GD step is locally stable on the quadratic model (declared choice: above-edge
+steps are ~90% of the run and would paint the whole sheet red). Outputs an A2-landscape SVG in mm (plotter ready, layers as
 <g inkscape:groupmode="layer">) plus a PNG proof.
 """
 import sys
@@ -26,7 +27,13 @@ def build(d, m, spr, ts):
     inv = float(d["invs"][m])
     T = np.where(np.isfinite(x))[0].max() + 1
     x = np.nan_to_num(x[ts:T])
-    above = (lam[ts:T] > inv)
+    lt = lam[:T]
+    fb = np.flatnonzero(lt < inv)
+    fb = fb[0] if len(fb) else 0
+    ab = np.flatnonzero((lt >= inv) & (np.arange(T) > fb))
+    te = ab[0] if len(ab) else T
+    # pen 2 marks the rarer, informative event: steps below the edge after the edge was first reached
+    above = ((lt < inv) & (np.arange(T) > te))[ts:T]
     n = len(x)
     R = int(np.ceil(n / spr))
     Wd, Hd = A2[0] - 2 * MARGIN, A2[1] - 2 * MARGIN - 14
@@ -54,7 +61,7 @@ def write_svg(path, X, Y, above, meta_txt):
         f.write(f"<!-- {meta_txt} -->\n")
         f.write('<g inkscape:groupmode="layer" inkscape:label="1 black braid" fill="none" stroke="#000" stroke-width="0.3">\n')
         f.write(f'<polyline points="{pts}"/>\n</g>\n')
-        f.write('<g inkscape:groupmode="layer" inkscape:label="2 red above-edge" fill="none" stroke="#c0392b" stroke-width="0.3">\n')
+        f.write('<g inkscape:groupmode="layer" inkscape:label="2 red below-edge" fill="none" stroke="#c0392b" stroke-width="0.3">\n')
         for r in red:
             f.write(f'<polyline points="{r}"/>\n')
         f.write("</g>\n</svg>\n")
@@ -85,4 +92,4 @@ if __name__ == "__main__":
            f"   ·   {coord_label(short=True)}   ·   fc-tanh on CIFAR-10 5k, full-batch GD")
     write_svg(os.path.join(GAL, f"plotter_{tag}.svg"), X, Y, above, txt)
     proof(X, Y, above, f"plotter_{tag}_oneink.png", txt, False)
-    proof(X, Y, above, f"plotter_{tag}_twopen.png", txt + "   ·   red pen: λ₁ > 2/η", True)
+    proof(X, Y, above, f"plotter_{tag}_twopen.png", txt + "   ·   red pen: λ₁ < 2/η after the edge is reached", True)

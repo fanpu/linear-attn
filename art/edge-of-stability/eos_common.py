@@ -82,9 +82,12 @@ def pca_braid(d, m, win=64, half=10):
     wsum = np.zeros(T)
     prev = None
     coss, cents = [], []
-    tri = 1 - np.abs(np.linspace(-1, 1, win))
+    tri = np.maximum(1 - np.abs(np.linspace(-1, 1, win)), 1e-3)
     u1s = d["u1_sketch"][:, m].astype(np.float64)
-    for a in range(0, T - win + 1, hop):
+    starts = list(range(0, T - win + 1, hop))
+    if starts and starts[-1] != T - win:
+        starts.append(T - win)  # cover the tail
+    for a in starts:
         R = r[a:a + win]
         _, _, Vt = np.linalg.svd(R - R.mean(0), full_matrices=False)
         p = Vt[0]
