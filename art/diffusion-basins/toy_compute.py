@@ -90,19 +90,29 @@ TRACK_EVERY = 5  # residual checked every 5 iterations; nu log-interpolated insi
 
 
 def iterate_map(g, sigma, gamma, P, n_iter, delta=1e-3, track=True):
-    """x <- x + gamma (D(x, sigma) - x).  Returns label (nearest stable fixed point, 255 if the end
+    """x <- F(x) = x + gamma (D(x, sigma) - x).  Returns label (nearest stable fixed point, 255 if the end
     point is > 0.1 from every fixed point), smooth convergence count nu (first n with residual < delta,
-    fractional part by log interpolation; inf if never), log10 final residual."""
+    fractional part by log interpolation; inf if never), log10 final residual, and (track=True) the
+    orientation sign and log|det| of the Jacobian of the n_iter-fold composition F^n (exact chain rule)."""
     fp = FP_CACHE.get((g.name, sigma))
     if fp is None:
         fp = FP_CACHE[(g.name, sigma)] = fixed_points(g, sigma)
     x = P.clone()
     nu = torch.full((len(P),), float("inf"), device=DEV, dtype=F64)
+    logdet = torch.zeros(len(P), device=DEV, dtype=F64)
+    sign = torch.ones(len(P), device=DEV, dtype=F64)
     prev = torch.cdist(x, fp).min(1).values
+    eye = torch.eye(2, device=DEV, dtype=F64)[None]
     for n in range(1, n_iter + 1):
-        x = x + gamma * (g.denoise(x, sigma) - x)
         if not track:
+            x = x + gamma * (g.denoise(x, sigma) - x)
             continue
+        Dx, JD = g.denoise_jac(x, sigma)
+        J = (1 - gamma) * eye + gamma * JD
+        det = J[:, 0, 0] * J[:, 1, 1] - J[:, 0, 1] * J[:, 1, 0]
+        logdet += torch.log(det.abs().clamp(min=1e-300))
+        sign *= torch.sign(det)
+        x = x + gamma * (Dx - x)
         if n % TRACK_EVERY and n != n_iter:
             continue
         r = torch.cdist(x, fp).min(1).values
@@ -114,16 +124,21 @@ def iterate_map(g, sigma, gamma, P, n_iter, delta=1e-3, track=True):
     d = torch.cdist(x, fp)
     rmin, lab = d.min(1)
     lab = torch.where(rmin < 0.1, lab, torch.full_like(lab, 255))
-    return lab, nu, torch.log10(rmin.clamp(min=1e-300))
+    return lab, nu, torch.log10(rmin.clamp(min=1e-300)), sign * 0 + sign, logdet
 
 
 def iter_map(layout, sigma, gamma, cx, cy, hw, R, n_iter, chunk=1 << 20):
     g = GMM(layout, DEV)
     P = grid(cx, cy, hw, R)
-    lab, nu, lr = run_chunked(lambda p: iterate_map(g, sigma, gamma, p, n_iter), P, chunk)
+    lab, nu, lr, sg, ld = run_chunked(lambda p: iterate_map(g, sigma, gamma, p, n_iter), P, chunk)
     sh = (R, R)
+    ITER_EXTRA["sign"] = sg.reshape(sh).cpu().numpy().astype(np.int8)
+    ITER_EXTRA["logdet"] = ld.reshape(sh).cpu().numpy().astype(np.float32)
     return (lab.reshape(sh).cpu().numpy().astype(np.uint8), nu.reshape(sh).cpu().numpy().astype(np.float32),
             lr.reshape(sh).cpu().numpy().astype(np.float32))
+
+
+ITER_EXTRA = {}
 
 
 def iterate_map_learned(net, sigma, gamma, P, n_iter, fp):
@@ -207,7 +222,8 @@ def task_iter(part):
         if part != "hero":
             break
         lab, nu, lr = iter_map(layout, sigma, gam, 0, 0, hw, 2048 if layout == "ring8" else 1024, N_ITER)
-        np.savez_compressed(f"{CACHE}/iter_{layout}_hero.npz", lab=lab, nu=nu, logres=lr, sigma=sigma, gamma=gam, hw=hw,
+        np.savez_compressed(f"{CACHE}/iter_{layout}_hero.npz", lab=lab, nu=nu, logres=lr, sign=ITER_EXTRA["sign"],
+                            logdet=ITER_EXTRA["logdet"], sigma=sigma, gamma=gam, hw=hw,
                             n_iter=N_ITER, fp=fixed_points(GMM(layout, DEV), sigma).cpu().numpy())
         print(f"iter hero {layout} {time.time()-t0:.0f}s", flush=True)
     # gamma sweep for the animation (tri3 and ring8)
@@ -215,11 +231,12 @@ def task_iter(part):
         if part != "gamma":
             break
         sigma, _, hw = ITER_CFG[layout]
-        labs, nus = [], []
+        labs, nus, sgs, lds = [], [], [], []
         for gam in GAMMAS:
             lab, nu, lr = iter_map(layout, sigma, float(gam), 0, 0, hw, 540, 1000)
-            labs.append(lab); nus.append(nu)
+            labs.append(lab); nus.append(nu); sgs.append(ITER_EXTRA["sign"]); lds.append(ITER_EXTRA["logdet"])
         np.savez_compressed(f"{CACHE}/iter_{layout}_gamma.npz", gammas=GAMMAS, lab=np.stack(labs), nu=np.stack(nus),
+                            sign=np.stack(sgs), logdet=np.stack(lds),
                             sigma=sigma, hw=hw, n_iter=1000)
         print(f"iter gamma sweep {layout} {time.time()-t0:.0f}s", flush=True)
     # learned-denoiser version of the same map (float32 net, 512^2)

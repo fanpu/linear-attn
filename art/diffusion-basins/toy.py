@@ -79,6 +79,16 @@ class GMM:
         m = r @ self.mu
         return m + (self.s ** 2 / v) * (x - m)
 
+    def denoise_jac(self, x, sigma):
+        """D(x) and its Jacobian dD/dx = (s^2/v) I + (1 - s^2/v) Cov_r(mu) / v   (shape (n,2,2))"""
+        v = self.s ** 2 + sigma ** 2
+        r = self.resp(x, sigma)
+        m = r @ self.mu
+        C = torch.einsum("nk,ki,kj->nij", r, self.mu, self.mu) - m[:, :, None] * m[:, None, :]
+        a = self.s ** 2 / v
+        J = a * torch.eye(2, device=x.device, dtype=x.dtype)[None] + (1 - a) * C / v
+        return m + a * (x - m), J
+
     def score(self, x, sigma):
         return (self.denoise(x, sigma) - x) / sigma ** 2
 
