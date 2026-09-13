@@ -57,8 +57,8 @@ def diptych(win, style='spectral'):
     ws = [load(n) for n in names if (':' in n) or os.path.exists(f'cache/windows/{n}.npz')]
     if len(ws) < 2:
         print('not enough panels'); return
-    P = 768 if n > 2 else 1024; pad = 40; top = 170; bot = 230
     n = len(ws)
+    P = 768 if n > 2 else 1024; pad = 40; top = 170; bot = 230
     Wd = n * P + (n + 1) * pad
     # --- (1) dark magma panels
     page = Image.new('RGB', (Wd, top + P + bot), (14, 12, 16))
@@ -67,7 +67,7 @@ def diptych(win, style='spectral'):
     d.text((pad, 40), f'Same window, {["","one","two","three","four"][n]} architectures', font=font(SERIF_B, 52), fill=(235, 228, 215))
     d.text((pad, 110), f'log10 eta0 in [{w0["c0"]-w0["hw"]:.3f}, {w0["c0"]+w0["hw"]:.3f}]   '
                        f'log10 eta1 in [{w0["c1"]-w0["hw"]:.3f}, {w0["c1"]+w0["hw"]:.3f}]   '
-                       f'{w0["res"]}x{w0["res"]} nets per panel, 500 steps, {w0.get("dtype", "float64")}',
+                       f'{" / ".join(r + "^2" for r in sorted({str(w["res"]) for w in ws}, key=int, reverse=True))} nets per panel, 500 steps, {w0.get("dtype", "float64")}',
            font=font(MONO, 26), fill=(170, 160, 150))
     for i, w in enumerate(ws):
         x = pad + i * (P + pad)

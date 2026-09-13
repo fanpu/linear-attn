@@ -27,6 +27,10 @@ Logs in logs/s3_*.log; each script ends with `echo DONE`. Outputs in cache/windo
 - Killed the queued (never-started) s3_fill and s3_relu waiters; APPENDED them to scripts already holding slots:
   s3_sem.sh: sem_sigma -> (sem_wd skipped via 0-byte DUMMY cache/windows/sem_wd_lr_384.npz) -> DONE -> fill -> FILL_DONE -> rm dummy -> sem_wd -> SEMWD_DONE
   s3_steps.sh: steps -> DONE -> ov_relu_512_f64 -> RELU_DONE
+- NEW render_descent.py (snake-order nested-window poster, dark ground): after merge run `python render_descent.py zoomAB --cols 7` (+ --style aurora_ember); add to README gallery sec 1.
+- deep_verify.py <window> <ref zoomTag:k>: box counting b=2..R/4 + subsample consistency -> cache/verify_deep_*.json, gallery/verify_deep_*.png.
+- Fixed n-before-assignment bug in render_windows.diptych.
+- ETA at 12:52 (29-33 px/s): sem_sigma ~13:45, fill ~16:00, steps ~15:00, relu ~17:00, hero f64 & deep1024 ~22:00 (32 chunks x ~17 min).
 - Preliminary video from 10 kf rendering (logs/s4_video_prelim.log); re-render after fill merge.
 
 ## Next (in order)
