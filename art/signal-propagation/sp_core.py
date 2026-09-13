@@ -217,3 +217,64 @@ def pick_zoom_center(B, frac, margin=0.25):
     sub = score[lo_y:hi_y, lo_x:hi_x]
     iy, ix = np.unravel_index(np.argmax(sub), sub.shape)
     return (ix + lo_x + 0.5) / W, (iy + lo_y + 0.5) / H
+
+
+_LSTEP = {}
+
+
+def _lyap_step(act):
+    if act not in _LSTEP:
+        phi = ACT[act]
+        dphi = {"erf": lambda z: (2 / math.sqrt(math.pi)) * torch.exp(-z * z),
+                "tanh": lambda z: 1 - torch.tanh(z) ** 2}[act]
+
+        def step(h, v, Wt, b, w, bb):
+            z = torch.mm(h, Wt) * w + bb * b
+            v = dphi(z) * (torch.mm(v, Wt) * w)
+            n = v.norm(dim=1, keepdim=True)
+            return phi(z), v / n, n.squeeze(1)
+
+        _LSTEP[act] = torch.compile(step, dynamic=False)
+    return _LSTEP[act]
+
+
+@torch.no_grad()
+def lyapunov_grid(sw, sb, N, D, seed=0, act="erf", dtype=torch.float32, chunk=65536, burn=200,
+                  record_layers=(), device="cuda", layers=None):
+    """Finite-time maximal Lyapunov exponent of the input-to-layer map along the trajectory of input A:
+    lambda = mean_{burn < l <= D} log |J^l v| with v renormalised each layer (tangent propagation).
+    lambda < 0: nearby inputs merge (order); lambda > 0: they separate (chaos).
+    Also returns lambda over (burn, l] for each l in record_layers."""
+    step = _lyap_step(act)
+    P = len(sw)
+    layers = layers or LayerCache(seed, N, D, device, dtype)
+    X0 = inputs_draw(seed, N, 2, device, dtype)
+    g = torch.Generator(device="cpu").manual_seed(4242)
+    v0 = torch.randn(N, generator=g, dtype=torch.float64).to(device, dtype)
+    v0 = v0 / v0.norm()
+    lam = np.zeros(P)
+    rec = np.zeros((len(record_layers), P))
+    rix = {l: i for i, l in enumerate(record_layers)}
+    inv = 1.0 / math.sqrt(N)
+    chunk = min(chunk, P)
+    Wts = {}
+    for s in range(0, P, chunk):
+        e = min(P, s + chunk); n = e - s
+        w = np.zeros(chunk); w[:n] = sw[s:e]
+        bbv = np.zeros(chunk); bbv[:n] = sb[s:e]
+        w = torch.as_tensor(w, device=device, dtype=dtype)[:, None]
+        bbv = torch.as_tensor(bbv, device=device, dtype=dtype)[:, None]
+        h = X0[0].expand(chunk, N).contiguous()
+        v = v0.expand(chunk, N).contiguous()
+        acc = torch.zeros(chunk, device=device, dtype=torch.float64)
+        for l in range(1, D + 1):
+            W, b = layers(l)
+            if l not in Wts:
+                Wts[l] = (W.T * inv).contiguous()
+            h, v, nrm = step(h, v, Wts[l], b, w, bbv)
+            if l > burn:
+                acc += torch.log(nrm.double().clamp_min(1e-300))
+            if l in rix:
+                rec[rix[l], s:e] = (acc / max(l - burn, 1))[:n].cpu().numpy()
+        lam[s:e] = (acc / (D - burn))[:n].cpu().numpy()
+    return lam, rec

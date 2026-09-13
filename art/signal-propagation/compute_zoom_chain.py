@@ -27,6 +27,7 @@ ap.add_argument("--centers", default=None, help="json file with fixed windows to
 ap.add_argument("--chunk", type=int, default=65536)
 ap.add_argument("--tag", default="chain")
 ap.add_argument("--perturb", type=float, default=0.0)
+ap.add_argument("--label", default="tau", help="tau: chaotic = L_avg > tau (paper); sync: chaotic = pair never merged (L < 1e-10) within D layers")
 args = ap.parse_args()
 
 torch.cuda.set_per_process_memory_fraction(0.10)
@@ -53,7 +54,7 @@ while lev < (len(windows) if args.centers else args.levels):
                       chunk=args.chunk, layers=layers, tau_hit=tau_hit, input_perturb=args.perturb)
     L = r["L_D"].reshape(args.res, args.res)
     La = r["L_avg"].reshape(args.res, args.res)
-    B = La > args.tau
+    B = (La > args.tau) if args.label == "tau" else (r["t_hit"].reshape(args.res, args.res) > args.D)
     Lmf, _ = meanfield_erf_L(SW, SB, args.D)
     for k, v in (("L_D", L), ("L_avg", La), ("t_hit", r["t_hit"].reshape(args.res, args.res)), ("L_mf", Lmf)):
         res[k].append(v.astype(np.float64 if k != "t_hit" else np.int32))
@@ -66,7 +67,7 @@ while lev < (len(windows) if args.centers else args.levels):
         windows.append((mx - wx / 2, mx + wx / 2, my - wy / 2, my + wy / 2))
     np.savez_compressed(out, windows=np.array(windows[: lev + 1]), **{k: np.stack(v) for k, v in res.items()},
                         N=args.N, D=args.D, seed=args.seed, dtype=args.dtype, tau=args.tau, res=args.res,
-                        step=args.step, wall=time.time() - t0)
+                        step=args.step, wall=time.time() - t0, label=args.label)
     lev += 1
 json.dump([list(w) for w in windows], open(out.replace(".npz", "_windows.json"), "w"))
 log(f"done {out} wall {time.time()-t0:.0f}s")
