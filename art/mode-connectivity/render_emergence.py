@@ -88,9 +88,9 @@ if 'film' in args.pieces:
         ep = np.exp(uu) - 0.01
         fig = fig_px(W, H, dpi=100, bg=BG)
         ax = ax_px(fig, 120, 170, 1000, 760, W, H)
-        ax.fill_between(le, np.exp(ylo), n_, color=INKc, alpha=0.10, lw=0)
+        ax.fill_between(le, m_, n_, color=INKc, alpha=0.13, lw=0)
         ax.plot(le, n_, color=INKc, lw=1.4, ls=(0, (4, 3)))
-        ax.fill_between(le, np.exp(ylo), m_, color=ACC, alpha=0.35, lw=0)
+        ax.fill_between(le, np.exp(ylo), m_, color=ACC, alpha=0.07, lw=0)
         ax.plot(le, m_, color=ACC, lw=2.2)
         ax.set_yscale('log'); ax.set_ylim(np.exp(ylo), np.exp(yhi)); ax.set_xlim(0, 1)
         for yv in [0.01, 0.1, 1]:
