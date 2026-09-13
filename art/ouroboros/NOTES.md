@@ -19,13 +19,13 @@
 - render_fern.py `<cache fern gmm> sheet|hero --gens 0,10,40,100,200` (stipple samples + engraved component ellipses; "Filix ouroborum" plate).
 - peek.py: diagnostic contact sheet -> logs/.
 
-## State (agent 2, 14:45)
-- DONE: phase_ring_gmm_replace.npz assembled (97 lam x 65 n in [8,512], G80). Rendered replace-only maps: `render_phase.py ring gmm --regimes replace` -> gallery/phase_ring_gmm_replace_{sw2_*,split_*}.png (single panel uses 2:1 cells).
-- DONE: film_phase_ring_gmm_replace_sd_spectral.mp4/.gif (`render_phase_film.py ring gmm`), fern_sheet_{sepia_ink,iron_gall}.png + fern_hero_replace_sepia_ink.png (cache/film_fern_gmm_n4096_all.npz = merged), spirals rerendered with new tone (`--wexp 1`, per-tile blur, guides dimmer; dark/paper --tile 0.18, riso two-arm --tile 0.09).
-- RUNNING (nohup): accumulate phase workers logs/phase_gmm_acc_w{1,2}.log (w1 reruns to assemble cache/phase_ring_gmm_accumulate.npz; if both exit w/o assembling, rerun w1 command after deleting stale locks). Then: `render_phase.py ring gmm` (diptych) and `render_phase_film.py ring gmm --regime accumulate` optional.
-- RUNNING: `verify_compute.py all` (logs/verify_compute.log): floor + seeds done; native window n=32..96 x2 seeds (~1.5 h, parts in cache/parts/verify_native_n*.npz, resumable). Then `verify.py` -> verify_results.txt + gallery/verify_boundary.png.
-- verify so far: CRN exact (rows with same n_r identical, diff 0). Seeds 0-4 n128 G200: replace sW2 0.93+-0.24, modes 1,1,1,2,0; anchored 0.23, 8 modes; accumulate 0.15, 8 modes; true-sample floor 0.046+-0.013. Box counting replace map: D(1-8 cells)=1.53, smooth-only 1.11, phase-random null 1.46+-0.03, AAFT null 1.35+-0.04 (real rougher than both nulls at 100% quantile, but boundary-cell count 701 vs null 727/735), local slopes 1.3-1.8 (no power law, <1 decade). Native raster D(4-32px) ~1.15 -> noise-roughened, not fractal.
-- TODO: README.md (full), final verify run, NOTES final.
+## State (agent 2, final ~15:15) — ALL NEXT-STEPS DONE, nothing running
+- phase_ring_gmm_{replace,accumulate}.npz assembled. Renders: `render_phase.py ring gmm --regimes replace` (single panels, 2:1 cells) and `render_phase.py ring gmm` (diptych). Film: `render_phase_film.py ring gmm` -> film_phase_ring_gmm_replace_sd_spectral.mp4/.gif.
+- fern: cache/film_fern_gmm_n4096_all.npz (merged) -> fern_sheet_{sepia_ink,iron_gall}.png, fern_hero_replace_sepia_ink.png.
+- spirals rerendered: `--wexp 1` (ink ~1/size), per-tile blur half/90, dimmer guides; dark/paper --tile 0.18, riso two-arm --tile 0.09 (riso paper bug fixed).
+- verify: `verify_compute.py all` (+ `native --rev` 2nd worker) -> cache/verify_{floor,seeds,native}.npz; `verify.py` -> verify_results.txt, gallery/verify_boundary.png.
+- Key numbers: seeds 0-4 n128 G200 sW2: replace 0.93+-0.24 (modes 1,1,1,2,0), anchored 0.23 (8 modes), accumulate 0.15; floor 0.046. Escaped cells replace 27.7% vs accumulate 3.7%. CRN exact (0.0 diff); cross-batch re-measure 98.7% agree (float32 round-off amplified). Box count 97x65: D(1-8)=1.53, local slopes 1.32-1.84; nulls 1.46 (phase-rand), 1.35 (AAFT), smooth 1.11. Native window: seed0/seed1 disagree 33% (48% near boundary), transition shift median 7/n; band null matches counts at eps>=8. Verdict: noise-roughened transition band ~7/n wide, not fractal; lambda floor 1/n.
+- README.md complete. Optional leftovers: accumulate phase film (`render_phase_film.py ring gmm --regime accumulate`), spiral-target films, fern KDE render.
 
 ## Caches (cache/, gitignored)
 - film_ring_gmm_n128.npz (G200, with params), film_ring_kde_n128.npz (G120), film_spiral_kde_n512 (G100), film_spiral_gmm_n1024 K24 (G200)

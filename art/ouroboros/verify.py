@@ -163,6 +163,21 @@ if parts:
     for lab_, N_ in (("phase-map cells", Nb_r), ("native seed 0", N0), ("native seed 1", N1)):
         say(f"{lab_:<16} 256^2 raster box counts eps={epsR}: {N_.astype(int).tolist()}; "
             f"D(1-4 px) = {slope(epsR, N_, 1, 4):.2f}, D(4-32 px) = {slope(epsR, N_, 4, 32):.2f}")
+    # band null: labels drawn independently per chain from the seed-averaged, smoothed escape probability
+    pr = gaussian_filter((M0.astype(float) + M1) / 2, 8)
+    rngb = np.random.default_rng(1)
+    Nband = []
+    for _ in range(20):
+        # one Bernoulli draw per distinct chain: constant within a (n, n_r) block, as in the native raster
+        key = np.stack([np.broadcast_to(nn[None], (R, R)), np.floor(lam_ax[:, None] * nn[None] + 1e-9).astype(int)])
+        _, inv = np.unique(key.reshape(2, -1), axis=1, return_inverse=True)
+        draw = rngb.random(inv.max() + 1)[inv.ravel()].reshape(R, R)
+        Nband.append(boxcount(boundary(draw < pr), epsR))
+    Nband = np.array(Nband)
+    Dband = [slope(epsR, x, 4, 32) for x in Nband]
+    say(f"band null (independent Bernoulli label per chain, p = smoothed seed-average): box counts "
+        f"{Nband.mean(0).astype(int).tolist()}, D(1-4 px) = {np.mean([slope(epsR, x, 1, 4) for x in Nband]):.2f}, "
+        f"D(4-32 px) = {np.mean(Dband):.2f} +- {np.std(Dband):.2f}")
     dis = np.mean(M0 != M1)
     bz = gaussian_filter((boundary(M0) | boundary(M1)).astype(float), 6) > 0.01
     say(f"seed 0 vs seed 1 escape labels disagree on {dis:.1%} of the window, {np.mean((M0 != M1)[bz]):.1%} within 6 px of either boundary")
@@ -179,12 +194,19 @@ if parts:
     dl = np.array(dl)
     say(f"first surviving n_r per column, |seed 0 - seed 1| in units of 1/n: median {np.nanmedian(dl):.1f}, mean {np.nanmean(dl):.1f}")
     ext = [0, R, 0, R]
-    ax[1].imshow(np.flipud(M0.astype(float) - M1.astype(float) * 0.5), cmap="Spectral_r", extent=ext, interpolation="nearest")
-    ax[1].set_title(f"native window, seed 0 (±) vs seed 1: disagree {dis:.0%}")
+    cat = np.flipud(M0.astype(int) * 2 + M1.astype(int))  # 0 neither, 1 seed1 only, 2 seed0 only, 3 both escaped
+    from matplotlib.colors import ListedColormap
+    cols = ["#5e4fa2", "#66c2a5", "#d53e4f", "#fdae61"]
+    ax[1].imshow(cat, cmap=ListedColormap(cols), vmin=-0.5, vmax=3.5, extent=ext, interpolation="nearest", aspect="auto")
+    ax[1].set_title(f"native window: escape labels, seed 0 vs 1 (disagree {dis:.0%})")
+    from matplotlib.patches import Patch
+    ax[1].legend(handles=[Patch(color=c, label=l) for c, l in zip(cols, ["both survive", "only seed 1 escapes", "only seed 0 escapes", "both escape"])],
+                 fontsize=7, loc="upper right")
     ax[1].set_xticks([0, R]); ax[1].set_xticklabels(["n=32", f"n={n_hi}"]); ax[1].set_yticks([0, R]); ax[1].set_yticklabels(["λ=0.05", "λ=0.33"])
     ax[2].loglog(epsR, Nb_r, "o-", color="#d53e4f", label="phase-map cells (nearest)")
     ax[2].loglog(epsR, N0, "s-", color="#3288bd", label="native, seed 0")
     ax[2].loglog(epsR, N1, "^-", color="#66c2a5", label="native, seed 1")
+    ax[2].fill_between(epsR, Nband.min(0), Nband.max(0), color="0.7", alpha=0.5, label="band null (Bernoulli per chain)")
     ax[2].loglog(epsR, N0[0] / np.array(epsR), ":", color="0.5", label="slope −1 (smooth curve)")
     ax[2].loglog(epsR, N0[0] / np.array(epsR) ** 2, ":", color="0.8", label="slope −2 (area-filling)")
     ax[2].set_xlabel("box size ε (px of 256² raster)"); ax[2].legend(fontsize=8); ax[2].set_title("resolution check")

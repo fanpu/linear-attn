@@ -109,8 +109,8 @@ Sliced W₂ at gen 0/10/40/100/200: replace 0.021/0.066/0.086/0.114/0.122, ancho
 | ring films | GMM K=8 n=128 G=200; KDE n=128 G=120; 20k display samples/gen | 1.5 min, 40 s |
 | fern | GMM K=64 n=4096 G=200 (replace+anchored with params, accumulate without) | ≈ 20 min |
 | replace phase map | 97 λ ∈ [0,1] × 65 n ∈ [8,512] (log), G=80, 1 seed | 2 workers × ≈ 35 min |
-| accumulate phase map | 33 λ × 33 n (the same range, nested sub-grid), G=80 | 2 workers × ACC_WALL |
-| verification | seeds 0–4 at film settings; native window n=32…96 (all integers) × all distinct n_r, 2 seeds | ≈ 1 min; NATIVE_WALL |
+| accumulate phase map | 33 λ × 33 n (the same range, nested sub-grid), G=80 | 2 workers × ≈ 17 min |
+| verification | seeds 0–4 at film settings; native window n=32…96 (all integers) × all distinct n_r, 2 seeds | ≈ 1 min; native window 2 workers × ≈ 23 min |
 
 ```bash
 P=/home/fzeng/ml/research/art/.venv/bin/python; export OUROBOROS_DT=float32 OMP_NUM_THREADS=2
@@ -136,7 +136,33 @@ $P verify.py        # -> verify_results.txt, gallery/verify_boundary.png
 
 Full output: [verify_results.txt](verify_results.txt). Figure: [gallery/verify_boundary.png](gallery/verify_boundary.png).
 
-<!-- VERIFY -->
+**Did the phenomenon appear? Yes, in every regime the literature predicts.** Ring, GMM K=8, n=128, G=200, seeds 0–4. Sliced-W₂ noise floor of true samples: 0.046 ± 0.013.
+
+| regime | $SW_2$ gen 0 | gen 50 | gen 200 | modes kept, gen 200 (per seed) | variance ratio, gen 200 |
+|---|---|---|---|---|---|
+| replace, λ=0 | 0.120 ± 0.036 | 0.590 ± 0.118 | **0.927 ± 0.239** | 1 1 1 2 0 | 0.20 ± 0.41 |
+| anchored, λ=0.25 | 0.120 ± 0.036 | 0.212 ± 0.064 | 0.226 ± 0.054 | 8 8 8 8 7 | 0.95 ± 0.05 |
+| accumulate | 0.120 ± 0.036 | 0.144 ± 0.046 | **0.146 ± 0.043** | 8 8 8 8 8 | 0.97 ± 0.02 |
+
+Under replace, all 5 seeds collapse to 0–2 modes. A mode count of 0 means the survivor sits between true modes. Anchoring keeps the modes but squashes them into needles, and accumulate stays within about 2 noise-floor widths of generation 0. Phase maps: 27.7% of replace cells escape past τ, against 3.7% of accumulate cells. KDE fails in the opposite direction, by explosion: $SW_2$ ≈ 16 at generation 120 for n=128.
+
+**Common random numbers are exact.** The replace map has 902 groups of rows that share $\lfloor\lambda n\rfloor$ within a column, and their $SW_2$ trajectories agree to **0.0** over all 81 generations. When a separate run re-measured the same (n, n_r, seed 0) chains in a *different batch composition*, 98.7% of 459 escape labels matched. The 1.3% that flipped show that 80 generations of EM amplify float32 batch-dependent round-off into a different outcome near the boundary.
+
+**Is the escape boundary fractal? No: it is noise-roughened, not fractal.**
+<img src="gallery/verify_boundary.png" width="100%">
+
+1. *Box counting on the 97×65 map* (boundary = cells whose escape label differs from a 4-neighbour). Counts at ε = 1…16 cells are 701, 241, 132, 81, 46, 29, 17, 10. The fit over ε = 1–8 (0.9 decades, which is all a 97×65 grid allows) gives D = 1.53, but the local slopes wander between 1.32 and 1.84, with no single power law.
+2. *Null models.* The smoothed field alone (σ = 3 cells) gives D = 1.11. Adding a phase-randomised copy of the residual (same power spectrum, 40 surrogates) gives D = 1.46 ± 0.03. The amplitude-adjusted surrogate (same heavy-tailed residual distribution) gives D = 1.35 ± 0.04. The nulls reproduce the boundary *length* (727 ± 40 and 735 ± 43 boundary cells vs 701 measured). The measured D sits slightly above both nulls: the real residual is not a stationary random field, because of the λ-staircase and CRN column correlations. So these nulls are imperfect. Still, they show that a smooth transition plus noise already gives D ≈ 1.4–1.5 at this grid size.
+3. *Resolution check at native resolution.* Only $\lfloor\lambda n\rfloor$ enters, so **λ has a resolution floor of 1/n** and n is an integer. The window n = 32…96, λ ∈ [0.05, 0.33] was recomputed at the finest resolution that exists: every integer n and every distinct n_r, 1 026 chains per seed, two seeds. Everything was rasterised to 256². Finer sampling adds boundary at every scale (at ε = 32 px: 31 boxes for the phase-map cells, 44 for native seed 0, 26 for native seed 1), and D(4–32 px) goes from 1.30 to 1.57 (seed 0) and 1.48 (seed 1). A fractal would show the same thing. But **seed 0 and seed 1 disagree on 33% of the window, and on 48% of pixels within 6 px of either boundary**, which is a coin flip. The first surviving n_r per column differs between seeds by a median of 7 steps of 1/n (mean 9.6). The fine structure is therefore not a property of (λ, n); it is the particular draw of real data and noise.
+4. *Band null.* An independent Bernoulli label per chain, with probability equal to the smoothed seed-average, reproduces the native seed-0 box counts at ε ≥ 8 px (505/151/45/13 vs 410/146/44/14) with D(4–32 px) = 1.71 ± 0.02. What looks like increasing detail under refinement is a random *transition band* about 7/n wide, filled with independent outcomes.
+
+**Verdict.** The collapse boundary is a real, reproducible transition (collapse at small n and small λ; accumulate suppresses it). Its roughness is sampling noise in a band of width ≈ 7/n in λ, not a self-similar set. Below 1/n in λ the map is exactly piecewise constant, so no fractal can exist there at all. D estimates of 1.3–1.6 are band filling over less than one decade and should not be quoted as fractal dimensions. The fractal framing in the proposal doc (§7) does not hold for this system. The self-similar imagery in this gallery (the nested spiral) is a declared layout, not a measured fractal.
+
+**Negative results and things that did not work.**
+- The KDE chain does not collapse; it explodes. The LOO-CV bandwidth grows with the spread.
+- Area-conserving tile tone (ink ∝ 1/size²) made the outer spiral tiles invisible, so it was replaced by ∝ 1/size (declared).
+- The first spiral had too-prominent guide circles, now dimmed.
+- Absolute $SW_2$ maps are dominated by generation-0 fit error at small n, so all maps use excess or ratio relative to generation 0.
 
 ## 6. Caveats
 
