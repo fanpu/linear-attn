@@ -23,11 +23,11 @@ There are no biases. $W_0\in\mathbb R^{16\times16}$ and $W_1\in\mathbb R^{1\time
 
 ## Gallery
 
-### 1. Deep zoom, one plate per half-decade (then per decade)
+### 1. Deep zoom, one plate per half-decade
 
 <img src="gallery/zoom_zoomAB_spectral_contact_sheet.png" width="100%">
 
-The sequence runs from the $(\eta_0,\eta_1)\in[10^{-3},10^{6}]^2$ overview (plate 1) to a window $4.5\times10^{-6}$ decades wide at magnification $10^{6.5}\approx3\times10^{6}$ (plate 10). Every window lies inside the previous one and is centred on a boundary pixel of it. Each plate is 256² float64 networks. Full-page plates, each with its coordinates, 1-ulp flip fraction and a locator inset: [Spectral](gallery/plates_zoomAB_spectral/), [two-ink riso](gallery/plates_zoomAB_riso/), [plotter isolines](gallery/plates_zoomAB_isolines/) ([sheet](gallery/zoom_zoomAB_isolines_contact_sheet.png)), and [aurora/ember split palette](gallery/plates_zoomAB_aurora_ember/) ([sheet](gallery/zoom_zoomAB_aurora_ember_contact_sheet.png)). The isolines are contours of the within-phase speed rank, pre-smoothed with a Gaussian of σ = 0.8 px (aesthetic), drawn in ink on the converged side and red on the diverged side. The heavier line is the converge/diverge boundary. In the riso style, converged runs print in pink and diverged runs in blue, with halftone density set by the within-phase speed rank. Screens, inks and misregistration are aesthetic.
+The sequence runs from the $(\eta_0,\eta_1)\in[10^{-3},10^{6}]^2$ overview (plate 1) to a window of half-width $4.5\times10^{-6}$ decades at magnification $10^{6.5}\approx3\times10^{6}$ (plate 14). Every window lies inside the previous one and is centred on a boundary pixel of it. Each plate is 256² float64 networks. Full-page plates, each with its coordinates, 1-ulp flip fraction and a locator inset: [Spectral](gallery/plates_zoomAB_spectral/), [two-ink riso](gallery/plates_zoomAB_riso/), [plotter isolines](gallery/plates_zoomAB_isolines/) ([sheet](gallery/zoom_zoomAB_isolines_contact_sheet.png)), and [aurora/ember split palette](gallery/plates_zoomAB_aurora_ember/) ([sheet](gallery/zoom_zoomAB_aurora_ember_contact_sheet.png)). The isolines are contours of the within-phase speed rank, pre-smoothed with a Gaussian of σ = 0.8 px (aesthetic), drawn in ink on the converged side and red on the diverged side. The heavier line is the converge/diverge boundary. In the riso style, converged runs print in pink and diverged runs in blue, with halftone density set by the within-phase speed rank. Screens, inks and misregistration are aesthetic.
 <!-- ZOOM-VIDEO: add <video> once fills are merged -->
 
 ### 2. Same window, three architectures
@@ -61,7 +61,7 @@ Here both layers share one learning rate η (vertical) and both weight matrices 
 
 | piece | grid | steps | precision | wall time (shared GB10) |
 |---|---|---|---|---|
-| zoom keyframes (tanh, full batch) | 256² each, <!-- NKF --> keyframes | 500 | float64 | 5–38 min each (29–200 px/s under contention) |
+| zoom keyframes (tanh, full batch) | 256² each, 14 keyframes | 500 | float64 | 5–38 min each (29–200 px/s under contention) |
 | overview hero | 1024² | 500 | **float32** (see verification) | <!-- HEROT --> |
 | architecture diptych | 3 × 256² | 500 | float64 | ~5 min each |
 | quadratic null zoom | 13 × 256² | 500 | float64 | ~90 s each |
@@ -93,7 +93,7 @@ Sanity tests: `test_core.py` (gradients, early exit, checkpoints) and `test_earl
 
 <img src="gallery/verify_boxcount_zoomAB_null_quadratic_liu.png" width="100%">
 
-**Did it appear?** Yes. Moving down the zoom, the boundary goes from an almost straight seam (overview) to interleaved filaments of converged and diverged runs. Box-counting on his sign-change edge set, fitted over box sizes 2–32 px of each 256² keyframe (1.2 decades per image, $r^2>0.997$), gives:
+**Did it appear?** Yes. Moving down the zoom, the boundary goes from an almost straight seam (overview) to interleaved filaments of converged and diverged runs. Box-counting on his sign-change edge set, fitted over box sizes 2–32 px of each 256² keyframe (1.2 decades per image, $r^2\ge0.992$), gives:
 
 <!-- DTABLE:start (python readme_tables.py) -->
 | plate | magnification | trainable | boundary px | D (network), b=2..32 px | 1-ulp flips (boundary px) | D (quadratic null, same magnification) |
@@ -104,17 +104,23 @@ Sanity tests: `test_core.py` (gradients, early exit, checkpoints) and `test_earl
 | 4 | 10^1.5 | 49% | 3.2% | 1.50 ± 0.01 | 0.0% | 1.11 |
 | 5 | 10^2.0 | 51% | 8.3% | 1.61 ± 0.03 | 0.0% | 1.10 |
 | 6 | 10^2.5 | 49% | 10.9% | 1.66 ± 0.03 | 0.0% | 1.05 |
-| 7 | 10^3.5 | 46% | 16.7% | 1.61 ± 0.07 | 0.0% | 1.09 |
-| 8 | 10^4.5 | 48% | 5.3% | 1.36 ± 0.04 | 0.0% | 1.10 |
-| 9 | 10^5.5 | 45% | 14.1% | 1.64 ± 0.07 | 0.0% | 1.04 |
-| 10 | 10^6.5 | 50% | 3.6% | 1.37 ± 0.02 | 0.0% | - |
+| 7 | 10^3.0 | 55% | 19.6% | 1.68 ± 0.07 | 0.0% | 1.10 |
+| 8 | 10^3.5 | 46% | 16.7% | 1.61 ± 0.07 | 0.0% | 1.09 |
+| 9 | 10^4.0 | 42% | 10.2% | 1.53 ± 0.07 | 0.2% | 1.09 |
+| 10 | 10^4.5 | 48% | 5.3% | 1.36 ± 0.04 | 0.0% | 1.10 |
+| 11 | 10^5.0 | 49% | 9.8% | 1.48 ± 0.02 | 0.1% | 1.06 |
+| 12 | 10^5.5 | 45% | 14.1% | 1.64 ± 0.07 | 0.0% | 1.04 |
+| 13 | 10^6.0 | 51% | 9.9% | 1.46 ± 0.08 | 0.0% | 1.05 |
+| 14 | 10^6.5 | 50% | 3.6% | 1.37 ± 0.02 | 0.0% | - |
 <!-- DTABLE:end -->
+
+In short: from $10^{1.5}$ to $10^{6.5}$ (11 plates) the network boundary has $D$ = 1.36–1.68 (median 1.53). The quadratic null, run through the same pipeline, gives 1.04–1.11 over the same magnifications. $D$ is not constant along the path. It rises and falls with how much boundary each window happens to hold (compare the boundary-pixel column).
 
 **Across decades.** No single image covers more than 1.2 decades of box size. The multi-decade evidence is that the local slope stays well above 1 at every zoom level from $10^{1.5}$ to $10^{6.5}$ (panel b plots the slopes against absolute box size in decades of learning rate). It is not a single straight line over many decades. The estimate also depends on where the window sits: it rises as the window closes in on the boundary, so this is a *local* dimension of the region we zoomed into. Sohl-Dickstein reports 1.66 for tanh full batch (median over ~50 frames); our deep frames are in the same range.
 
 **Null model (quadratic, same pipeline).** The loss $\ell(a,b)$ of $\hat y = Xa/\sqrt n + \phi(XW_0/\sqrt n)\,b/n$ with $W_0$ frozen is exactly quadratic, so GD is linear. Its stability boundary is the algebraic curve $\rho(I-P\,\nabla^2\ell)=1$. Through the identical zoom, chooser, colour and box counter, it stays a smooth curve and then a straight line. $D$ = 1.01 at the overview and 1.04–1.11 at every level from $10^{1}$ to $10^{6}$ (one outlier, 1.65, at $10^{0.5}$, where the window contains a sharp corner and only ~500 edge pixels). The rendering does not manufacture a fractal.
 
-**Precision floor ("seeing").** At every keyframe a 64² block on the boundary is recomputed with both learning rates multiplied by $(1+2^{-52})$, one ulp. The quoted number is the fraction of boundary pixels whose converge/diverge label flips: 0 of the boundary pixels in the block at every network plate from $10^{0.5}$ to $10^{6.5}$ (0.6 % at the overview). For the network, labels are deterministic to one ulp all the way down, so the filaments are resolved structure and not roundoff noise. The learning-rate grid itself stays representable: relative pixel spacing is $2.6\times10^{-8}$ at the deepest plate, far above $2.2\times10^{-16}$, so the float64 floor for this 256² grid would sit around $10^{13}$ magnification. We were limited by GPU time, not precision.
+**Precision floor ("seeing").** At every keyframe a 64² block on the boundary is recomputed with both learning rates multiplied by $(1+2^{-52})$, one ulp. The quoted number is the fraction of boundary pixels whose converge/diverge label flips: at most 0.2 % of boundary pixels at every network plate from $10^{0.5}$ to $10^{6.5}$ (exactly 0 on 11 of those 13; 0.2 % at $10^{4}$, 0.1 % at $10^{5}$), and 0.6 % at the overview. For the network, labels are essentially deterministic to one ulp all the way down, so the filaments are resolved structure and not roundoff noise. The learning-rate grid itself stays representable: relative pixel spacing is $2.6\times10^{-8}$ at the deepest plate, far above $2.2\times10^{-16}$, so the float64 floor for this 256² grid would sit around $10^{13}$ magnification. We were limited by GPU time, not precision.
 
 **Resolution check (2×, 4×).** The central 32×32 px of plate 6 ($10^{2.5}$) was recomputed over the identical learning-rate window at 2× (64²) and 4× (128²) density.
 

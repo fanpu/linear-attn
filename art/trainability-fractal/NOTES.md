@@ -56,3 +56,8 @@ GPU time so far: sessions 1-2 ~10 GPU-h wall (contended); session 3 jobs above a
 - steps_zoomA2_384 DONE (4903 s; window c=(0.860,2.377) hw=0.45): per-frame rank normalisation. T=10/30/100/250/500/1000:
   conv .648/.538/.493/.490/.490/.489; D(b=2-48) 1.05/1.27/1.37/1.42/1.41/1.41 -> boundary roughens then saturates by T~250.
   gallery/steps_steps_zoomA2_384_spectral.{mp4,gif}, _multiples.png. README section not yet written.
+- 14:50 fill DONE + merged (14 kf, all half-decade). verify + DTABLE replaced; README text updated (plate 14, flips <=0.2%, D 1.36-1.68 median 1.53 from 10^1.5; null 1.04-1.11).
+  Fill ulp flips: 0.17% (10^4.0), 0.05% (10^5.0) of edge px.
+- ov_relu_512_f64 DONE (conv 33.6%, 1691 s). sem_wd_lr_384 now running in the sem slot (dummy removed by script).
+- Background CPU chain (logs/s4_video.log, s4_plates.log -> ALLDONE): video crf24 -> plates 4 styles -> descent spectral+aurora_ember.
+  Then: add <video> at ZOOM-VIDEO, delete gallery/zoom_zoomA_spectral.*, descent image into sec 1, check sizes (<20MB commit, GIF<15MB).
