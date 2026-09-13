@@ -36,13 +36,13 @@ STY = {
 }
 
 
-def draw_panel(ax, key, st, ymax):
+def draw_panel(ax, key, st, ymax, exag=False):
     r = D['path_' + key]
     L, Lte = r[:, 0], r[:, 2]
     cls = D.get('cls_' + key)
     ax.set_xlim(-0.04, 1.04)
-    ax.set_ylim(-0.30 * ymax, ymax)
-    base = -0.30 * ymax
+    base = -0.30 * ymax if not exag else -0.12 * ymax
+    ax.set_ylim(base, ymax)
     # bedrock (aesthetic)
     if st['hatch']:
         for xx in np.arange(-0.4, 1.4, 0.012):
@@ -69,24 +69,34 @@ def draw_panel(ax, key, st, ymax):
                     ax.plot(lams, cum[:, k], color=st['edge'], lw=st['elw'], zorder=4)
     else:
         ax.fill_between(lams, 0, L, color=st['cols'][3] if st['cols'] else RISO_BLUE, lw=0, zorder=3)
-    ax.plot(lams, L, color=st['ink'], lw=1.3, zorder=6, solid_capstyle='round')
-    ax.plot(lams, Lte, color=st['ink'], lw=0.8, ls=(0, (2.5, 2.5)), zorder=6, alpha=0.9)
+    ax.plot(lams, np.minimum(L, ymax), color=st['ink'], lw=1.3, zorder=6, solid_capstyle='round')
+    if not exag:
+        ax.plot(lams, Lte, color=st['ink'], lw=0.8, ls=(0, (2.5, 2.5)), zorder=6, alpha=0.9)
+    ax.set_clip_on(True)
     # boreholes
     for x0 in (0, 1):
-        ax.plot([x0, x0], [base * 0.92, ymax * 0.93], color=st['ink'], lw=0.5, zorder=7)
+        ax.plot([x0, x0], [base * 0.92, ymax * (1.0 if exag else 0.93)], color=st['ink'], lw=0.5, zorder=7)
     ax.set_axis_off()
     return barrier_lin(L), barrier_lin(Lte), r[:, 3].min()
 
 
 for args_style in args.styles.split(','):
     st = STY[args_style]
-    W, H = 3600, 1500
+    W, H = 3600, 1900
     fig = fig_px(W, H, bg=st['bg'])
     ymax = 1.18 * max(D['path_naive'][:, 0].max(), D['path_naive'][:, 2].max())
+    low = 1.25 * max(D['path_matched'][:, 0].max(), D['path_bezier'][:, 0].max())
+    EX = [1, 2, 5][int(np.searchsorted([1, 2, 5], (ymax / low) / 10 ** np.floor(np.log10(ymax / low)), side='right')) - 1] * 10 ** np.floor(np.log10(ymax / low))
     pw, gap, x0, y0, ph = 1040, 90, 190, 250, 900
+    eh, ey = 330, 250 + 900 + 190
     for i, (key, num, title) in enumerate(PANELS):
         ax = ax_px(fig, x0 + i * (pw + gap), y0, pw, ph, W, H)
         b, bte, amin = draw_panel(ax, key, st, ymax)
+        axe = ax_px(fig, x0 + i * (pw + gap), ey, pw, eh, W, H)
+        draw_panel(axe, key, st, ymax / EX, exag=True)
+        fx0 = (x0 + i * (pw + gap) + pw / 2) / W
+        fig.text(fx0, 1 - (ey - 22) / H, f'same section, vertical exaggeration ×{EX:g}', ha='center', va='bottom',
+                 color=st['sub'], fontsize=9.5, style='italic')
         endB = 'π(B)' if key == 'matched' else 'B'
         ax.text(0, ymax * 0.96, 'A', ha='center', va='bottom', color=st['ink'], fontsize=15)
         ax.text(1, ymax * 0.96, endB, ha='center', va='bottom', color=st['ink'], fontsize=15)
@@ -106,9 +116,16 @@ for args_style in args.styles.split(','):
         axs.text(0.4, v, f'{v:g}', ha='right', va='center', color=st['ink'], fontsize=8)
     axs.plot([1, 1], [0, np.arange(0, ymax * 0.95, step)[-1]], color=st['ink'], lw=0.6)
     axs.text(-1.3, ymax * 0.45, 'cross-entropy (nats)', rotation=90, ha='center', va='center', color=st['ink'], fontsize=9)
+    axs2 = ax_px(fig, 95, ey, 40, eh, W, H)
+    axs2.set_ylim(-0.12 * ymax / EX, ymax / EX); axs2.set_xlim(0, 1)
+    tv = step / EX
+    for v in [0, tv]:
+        axs2.plot([0.55, 1], [v, v], color=st['ink'], lw=0.6)
+        axs2.text(0.4, v, f'{v:g}', ha='right', va='center', color=st['ink'], fontsize=8)
+    axs2.plot([1, 1], [0, tv], color=st['ink'], lw=0.6)
     fig.text(0.5, 1 - 60 / H, f'ONE BASIN  ·  three sections between two {DSNAME} networks', ha='center', va='center',
              color=st['ink'], fontsize=17)
-    fig.text(0.5, 1 - (H - 55) / H,
+    fig.text(0.5, 1 - (H - 55) / H - 0.0,
              f'MLP 784-{int(D["width"])}-{int(D["width"])}-{int(D["width"])}-10, seeds 0 and 1.  Surface: train loss (60k images); '
              'strata: each digit class\'s share of it, stacked 0 (bottom) to 9; dashed: test loss.  '
              'Bedrock and colours are decorative.', ha='center', va='center', color=st['sub'], fontsize=9)

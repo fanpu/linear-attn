@@ -38,7 +38,7 @@ if 'perm' in args.pieces:
     fig = fig_px(W, H, bg='#f7f4ec')
     ax = ax_px(fig, 250, 350, 2100, 2100, W, H)
     ax.set_xlim(-0.5, n - 0.5); ax.set_ylim(n - 0.5, -0.5)
-    ms = 2100 / n * 0.62 * 72 / 200
+    ms = 2100 / n * 2.4 * 72 / 200  # declared: dot diameter 2.4 cells
     ax.plot(p0, np.arange(n), 's', ms=ms, color='#111111', mew=0)
     for s in ['top', 'bottom', 'left', 'right']:
         pass
@@ -59,7 +59,7 @@ if 'perm' in args.pieces:
     offs = [(0, 0), (0.9, -0.6), (-0.7, 0.8)]
     for l, (ink, (dx, dy)) in enumerate(zip(inks, offs)):
         pl = U[f'perm{l}']
-        ax.plot(pl + dx, np.arange(n) + dy, 'o', ms=ms * 1.05, color=ink, mew=0, alpha=0.82)
+        ax.plot(pl + dx, np.arange(n) + dy, 'o', ms=ms * 0.8, color=ink, mew=0, alpha=0.82)
     ax.add_patch(plt.Rectangle((-0.5, -0.5), n, n, fill=False, ec=RISO_BLUE, lw=1.2))
     title(fig, H, 'π₁  π₂  π₃', 'three hidden layers, three drums', RISO_BLUE)
     caption(fig, H, 2560, 'Blue: π₁, pink: π₂, yellow: π₃, the permutations weight matching found for each hidden layer '

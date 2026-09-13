@@ -13,10 +13,13 @@ from scipy.optimize import linear_sum_assignment
 ROOT = '/home/fzeng/ml/research/art/data'
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(HERE, 'cache')
-DEV = 'cuda'
+DEV = os.environ.get('MC_DEV', 'cuda')
 
 
 def gpu_setup():
+    if DEV == 'cpu':
+        torch.set_num_threads(int(os.environ.get('OMP_NUM_THREADS', '4')))
+        return
     torch.cuda.set_per_process_memory_fraction(0.10)
     torch.backends.cuda.matmul.allow_tf32 = False  # keep float32 exact-ish for small loss diffs
     torch.backends.cudnn.allow_tf32 = False
