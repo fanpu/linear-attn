@@ -1,0 +1,310 @@
+<HTML>
+<HEAD>
+  <TITLE>What color are the stars?</TITLE>
+</HEAD>
+<BODY BGCOLOR="#c0c0c0">
+<table width=100% cellspacing=0 cellpadding=0 border=0><tr valign=top><td>
+<H1>What color are the stars? <br> - some pixel rgb values</H1>
+</td><td align=right><table cellspacing=0 cellpadding=0 border=0><tr><td>
+<a href="http://www.vendian.org/mncharity/">Mitchell Charity</a>
+    &lt;<a href="mailto:mcharity@lcs.mit.edu">mcharity@lcs.mit.edu</a>&gt;<BR> &nbsp; &gt; <font size=-1><b>What color are the stars?</b></font>
+<BR> &nbsp; &gt; &nbsp; &gt; <A HREF="details.html">Star color - details</A>
+<BR> &nbsp; &gt; &nbsp; &gt; <A HREF="comparison.html">Star color - data comparison</A>
+<BR> &nbsp; &gt; &nbsp; &gt; &nbsp; &gt; <A HREF="UnstableURLs/plots.html">Star color - data plots</A>
+<BR> &nbsp; &gt; &nbsp; &gt; <A HREF="blackbody.html">Star color - blackbody approximation</A>
+<BR> &nbsp; &gt; &nbsp; &gt; <A HREF="sun.html">What color is the Sun?</A>
+
+<BR> &nbsp; &gt; <A HREF="../blackbody/">What color is a blackbody?</A>
+</td></tr></table></td></tr></table>
+
+<P>
+<b>The idea:</b> It would be nice to have at least a vague idea of what color stars are.<br>
+Here is some help on converting from stellar type/class (and color indexes) to pixel rgb values.
+
+<P> More formally - I have derived chromaticity and rgb pixel color,
+from spectra for various stellar types/classes, providing
+physically-motivated colors for astronomy presentations.
+Though the colors are still a bit rough.
+
+<P>
+
+The colors here are for the big balls of hot gas in space, rather than
+the pin-pricks of light in the local sky.  I.e., atmospheric, interstellar medium,
+and relative motion effects are discarded...<P>
+
+<!--
+<P><span style="background:#ffb0b0"><b>Warning</b> - This page was posted 2001-June-04,
+and may not yet have been reviewed by knowledgeable folk.
+So it is not yet clear that these colors are correct.  Fyi.</span>
+-->
+
+<h2>The <span style="background:#9bb0ff">O</span><span style="background:#aabfff">B</span><span style="background:#cad7ff">A</span><span style="background:#f8f7ff">F</span><span style="background:#fff4ea">G</span><span style="background:#ffd2a1">K</span><span style="background:#ffcc6f">M</span> table...</h2>
+<PRE> Sp5(V)  r   g   b     rgb
+<span style="background:#9bb0ff">  O     155 176 255  #9bb0ff  </span>
+<span style="background:#aabfff">  B     170 191 255  #aabfff  </span>
+<span style="background:#cad7ff">  A     202 215 255  #cad7ff  </span>
+<span style="background:#f8f7ff">  F     248 247 255  #f8f7ff  </span>
+<span style="background:#fff4ea">  G     255 244 234  #fff4ea  </span>
+<span style="background:#ffd2a1">  K     255 210 161  #ffd2a1  </span>
+<span style="background:#ffcc6f">  M     255 204 111  #ffcc6f  </span></PRE><BR>
+
+
+<h2>Some familiar stars...</h2>
+
+<table cellspacing=0 cellpadding=0 border=0><tr>
+<td  bgcolor="#fff3ea"><span style="background:#fff3ea">
+Sun viewed outside of atmosphere (<A HREF="sun.html">ref</A>) <code>#fff3ea</code>
+</span></td></tr></table>
+
+<table>
+<tr valign=top><td><table>
+<tr><td  bgcolor="#a5b9ff"><span style="background:#a5b9ff"><b>Achernar</b>  (B3V)<br><code>#a5b9ff</code> </span></td></tr>
+<tr><td  bgcolor="#9cb2ff"><span style="background:#9cb2ff"><b>Acrux</b>  (B0IV)<br><code>#9cb2ff</code>  <font size=-1><i>(as B0V)</i></font> </span></td></tr>
+<tr><td  bgcolor="#a5c0ff"><span style="background:#a5c0ff"><b>Adhara</b>  (B2II)<br><code>#a5c0ff</code> </span></td></tr>
+<tr><td  bgcolor="#ffcc8a"><span style="background:#ffcc8a"><b>Aldebaran</b>  (K5III)<br><code>#ffcc8a</code> </span></td></tr>
+<tr><td  bgcolor="#a1bdff"><span style="background:#a1bdff"><b>Alnilam</b>  (B0I)<br><code>#a1bdff</code> </span></td></tr>
+<tr><td  bgcolor="#fff5f2"><span style="background:#fff5f2"><b>Alpha Centari A</b>  (G2V)<br><code>#fff5f2</code> </span></td></tr>
+<tr><td  bgcolor="#ffe0bc"><span style="background:#ffe0bc"><b>Alpha Centari B</b>  (K1V)<br><code>#ffe0bc</code> </span></td></tr>
+<tr><td  bgcolor="#c8d5ff"><span style="background:#c8d5ff"><b>Altair</b>  (A7V)<br><code>#c8d5ff</code> </span></td></tr>
+</table></td><td><table><tr><td  bgcolor="#ffca8a"><span style="background:#ffca8a"><b>Antares</b>  (M1I)<br><code>#ffca8a</code> </span></td></tr>
+<tr><td  bgcolor="#ffdfb5"><span style="background:#ffdfb5"><b>Arcturus</b>  (K1III)<br><code>#ffdfb5</code> </span></td></tr>
+<tr><td  bgcolor="#9fb4ff"><span style="background:#9fb4ff"><b>Bellatrix</b>  (B2III)<br><code>#9fb4ff</code> </span></td></tr>
+<tr><td  bgcolor="#9eb1ff"><span style="background:#9eb1ff"><b>Beta Centari<br>  Hadar</b>  (B1III)<br><code>#9eb1ff</code> </span></td></tr>
+<tr><td  bgcolor="#9eb1ff"><span style="background:#9eb1ff"><b>Beta Crucis</b>  (B0III)<br><code>#9eb1ff</code> </span></td></tr>
+<tr><td  bgcolor="#ffca8a"><span style="background:#ffca8a"><b>Betelgeuse</b>  (M1I)<br><code>#ffca8a</code> </span></td></tr>
+<tr><td  bgcolor="#cbd9ff"><span style="background:#cbd9ff"><b>Canopus</b>  (F0II)<br><code>#cbd9ff</code> </span></td></tr>
+<tr><td  bgcolor="#ffecd3"><span style="background:#ffecd3"><b>Capella</b>  (G5III)<br><code>#ffecd3</code> </span></td></tr>
+</table></td><td><table><tr><td  bgcolor="#c7d6ff"><span style="background:#c7d6ff"><b>Deneb</b>  (A2I)<br><code>#c7d6ff</code> </span></td></tr>
+<tr><td  bgcolor="#abbfff"><span style="background:#abbfff"><b>Elnath</b>  (B7III)<br><code>#abbfff</code> </span></td></tr>
+<tr><td  bgcolor="#bfcfff"><span style="background:#bfcfff"><b>Fomalhaut</b>  (A3V)<br><code>#bfcfff</code> </span></td></tr>
+<tr><td  bgcolor="#ffc877"><span style="background:#ffc877"><b>Gacrux</b>  (M3III)<br><code>#ffc877</code> </span></td></tr>
+<tr><td  bgcolor="#bbcbff"><span style="background:#bbcbff"><b>Miaplacidus</b>  (A2IV)<br><code>#bbcbff</code>  <font size=-1><i>(as A2V)</i></font> </span></td></tr>
+<tr><td  bgcolor="#ffe3be"><span style="background:#ffe3be"><b>Pollux</b>  (K0III)<br><code>#ffe3be</code> </span></td></tr>
+<tr><td  bgcolor="#f1efff"><span style="background:#f1efff"><b>Procyon</b>  (F5IV)<br><code>#f1efff</code> </span></td></tr>
+<tr><td  bgcolor="#adbfff"><span style="background:#adbfff"><b>Regulus</b>  (B7V)<br><code>#adbfff</code> </span></td></tr>
+</table></td><td><table><tr><td  bgcolor="#b6ceff"><span style="background:#b6ceff"><b>Rigel</b>  (B8I)<br><code>#b6ceff</code> </span></td></tr>
+<tr><td  bgcolor="#9fb3ff"><span style="background:#9fb3ff"><b>Shaula</b>  (B2IV)<br><code>#9fb3ff</code> </span></td></tr>
+<tr><td  bgcolor="#b5c7ff"><span style="background:#b5c7ff"><b>Sirius</b>  (A1V)<br><code>#b5c7ff</code> </span></td></tr>
+<tr><td  bgcolor="#9eb1ff"><span style="background:#9eb1ff"><b>Spica</b>  (B1III)<br><code>#9eb1ff</code> </span></td></tr>
+<tr><td  bgcolor="#fff5f2"><span style="background:#fff5f2"><b>Sun</b>  (G2V)<br><code>#fff5f2</code> </span></td></tr>
+<tr><td  bgcolor="#b9c9ff"><span style="background:#b9c9ff"><b>Vega</b>  (A0V)<br><code>#b9c9ff</code> </span></td></tr>
+</table></td></tr></table>
+[Type/class data from <A HREF="http://heasarc.gsfc.nasa.gov/db-perl/W3Browse/w3query.pl?&tablehead=name%3Dheasarc%5Fbsc5p%26description%3DBright+Star+Catalog%26url%3Dhttp%3A%2F%2Fheasarc%2Egsfc%2Enasa%2Egov%2FW3Browse%2Fstar%2Dcatalog%2Fbsc5p%2Ehtml%26archive%3D%26radius%3D1%26mission%3DSTAR%2BCATALOG%26priority%3D3&mission=STAR+CATALOG&Action=More+Options&Action=Parameter+Search&ConeAdd=1">Bright Star Catalog  bsc5p</A>.]<br>
+
+<h2>Some nearby stars...</h2>
+
+<table>
+<tr valign=top><td><table>
+<tr><td  bgcolor="#fff5f2"><span style="background:#fff5f2"><b>Sun           </b>  (G2V)<br><code>#fff5f2</code> </span></td></tr>
+<tr><td  bgcolor="#fff5f2"><span style="background:#fff5f2"><b>Alpha Centauri A</b>  (G2V)<br><code>#fff5f2</code> </span></td></tr>
+<tr><td  bgcolor="#ffeedd"><span style="background:#ffeedd"><b>Alpha Centauri B</b>  (K0V)<br><code>#ffeedd</code> </span></td></tr>
+<tr><td  bgcolor="#ffcc6f"><span style="background:#ffcc6f"><b>Proxima Centauri</b>  (M5.5V)<br><code>#ffcc6f</code>  <font size=-1><i>(as M5V)</i></font> </span></td></tr>
+<tr><td  bgcolor="#ffc97f"><span style="background:#ffc97f"><b>Barnard's Star</b>  (M4.0V)<br><code>#ffc97f</code> </span></td></tr>
+<tr><td  bgcolor="#ffc370"><span style="background:#ffc370"><b>Wolf 359</b>  (M6.0V)<br><code>#ffc370</code> </span></td></tr>
+<tr><td  bgcolor="#ffc483"><span style="background:#ffc483"><b>Lalande 21185</b>  (M2.0V)<br><code>#ffc483</code> </span></td></tr>
+<tr><td  bgcolor="#b5c7ff"><span style="background:#b5c7ff"><b>Sirius</b>  (A1V)<br><code>#b5c7ff</code> </span></td></tr>
+</table></td><td><table><tr><td  bgcolor="#a8bdff"><span style="background:#a8bdff"><b>Sirius B</b>  (DA2)<br><code>#a8bdff</code>  <font size=-1><i>(as D?2)</i></font> </span></td></tr>
+<tr><td  bgcolor="#ffcc6f"><span style="background:#ffcc6f"><b>UV Ceti A</b>  (M5.5V)<br><code>#ffcc6f</code>  <font size=-1><i>(as M5V)</i></font> </span></td></tr>
+<tr><td  bgcolor="#ffc370"><span style="background:#ffc370"><b>UV Ceti B</b>  (M6.0V)<br><code>#ffc370</code> </span></td></tr>
+<tr><td  bgcolor="#ffce81"><span style="background:#ffce81"><b>Ross 154</b>  (M3.5V)<br><code>#ffce81</code>  <font size=-1><i>(as M3V)</i></font> </span></td></tr>
+<tr><td  bgcolor="#ffcc6f"><span style="background:#ffcc6f"><b>Ross 248</b>  (M5.5V)<br><code>#ffcc6f</code>  <font size=-1><i>(as M5V)</i></font> </span></td></tr>
+<tr><td  bgcolor="#ffe3c4"><span style="background:#ffe3c4"><b>epsilon Eridani</b>  (K2V)<br><code>#ffe3c4</code> </span></td></tr>
+<tr><td  bgcolor="#ffcc8e"><span style="background:#ffcc8e"><b>Lacaille 9352</b>  (M1.5V)<br><code>#ffcc8e</code>  <font size=-1><i>(as M1V)</i></font> </span></td></tr>
+<tr><td  bgcolor="#ffc97f"><span style="background:#ffc97f"><b>Ross 128</b>  (M4.0V)<br><code>#ffc97f</code> </span></td></tr>
+</table></td><td><table><tr><td  bgcolor="#ffcc6f"><span style="background:#ffcc6f"><b>EZ Aquarii</b>  (M5.0V)<br><code>#ffcc6f</code> </span></td></tr>
+<tr><td  bgcolor="#f1efff"><span style="background:#f1efff"><b>Procyon</b>  (F5IV-V)<br><code>#f1efff</code>  <font size=-1><i>(as F5IV)</i></font> </span></td></tr>
+<tr><td  bgcolor="#ffd2a1"><span style="background:#ffd2a1"><b>61 Cygni</b>  (K5.0V)<br><code>#ffd2a1</code> </span></td></tr>
+<tr><td  bgcolor="#ffc78e"><span style="background:#ffc78e"><b>61 Cygni B (?)</b>  (K7.0V)<br><code>#ffc78e</code> </span></td></tr>
+<tr><td  bgcolor="#ffce81"><span style="background:#ffce81"><b>Gl 725 A</b>  (M3.0V)<br><code>#ffce81</code> </span></td></tr>
+<tr><td  bgcolor="#ffce81"><span style="background:#ffce81"><b>Gl 725 B</b>  (M3.5V)<br><code>#ffce81</code>  <font size=-1><i>(as M3V)</i></font> </span></td></tr>
+<tr><td  bgcolor="#ffcc8e"><span style="background:#ffcc8e"><b>Gl 15 A</b>  (M1.5V)<br><code>#ffcc8e</code>  <font size=-1><i>(as M1V)</i></font> </span></td></tr>
+<tr><td  bgcolor="#ffce81"><span style="background:#ffce81"><b>Gl 15 B</b>  (M3.5V)<br><code>#ffce81</code>  <font size=-1><i>(as M3V)</i></font> </span></td></tr>
+</table></td><td><table><tr><td  bgcolor="#ffd2a1"><span style="background:#ffd2a1"><b>epsilon Indi</b>  (K5Ve)<br><code>#ffd2a1</code>  <font size=-1><i>(as K5V)</i></font> </span></td></tr>
+<tr><td  bgcolor="#ffc370"><span style="background:#ffc370"><b>DX Cancri</b>  (M6.5V)<br><code>#ffc370</code>  <font size=-1><i>(as M6V)</i></font> </span></td></tr>
+<tr><td  bgcolor="#ffedde"><span style="background:#ffedde"><b>tau Ceti</b>  (G8Vp)<br><code>#ffedde</code>  <font size=-1><i>(as G8V)</i></font> </span></td></tr>
+<tr><td  bgcolor="#ffcc6f"><span style="background:#ffcc6f"><b>RECONS 1</b>  (M5.5V)<br><code>#ffcc6f</code>  <font size=-1><i>(as M5V)</i></font> </span></td></tr>
+<tr><td  bgcolor="#ffc97f"><span style="background:#ffc97f"><b>YZ Ceti</b>  (M4.5V)<br><code>#ffc97f</code>  <font size=-1><i>(as M4V)</i></font> </span></td></tr>
+<tr><td  bgcolor="#ffce81"><span style="background:#ffce81"><b>Luyten's Star</b>  (M3.5V)<br><code>#ffce81</code>  <font size=-1><i>(as M3V)</i></font> </span></td></tr>
+<tr><td  bgcolor="#ffcc8e"><span style="background:#ffcc8e"><b>Kapteyn's Star</b>  (M1.5V)<br><code>#ffcc8e</code>  <font size=-1><i>(as M1V)</i></font> </span></td></tr>
+</table></td></tr></table>
+[Type/class data from <A HREF="http://www.chara.gsu.edu/RECONS/TOP100.htm">THE 100 NEAREST STAR SYSTEMS</A>.
+ Here is a <a href="UnstableURLs/colorized_TOP100.html">hack colorized version</a>.
+ ]<br>
+Yes, to a zeroth approximation, all stars are type M :).<br>
+Hmm... so is Alpha Cent B a K0V or a K1V??
+
+<H2>Stellar types</H2>
+
+<table cellspacing=0 border=0>
+<tr><td  bgcolor="#9db4ff"><span style="background:#9db4ff"> &nbsp; O5(V) &nbsp; </span></td><td  bgcolor="#9db4ff"><span style="background:#9db4ff"> &nbsp; 157 180 255 &nbsp; <code> #9db4ff </code> </span></td></tr>
+<tr><td  bgcolor="#a2b9ff"><span style="background:#a2b9ff"> &nbsp; B1(V) &nbsp; </span></td><td  bgcolor="#a2b9ff"><span style="background:#a2b9ff"> &nbsp; 162 185 255 &nbsp; <code> #a2b9ff </code> </span></td></tr>
+<tr><td  bgcolor="#a7bcff"><span style="background:#a7bcff"> &nbsp; B3(V) &nbsp; </span></td><td  bgcolor="#a7bcff"><span style="background:#a7bcff"> &nbsp; 167 188 255 &nbsp; <code> #a7bcff </code> </span></td></tr>
+<tr><td  bgcolor="#aabfff"><span style="background:#aabfff"> &nbsp; B5(V) &nbsp; </span></td><td  bgcolor="#aabfff"><span style="background:#aabfff"> &nbsp; 170 191 255 &nbsp; <code> #aabfff </code> </span></td></tr>
+<tr><td  bgcolor="#afc3ff"><span style="background:#afc3ff"> &nbsp; B8(V) &nbsp; </span></td><td  bgcolor="#afc3ff"><span style="background:#afc3ff"> &nbsp; 175 195 255 &nbsp; <code> #afc3ff </code> </span></td></tr>
+<tr><td  bgcolor="#baccff"><span style="background:#baccff"> &nbsp; A1(V) &nbsp; </span></td><td  bgcolor="#baccff"><span style="background:#baccff"> &nbsp; 186 204 255 &nbsp; <code> #baccff </code> </span></td></tr>
+<tr><td  bgcolor="#c0d1ff"><span style="background:#c0d1ff"> &nbsp; A3(V) &nbsp; </span></td><td  bgcolor="#c0d1ff"><span style="background:#c0d1ff"> &nbsp; 192 209 255 &nbsp; <code> #c0d1ff </code> </span></td></tr>
+<tr><td  bgcolor="#cad8ff"><span style="background:#cad8ff"> &nbsp; A5(V) &nbsp; </span></td><td  bgcolor="#cad8ff"><span style="background:#cad8ff"> &nbsp; 202 216 255 &nbsp; <code> #cad8ff </code> </span></td></tr>
+<tr><td  bgcolor="#e4e8ff"><span style="background:#e4e8ff"> &nbsp; F0(V) &nbsp; </span></td><td  bgcolor="#e4e8ff"><span style="background:#e4e8ff"> &nbsp; 228 232 255 &nbsp; <code> #e4e8ff </code> </span></td></tr>
+<tr><td  bgcolor="#edeeff"><span style="background:#edeeff"> &nbsp; F2(V) &nbsp; </span></td><td  bgcolor="#edeeff"><span style="background:#edeeff"> &nbsp; 237 238 255 &nbsp; <code> #edeeff </code> </span></td></tr>
+<tr><td  bgcolor="#fbf8ff"><span style="background:#fbf8ff"> &nbsp; F5(V) &nbsp; </span></td><td  bgcolor="#fbf8ff"><span style="background:#fbf8ff"> &nbsp; 251 248 255 &nbsp; <code> #fbf8ff </code> </span></td></tr>
+<tr><td  bgcolor="#fff9f9"><span style="background:#fff9f9"> &nbsp; F8(V) &nbsp; </span></td><td  bgcolor="#fff9f9"><span style="background:#fff9f9"> &nbsp; 255 249 249 &nbsp; <code> #fff9f9 </code> </span></td></tr>
+<tr><td  bgcolor="#fff5ec"><span style="background:#fff5ec"> &nbsp; G2(V) &nbsp; </span></td><td  bgcolor="#fff5ec"><span style="background:#fff5ec"> &nbsp; 255 245 236 &nbsp; <code> #fff5ec </code> </span></td></tr>
+<tr><td  bgcolor="#fff4e8"><span style="background:#fff4e8"> &nbsp; G5(V) &nbsp; </span></td><td  bgcolor="#fff4e8"><span style="background:#fff4e8"> &nbsp; 255 244 232 &nbsp; <code> #fff4e8 </code> </span></td></tr>
+<tr><td  bgcolor="#fff1df"><span style="background:#fff1df"> &nbsp; G8(V) &nbsp; </span></td><td  bgcolor="#fff1df"><span style="background:#fff1df"> &nbsp; 255 241 223 &nbsp; <code> #fff1df </code> </span></td></tr>
+<tr><td  bgcolor="#ffebd1"><span style="background:#ffebd1"> &nbsp; K0(V) &nbsp; </span></td><td  bgcolor="#ffebd1"><span style="background:#ffebd1"> &nbsp; 255 235 209 &nbsp; <code> #ffebd1 </code> </span></td></tr>
+<tr><td  bgcolor="#ffd7ae"><span style="background:#ffd7ae"> &nbsp; K4(V) &nbsp; </span></td><td  bgcolor="#ffd7ae"><span style="background:#ffd7ae"> &nbsp; 255 215 174 &nbsp; <code> #ffd7ae </code> </span></td></tr>
+<tr><td  bgcolor="#ffc690"><span style="background:#ffc690"> &nbsp; K7(V) &nbsp; </span></td><td  bgcolor="#ffc690"><span style="background:#ffc690"> &nbsp; 255 198 144 &nbsp; <code> #ffc690 </code> </span></td></tr>
+<tr><td  bgcolor="#ffbe7f"><span style="background:#ffbe7f"> &nbsp; M2(V) &nbsp; </span></td><td  bgcolor="#ffbe7f"><span style="background:#ffbe7f"> &nbsp; 255 190 127 &nbsp; <code> #ffbe7f </code> </span></td></tr>
+<tr><td  bgcolor="#ffbb7b"><span style="background:#ffbb7b"> &nbsp; M4(V) &nbsp; </span></td><td  bgcolor="#ffbb7b"><span style="background:#ffbb7b"> &nbsp; 255 187 123 &nbsp; <code> #ffbb7b </code> </span></td></tr>
+<tr><td  bgcolor="#ffbb7b"><span style="background:#ffbb7b"> &nbsp; M6(V) &nbsp; </span></td><td  bgcolor="#ffbb7b"><span style="background:#ffbb7b"> &nbsp; 255 187 123 &nbsp; <code> #ffbb7b </code> </span></td></tr>
+</table>
+
+<P>
+See <A HREF="details.html">Star color - details</A> for greater detail.<BR>
+These are not "magic" pixel values.  Different approaches yield different values,
+but ones with quite similar appearance.
+
+
+<h2>Other</h2>
+
+<table><tr><td bgcolor=#00ffec><span style="background:#00ffec">Planetary Nebula &nbsp; &nbsp; 0.1378 0.3817 &nbsp; &nbsp; 000 255 236 <code>#00ffec</code>  <A HREF="http://garnet.stsci.edu/STIS/stis_models.html">Kurucz</A></span></td></tr></table>
+<P>
+<table cellspacing=0 border=0><tr><td  bgcolor="#ffe1c7"><span style="background:#ffe1c7">Galaxy (spiral) </span></td><td  bgcolor="#ffe1c7"><span style="background:#ffe1c7"> &nbsp; &nbsp; 0.3523 0.3556 &nbsp; &nbsp; 255 225 199 <code>#ffe1c7</code>  <A HREF="http://garnet.stsci.edu/STIS/stis_models.html">Kurucz</A></span></td></tr><tr><td  bgcolor="#ffdeba"><span style="background:#ffdeba">Galaxy (elliptical) </span></td><td  bgcolor="#ffdeba"><span style="background:#ffdeba"> &nbsp; &nbsp; 0.3617 0.3649 &nbsp; &nbsp; 255 222 186 <code>#ffdeba</code>  <A HREF="http://garnet.stsci.edu/STIS/stis_models.html">Kurucz</A></span></td></tr><tr><td> &nbsp; </td></tr>
+<tr><td  bgcolor="#49d6ff"><span style="background:#49d6ff">Quasar </span></td><td  bgcolor="#49d6ff"><span style="background:#49d6ff"> &nbsp; &nbsp; 0.2188 0.2764 &nbsp; &nbsp; 073 214 255 <code>#49d6ff</code>  <A HREF="http://garnet.stsci.edu/STIS/stis_models.html">Kurucz</A></span></td></tr></table>
+<p>
+<table><tr><td bgcolor=#ffe1d1><span style="background:#ffe1d1">Universe &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; 0.3450 0.3450 &nbsp; &nbsp; 255 225 209 <code>#ffe1d1</code>  <A HREF="http://www.pha.jhu.edu/~kgb/cosspec/">Glazebrook &amp; Baldry</A></span></td></tr></table>
+
+
+<H2>Notes</H2>
+
+<p><b>So, what should be born in mind looking at these colors?</b><br>
+
+These colors attempt to show "true" color.  That is: without
+intervening atmosphere or interstellar medium; with the light dim
+enough to avoid saturating your cones (which would make the light
+appear white); and yet with the light bright enough that you are
+seeing color rather than rod grayscale.
+
+<P>So... looking at the star from space while wearing gray sunglasses
+(unpolarized:).  Hmm... or better, through a gray window shade in a
+D65 white wall.
+
+<P>In applying these colors, remember that color perception is quite
+messy, so what you see is often not what you've got.
+
+<P>This page is concerned only with chromaticity (hue and saturation),
+but not brightness.  The luminous power per unit area of star classes
+varies greatly.  If we were doing brightness, and the G class star
+color were as above, then the M class star color would simply be black.
+See <A HREF="../blackbody/intensity.html">Blackbody colors -
+intensity</A>.
+
+<P>The choice of white point, used in converting from abstract
+chromaticity to device-dependent rgb, has a large effect.
+Eg, see <A HREF="sun.html">Sun</A>.
+These colors use D65.  I plan to add a set for D50.
+
+<p><b>Are you sure these colors are right?  They seem odd.</b><br>
+
+No, I am not sure.  And yes, they do.  I was expecting rather
+different colors.  As are many other folk, apparently, from my
+reading.  Nevertheless...
+
+
+<!-- ============== Unpack if it seems things are working... ========
+<p><b>Why isn't this stuff already on the web?</b><br>
+
+Good question.  The spectral data has been around for atleast a
+decade.  Most intro astronomy course notes give a brief
+temperature-color table.  But I've seen no sign of anyone doing this,
+aside from <A
+HREF="http://casa.colorado.edu/~ajsh/colour/Tspectrum.html"><b>What
+colour is the Sun?</b></A>.  This seems an example of a flavor
+of question where `a nine year old might ask and understand it; a
+specialist in the subfield could cleanly answer; but the answer is not
+widely known even within the field; and the literature does not seem
+set up to make answering it easy'.
+-->
+<!--
+<p><b>Not my field</b><br>
+Here I am doing astronomy and color stuff... and neither is in my
+domain of expertise.  Caveat.
+-->
+
+<H2>Links</H2>
+    <A HREF="http://www.astropix.com/HTML/I_ASTROP/COLOR.HTM">Color in Astronomical Photos</A>
+ <br><A HREF="http://casa.colorado.edu/~ajsh/colour/Tspectrum.html"><b>What colour is the Sun?</b></A> and <A HREF="http://casa.colorado.edu/~ajsh/colour/rainbow.html">Where's purple</A>
+ <br><A HREF="http://www.efg2.com/Lab/Library/Color/#SunColor">Sun Color</A>
+
+ <br><A HREF="http://www.spacegear.org/data/SCTable/">Stellar Classification Table</A> for spaceflight simulation.
+
+ <br><A HREF="http://science.nasa.gov/headlines/images/sunbathing/sunspectrum.htm">
+    Solar Spectrum, Variability, and Atmospheric Absorption</A>
+    Graph of bb 5770 K vs unfiltered solar spectrum.
+
+
+<!--
+ <br><A HREF="http://aurora.crest.org/basics/solar/earth/">Aurora Solar Basics: Earth</A> Has a nice spectrum graphic emphasizing the smallness of the visible region.
+-->
+
+<p><b>Thanks</b><br>
+Sigh.  I just wanted some not-completely-bogus pixel values to color in the disks
+of a comparison of star sizes
+  (<A HREF="http://www.vendian.org/howbig/">How Big Are Things?</A>).
+Now, n hours later...
+
+My thanks to John Walker's <A
+HREF="http://www.fourmilab.ch/documents/specrend/">Colour Rendering of
+Spectra (specrend)</A> and Dan Bruton's <A
+HREF="http://www.physics.sfasu.edu/astro/color.html#blackbody">Color
+Science</A>, who's pages got me started.  To the <A
+HREF="http://cvrl.ioo.ucl.ac.uk/basicindex.htm">CVRL Color &amp; Vision
+database</A>.  To Andrew Hamilton for <A
+HREF="http://casa.colorado.edu/~ajsh/colour/Tspectrum.html">What
+colour is the Sun?</A>, which suggested I was not completely confused.
+And to efg for his <A
+HREF="http://www.efg2.com/Lab/Library/Color/Science.htm">Color
+Reference Library</A>.  Without them, this page would not have
+happened.
+
+
+My thanks also to the stellar spectra sites.
+
+
+<P><HR>
+<CENTER>
+ <FONT SIZE=+1>Comments encouraged -
+  Mitchell Charity
+  &lt;<a href="mailto:mcharity@lcs.mit.edu">mcharity@lcs.mit.edu</a>&gt;</FONT>
+</CENTER>
+<P>
+<span style="color:#a00;">UPDATE (2016-Mar-29):</span>  The one thing I'd add to the site, is my suggestion that most people use D58 instead of D65.  D65 is an image standard, and common monitor calibration.  Which just means that if you fill your 6500K-calibrated screen with some D65 color, then it lights up your room, as if your room was lit by that star.  Which is only rarely how people use the colors.  Most of the time, the user is looking at them on a screen, and comparing them with screen #fff white.  And for that, D65 is misleading.  Suggesting for instance, that the Sun is pink, rather than white.  D58 matches star white to screen white, and ignores that the screen might be a bluish 6500K, or redish 5000K, or something random in between.  A few years ago, I ran a set of D58 star colors for someone's astronomy program:  <a href="http://www.vendian.org/mncharity/dir3/starcolor/UnstableURLs/starcolorsD58.html">starcolorsD58</a>.  For whatever it's worth.
+<P>
+<SMALL><PRE>
+Notes:
+
+Doables:
+  Add D50 colors.
+  Talk about D65 and D50 whitepoints.
+  Get more domain folks to validate.
+  Do a nicer stellar type/class color intro table.  
+  Include "astronomers' pale pastel palette" and "colorful exaggeration" quotes.
+  Add Hubble starcolor pretty picture.
+  Individual spectra for near stars.
+  Name site "stellar chromaticity"?
+
+History:
+  2016-Mar-29  Added link to D58 colors.  Thanks to a reader for prompting it.
+  2002-Dec-30  Added link to spacegear.  Thanks to a reader.
+  2002-Dec-14  Switched to a better Bright Star dataset.  Capella was wrong.  Thanks to a reader.
+  2002-Nov-11  Fixed links broken by CVRL move.
+  2002-Mar-14  Added universe color.  They got burned by specrend too.  Sigh.
+  2001-Jun-23  Added near stars, white dwarfs.
+  2001-Jun-22  Switched to sRGB from Rec.709 (similar matrix, different gamma).
+  2001-Jun-15  New dataset combination approach.  Page of data plots.
+  2001-Jun-08  Added GunnStryker spectra.
+  2001-Jun-07  Added Kurucz's galaxies, quasar; Pickles spectra.
+  2001-Jun-04  on-line
+</PRE></SMALL>
+</BODY>
+</HTML>
