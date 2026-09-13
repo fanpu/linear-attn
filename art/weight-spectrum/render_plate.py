@@ -97,7 +97,7 @@ def render(run, layer, style):
             continue
         y = np.interp(np.interp(s, r['step'], np.arange(T)), rows, np.arange(HPX))
         ax.text(lo - (hi - lo) * 0.008, y, f'{int(s):,}', color=fg, ha='right', va='center', fontsize=8, family='DejaVu Sans Mono')
-    fig.text(0.8 / fw, 1 - 0.45 / fh, f'{layer} {N}×{M} — every eigenvalue of WᵀW/N, init (top) to 30 epochs (bottom), SGD step at left',
+    fig.text(0.8 / fw, 1 - 0.45 / fh, f'{layer} {N}×{M} — every eigenvalue of $W^{{T}}W/N$, init (top) to 30 epochs (bottom), SGD step at left',
              color=fg, fontsize=15, family=R.SERIF)
     fig.text(0.8 / fw, 0.45 / fh, f'x: log₁₀ λ · rows: ' + ('linear' if r['meta'].get('n_lin') else 'log') + f' in step; {T} measured checkpoints (margin ticks), k-th largest eigenvalue '
              f'interpolated in log λ between them (declared) · exposure 1−exp(−density/{D0}), line σ {SIG}px'

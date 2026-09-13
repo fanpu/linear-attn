@@ -77,7 +77,7 @@ def caption(fig, r, run, layer, idx, color, y=0.035, size=9, font='DejaVu Sans M
     N, M = shape_NM(r, layer)
     s0, s1 = int(r['step'][idx[0]]), int(r['step'][idx[-1]])
     meta = r['meta']
-    txt = (f'{layer}  {N}×{M} · {len(idx)} measured checkpoints, SGD step {s0:,} → {s1:,} (top → bottom) · '
+    txt = (f'{layer}  {N}×{M} · {len(idx)} measured checkpoints, SGD step {s0:,} → {s1:,} (top → bottom, rows ' + ('linear' if np.std(np.diff(r['step'][idx])) < 0.5 * np.mean(np.diff(r['step'][idx])) else 'log') + ' in step) · '
            f'MLP 784-1024-1024-1024-10 · FashionMNIST · SGD bs {meta["bs"]} lr {meta["lr"]} momentum {meta["momentum"]}\n'
            + (f'x: singular value s/√N (linear)   height: (KDE density)^{GAMMA}, bw {BW_SV}×init edge' if AXIS == 'sv'
               else f'x: log₁₀ λ   height: (KDE density)^{GAMMA}, bw {BW} dex'))
@@ -85,7 +85,11 @@ def caption(fig, r, run, layer, idx, color, y=0.035, size=9, font='DejaVu Sans M
 
 
 def render(run, layer, style, n_ridges=80, out=None):
-    grid, D, idx, r = ridge_data(run, layer, n_ridges)
+    time = None
+    if style.endswith('_log'):  # e.g. joy_log: rows log-spaced in step from 100 (default for runs without n_lin)
+        style, time = style[:-4], 'log'
+        out = out or f'ridgeline_{run}_{layer}_{AXIS}_{style}_logtime.png'
+    grid, D, idx, r = ridge_data(run, layer, n_ridges, time=time)
     peak = D.max()
     W, Hh = 8, 10
     if style in ('joy', 'ink', 'gold', 'spectral'):
@@ -111,7 +115,7 @@ def render(run, layer, style, n_ridges=80, out=None):
         return R.save(fig, out or f'ridgeline_{run}_{layer}_{AXIS}_{style}.png', dpi=300)
     if style == 'riso':
         # two drums: measured ESD ridges (federal blue) over element-shuffled null ridges (fluo pink)
-        _, Dn, _, _ = ridge_data(run, layer, n_ridges, key='lam_shuf', grid=grid)
+        _, Dn, _, _ = ridge_data(run, layer, n_ridges, key='lam_shuf', grid=grid, time=time)
         covs = []
         for DD in (Dn, D):
             fig = plt.figure(figsize=(W, Hh), facecolor='white', dpi=250)

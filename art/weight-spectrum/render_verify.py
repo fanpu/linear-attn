@@ -91,42 +91,62 @@ def sheet_ccdf(run):
 
 
 def sheet_batch(rows):
-    bs = np.array([d['bs'] for d in rows])
-    fig, axs = plt.subplots(1, 4, figsize=(17, 4.6), facecolor=R.PAPER)
+    """Group by batch size: thin marks = individual seeds, line = seed mean. alpha shown hollow where < 5 eigenvalues
+    exceed the null edge (fit is then meaningless: see init/null alpha of 5-20)."""
+    bss = sorted(set(d['bs'] for d in rows))
+    grp = {b: [d for d in rows if d['bs'] == b] for b in bss}
+    fig, axs = plt.subplots(1, 4, figsize=(18, 4.8), facecolor=R.PAPER)
+    def series(ax, key, color, label, mask_alpha=None):
+        mean = np.array([np.mean([d[key] for d in grp[b]]) for b in bss])
+        ax.plot(bss, mean, '-', color=color, lw=1.6, label=label, zorder=2)
+        for b in bss:
+            for d in grp[b]:
+                ok = True if mask_alpha is None else d[f'{mask_alpha}_n_out'] >= 5
+                ax.plot([b], [d[key]], 'o', ms=5, mfc=color if ok else 'none', mec=color, mew=1.0, zorder=3)
     for L in LAYERS:
-        axs[0].plot(bs, [d[f'{L}_alpha'] for d in rows], 'o-', color=LC[L], lw=1.5, ms=4, label=f'{L}')
-        axs[0].errorbar(bs, [d[f'{L}_alpha'] for d in rows], yerr=[d[f'{L}_alpha_se'] for d in rows], fmt='none', ecolor=LC[L], lw=0.8)
-        axs[0].plot(bs, [d[f'{L}_alpha_shuf'] for d in rows], 'x:', color=LC[L], lw=0.8, ms=4)
-        axs[1].plot(bs, [d[f'{L}_lmax_over_mp'] for d in rows], 'o-', color=LC[L], lw=1.5, ms=4, label=L)
-        axs[2].plot(bs, [d[f'{L}_n_out'] for d in rows], 'o-', color=LC[L], lw=1.5, ms=4, label=L)
-    axs[3].plot(bs, [d['test_acc'] for d in rows], 'o-', color='#1b1a17', lw=1.5, ms=4, label='test')
-    axs[3].plot(bs, [d['train_acc'] for d in rows], 'o-', color='#8a847a', lw=1.2, ms=4, label='train (10k)')
-    t = ['final α (x: shuffled null)', 'λmax / MP edge', '# eigenvalues above null bulk edge', 'accuracy after 30 epochs']
+        series(axs[0], f'{L}_alpha', LC[L], L, mask_alpha=L)
+        series(axs[1], f'{L}_lmax_over_null', LC[L], L)
+        series(axs[2], f'{L}_n_out', LC[L], L)
+    series(axs[3], 'test_acc', '#1b1a17', 'test')
+    series(axs[3], 'train_acc', '#8a847a', 'train (10k subset)')
+    axs[0].axhspan(2, 4, color='#c9962b', alpha=0.08, lw=0); axs[0].text(9, 2.1, 'MM "heavy-tailed" 2<α<4', fontsize=7, color='#7a5a10')
+    t = ['final power-law α of ESD tail (hollow: <5 eigs above null edge)', 'λmax / null bulk edge',
+         '# eigenvalues above null bulk edge', 'accuracy after 30 epochs']
     for a, tt in zip(axs, t):
-        a.set_xscale('log', base=2); a.set_title(tt, fontsize=10); a.set_xlabel('batch size (lr 0.01, 30 epochs)', fontsize=9)
+        a.set_xscale('log', base=2); a.set_title(tt, fontsize=9.5); a.set_xlabel('batch size (lr 0.01, mom 0.9, 30 epochs)', fontsize=9)
+        a.set_xticks(bss); a.set_xticklabels([str(b) for b in bss]); a.minorticks_off()
         style_ax(a); a.legend(fontsize=7, frameon=False)
+    axs[0].set_yscale('log'); axs[0].set_yticks([2, 3, 4, 6, 10, 15]); axs[0].set_yticklabels(['2', '3', '4', '6', '10', '15'])
     axs[1].set_yscale('log')
-    fig.suptitle('Batch-size series: smaller batches (more SGD noise, more steps) → heavier tails?', fontsize=12, family=R.SERIF)
+    ns = sorted(set(len(g) for g in grp.values()))
+    fig.suptitle(f'Batch-size series ({"/".join(map(str, ns))} seeds per point; dots = seeds, line = mean): smaller batches grow heavier tails, '
+                 'but test accuracy stays flat from 16 to 256', fontsize=11.5, family=R.SERIF)
     fig.tight_layout()
     return R.save(fig, 'verify_batch_series.png', dpi=150)
 
 
 def sheet_caveat(rows):
-    fig, axs = plt.subplots(1, 2, figsize=(11, 4.6), facecolor=R.PAPER)
+    fig, axs = plt.subplots(1, 2, figsize=(13, 5.4), facecolor=R.PAPER)
     abar = np.array([np.mean([d[f'{L}_alpha'] for L in LAYERS]) for d in rows])
     acc = np.array([d['test_acc'] for d in rows]); gap = np.array([d['train_acc'] - d['test_acc'] for d in rows])
     bs = np.array([d['bs'] for d in rows])
+    from scipy.stats import spearmanr
+    rel = np.array([all(d[f'{L}_n_out'] >= 5 for L in LAYERS) for d in rows])
+    seed = np.array([d['seed'] for d in rows])
     for a, y, lab in [(axs[0], acc, 'test accuracy'), (axs[1], gap, 'train − test accuracy gap')]:
-        sc = a.scatter(abar, y, c=np.log2(bs), cmap='art.cyanotype_r' if 'art.cyanotype_r' in plt.colormaps() else 'viridis', s=50, edgecolor='k', lw=0.4)
-        for x_, y_, b in zip(abar, y, bs):
-            a.annotate(f'bs {b}', (x_, y_), fontsize=7, xytext=(4, 3), textcoords='offset points')
-        rho = np.corrcoef(abar, y)[0, 1] if len(y) > 2 else np.nan
-        a.set_title(f'{lab} vs mean α  (Pearson r = {rho:.2f}, n = {len(y)})', fontsize=10)
-        a.set_xlabel('mean final α over FC1–FC3', fontsize=9); style_ax(a)
+        cm = plt.get_cmap('viridis')
+        col = cm((np.log2(bs) - 3) / 7)
+        a.scatter(abar[rel], y[rel], c=col[rel], s=46, edgecolor='k', lw=0.4, zorder=3)
+        a.scatter(abar[~rel], y[~rel], facecolor='none', edgecolor=col[~rel], s=46, lw=1.2, zorder=3)
+        for x_, y_, b, s in zip(abar, y, bs, seed):
+            a.annotate(f'{b}·s{s}', (x_, y_), fontsize=6.5, xytext=(4, 3), textcoords='offset points', color='#444')
+        rs = spearmanr(abar[rel], y[rel])[0]; rs16 = spearmanr(abar[rel & (bs >= 16) & (bs <= 256)], y[rel & (bs >= 16) & (bs <= 256)])[0]
+        a.set_title(f'{lab} vs mean α\nSpearman ρ = {rs:.2f} (filled points, n={rel.sum()});  bs 16–256 only: ρ = {rs16:.2f}', fontsize=9); print('CAVEAT', lab, 'rho', round(rs, 3), 'rho16-256', round(rs16, 3))
+        a.set_xscale('log'); a.set_xticks([2, 3, 4, 6, 10]); a.set_xticklabels(['2', '3', '4', '6', '10']); a.minorticks_off(); a.set_xlabel('mean final α over FC1–FC3 (hollow: some layer has <5 eigs above null edge)', fontsize=8.5); style_ax(a)
     fig.text(0.5, 0.01, 'Caveat: one architecture, one dataset, a confounded series (batch size also changes step count and '
-             'noise scale). HT-SR claims that α predicts generalization are contested; this is a correlation, not evidence.',
+             'noise scale).\nHT-SR claims that α predicts generalization are contested; this is a correlation, not evidence.',
              ha='center', fontsize=8, style='italic')
-    fig.tight_layout(rect=(0, 0.05, 1, 1))
+    fig.tight_layout(rect=(0, 0.08, 1, 1))
     return R.save(fig, 'verify_caveat_alpha_vs_generalization.png', dpi=150)
 
 
