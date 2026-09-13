@@ -10,6 +10,7 @@ import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mt
 import style
 
 p = argparse.ArgumentParser()
@@ -38,6 +39,7 @@ for ax, wh, title in [(axs[0], "true", "new tasks  $w \\sim \\mathcal{N}(0, I)$"
         ax.scatter([xs.max() + 2], m(wh, "pt")[inf_i], color=PT, s=40, zorder=5, edgecolor=style.PAPER)
         ax.annotate("M = ∞", (xs.max() + 2, m(wh, "pt")[inf_i][0]), xytext=(0, 12), textcoords="offset points", ha="center", color=style.MUTED, fontsize=9)
     ax.set_yscale("log")
+    ax.yaxis.set_major_formatter(mt.FuncFormatter(lambda v, _: f"{v:g}")); ax.yaxis.set_minor_formatter(mt.FuncFormatter(lambda v, _: f"{v:g}" if str(v)[0] in "1246" else ""))
     ax.set_xlabel("number of pretraining tasks  $M$  (log$_2$)")
     ax.set_title(title)
     ax.set_xticks(range(0, xs.max() + 1, 2)); ax.set_xticklabels([f"$2^{{{int(v)}}}$" for v in range(0, xs.max() + 1, 2)])
@@ -64,8 +66,8 @@ if cross is not None:
     for axx in axs:
         axx.axvline(cross, color="#c9c4ba", lw=1)
     ax.annotate(f"crossover  $M \\approx 2^{{{cross:.1f}}}$", (cross, ax.get_ylim()[1]), xytext=(4, -14), textcoords="offset points", color=style.MUTED, fontsize=10)
-style.label_end(ax, xs[-1], dd[-1], "gap to dMMSE", DM, dx=-4, dy=12, ha="right")
-style.label_end(ax, xs[0], dr[0], "gap to ridge", style.INK, dx=4, dy=-12, ha="left")
+style.label_end(ax, xs[-1], dd[-1], "gap to dMMSE", DM, dx=-4, dy=-14, ha="right")
+style.label_end(ax, xs[1], dr[1], "gap to ridge", style.INK, dx=8, dy=4, ha="left")
 fig.savefig(HERE / "figures" / f"taskdiv{'' if a.tag == 'main' else '_' + a.tag}.png")
 json.dump({"crossover_log2M": cross, "final_step": ev["step"]}, open(HERE / "cache" / f"taskdiv_{a.tag}_summary.json", "w"))
 print("crossover log2 M =", cross)
