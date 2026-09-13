@@ -150,3 +150,32 @@ project-name/
 ```
 
 For GPU work, use PyTorch with CUDA, record GPU/model/library versions in render metadata, and make a small CPU-friendly preview mode for iteration.
+
+## Production Reset: From Demonstration to Finished Work
+
+The early renders are useful scientific sketches, not the collection's intended final form. The studio will now prioritize a smaller number of fully resolved works over rapid coverage of every idea.
+
+### New quality bar
+
+- **No default chart grammar.** Axes, legends, panel borders, and explanatory captions belong in the accompanying page, not in the hero image unless they are themselves part of the composition.
+- **Data at more than one scale.** Each major render should combine a global phenomenon with local detail: individual trajectories, uncertainty, gradients, or activations.
+- **Cinematic motion.** Loops should have a deliberate temporal arc and a graceful return, not merely a sequence of checkpoint screenshots.
+- **Print-quality stills.** Render master stills at 2560 px or larger, then derive web/video assets from them.
+- **Color with a job.** A palette must encode a distinct quantity or model state; it may be expressive, but never arbitrary decoration.
+- **Multiple real runs.** Prefer ensembles, seeds, checkpoints, or samples to a single toy trace when the phenomenon is about variation.
+- **Reproducible provenance.** Preserve seeds, raw arrays, versions, and an explicit mapping from data channels to visual channels.
+
+### First Production Cycle
+
+1. **The Descent Garden** becomes a wide, layered topographic field: an ensemble of genuine optimizer paths turns the loss surface into a living terrain. Decision-boundary contours and uncertainty appear as landscape phenomena, not side-by-side plots.
+2. **Attention as Weather** becomes a temporal flow composition: learned attention strengths drive persistent particle paths and pressure systems across a token field.
+3. **Diffusion Archaeology** becomes a large-scale particle excavation: thousands of reverse-diffusion samples are rendered as density, traces, and emergence rather than a scatterplot.
+4. **Neural Cellular Dreams** is the next new work after the first trilogy is rebuilt, because learned growth and repair naturally supports richer long-form motion.
+
+### Deliverables Per Finished Work
+
+- `master.png`: high-resolution still for print and close inspection.
+- `loop.gif` and, where appropriate, `loop.mp4`: composed moving work.
+- `README.md`: a pedagogical companion page explaining the phenomenon and provenance.
+- `data.npz` and `metadata.json`: raw data and reproducibility record.
+- `render.py`: the deterministic experiment and renderer.
