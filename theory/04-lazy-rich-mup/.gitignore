@@ -1,0 +1,4 @@
+cache/
+_preview/
+__pycache__/
+*.log
