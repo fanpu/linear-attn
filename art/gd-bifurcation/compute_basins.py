@@ -66,7 +66,11 @@ def make_step(name, eta):
     return step, loss, sharp, lmin
 
 
-def run(name, eta, xs, ys, T, tol, check=50, dev="cuda", chunk=1 << 22):
+def run(name, eta, xs, ys, T, tol, check=50, dev="cuda", chunk=1 << 22, escape=1e3):
+    """Per-step event tracking on device (no host sync inside the `check` block):
+       t_conv  first step with loss - lmin < tol
+       t_esc   first step with max(|x|,|y|) > escape, and a smooth escape value
+               nu = t_esc - log(log r / log escape) / log(7)   (the reduced map has polynomial degree 7)."""
     step, loss, sharp, lmin = make_step(name, eta)
     X, Y = np.meshgrid(xs, ys)
     X = X.ravel()
@@ -74,40 +78,54 @@ def run(name, eta, xs, ys, T, tol, check=50, dev="cuda", chunk=1 << 22):
     Npix = X.size
     status = np.zeros(Npix, np.uint8)
     tev = np.full(Npix, T, np.int32)
+    nu = np.full(Npix, np.nan, np.float32)
     fx = np.full(Npix, np.nan, np.float32)
     fy = np.full(Npix, np.nan, np.float32)
     fs = np.full(Npix, np.nan, np.float32)
+    ln_esc = float(np.log(np.log(escape)))
     for c0 in range(0, Npix, chunk):
         idx = torch.arange(c0, min(Npix, c0 + chunk), device=dev)
         x = torch.tensor(X[c0:c0 + chunk], dtype=DT, device=dev)
         y = torch.tensor(Y[c0:c0 + chunk], dtype=DT, device=dev)
+        te = torch.full_like(x, -1.0)
+        nue = torch.full_like(x, float("nan"))
+        tc = torch.full_like(x, -1.0)
         t = 0
         while t < T and idx.numel() > 0:
             for _ in range(check):
                 x, y = step(x, y)
-            t += check
-            L = loss(x, y) - lmin
-            div = ~torch.isfinite(L) | (x.abs() > 1e8) | (y.abs() > 1e8)
-            conv = (L < tol) & ~div
+                t += 1
+                r = torch.maximum(x.abs(), y.abs())
+                new_e = (te < 0) & (r > escape)
+                te = torch.where(new_e, torch.full_like(te, t), te)
+                nue = torch.where(new_e, t - (torch.log(torch.log(r.clamp_min(escape))) - ln_esc) / np.log(7.0), nue)
+                new_c = (tc < 0) & ((loss(x, y) - lmin) < tol)
+                tc = torch.where(new_c, torch.full_like(tc, t), tc)
+                # freeze escaped points so they do not overflow
+                x = torch.where(te >= 0, torch.zeros_like(x), x)
+                y = torch.where(te >= 0, torch.zeros_like(y), y)
+            div = te >= 0
+            conv = (tc >= 0) & ~div
             done = div | conv
             if done.any():
                 di = idx[done].cpu().numpy()
                 status[di] = np.where(div[done].cpu().numpy(), 2, 1)
-                tev[di] = t
-                cc = conv & done
+                tev[di] = torch.where(div, te, tc)[done].cpu().numpy().astype(np.int32)
+                nu[di] = nue[done].float().cpu().numpy()
+                cc = conv
                 ci = idx[cc].cpu().numpy()
                 fx[ci] = x[cc].float().cpu().numpy()
                 fy[ci] = y[cc].float().cpu().numpy()
                 fs[ci] = sharp(x[cc], y[cc]).float().cpu().numpy()
                 keep = ~done
-                idx, x, y = idx[keep], x[keep], y[keep]
+                idx, x, y, te, nue, tc = idx[keep], x[keep], y[keep], te[keep], nue[keep], tc[keep]
         if idx.numel():
             ri = idx.cpu().numpy()
             fx[ri] = x.float().cpu().numpy()
             fy[ri] = y.float().cpu().numpy()
     shp = (len(ys), len(xs))
-    return dict(status=status.reshape(shp), tev=tev.reshape(shp), fx=fx.reshape(shp), fy=fy.reshape(shp),
-                fs=fs.reshape(shp))
+    return dict(status=status.reshape(shp), tev=tev.reshape(shp), nu=nu.reshape(shp), fx=fx.reshape(shp),
+                fy=fy.reshape(shp), fs=fs.reshape(shp))
 
 
 def main():

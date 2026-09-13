@@ -63,7 +63,7 @@ def plate(name="prod4", lo=0.45, hi=1.21, ylo=-0.03, yhi=2.2, W=6000, H=1900, ou
     ax.text(es + 0.002, yhi - 0.05, r"$\eta^\ast = 2/s_{\min}$" + f" = 2/{k}\n" +
             r"$s_{\min}$ = sharpness of the balanced (flattest) global minimum" + "\nmeasured first doubling (Newton-Floquet): "
             + f"{etan[0]:.6f}", color=RED, fontsize=6.5, family="serif", va="top")
-    ax.text(2 / sg - 0.002, 0.22, r"$2/s_{GF}(x_0)$" + f" = {2 / sg:.4f}\n(minimum reached by gradient flow\nfrom the declared init; not the onset)",
+    ax.text(2 / sg - 0.002, 1.45, r"$2/s_{GF}(x_0)$" + f" = {2 / sg:.4f}\n(minimum reached by gradient flow\nfrom the declared init; not the onset)",
             color=RED, fontsize=5.5, family="serif", ha="right", va="bottom")
     # eta_n ticks
     for n, en in enumerate(etan[1:6], start=2):
@@ -84,7 +84,7 @@ def plate(name="prod4", lo=0.45, hi=1.21, ylo=-0.03, yhi=2.2, W=6000, H=1900, ou
         except FileNotFoundError:
             pass
     # crisis marker
-    ax.annotate("attractor touches the zero-output saddle:\nlong laminar phases near P = 0 (intermittency)",
+    ax.annotate("band touches P = 0 (the degenerate stationary point x = 0):\nlong laminar phases near P = 0, sparse bursts (intermittency)",
                 xy=(0.99, 0.02), xytext=(1.02, 0.55), color=RED, fontsize=5.5, family="serif",
                 arrowprops=dict(arrowstyle="-", color=RED, lw=0.4))
     ax.set_xlim(lo, hi)
@@ -110,7 +110,7 @@ def plate(name="prod4", lo=0.45, hi=1.21, ylo=-0.03, yhi=2.2, W=6000, H=1900, ou
     axl.set_ylabel(r"Lyapunov $\lambda$", color=INK, fontsize=8, family="serif")
     axl.text(hi - 0.003, -1.05, "grey/black fill: exponent of the oscillating mode (balanced line, 8192 steps)\n"
              "red line: max exponent of the full 4-coordinate GD map (tangent propagation, 2048 steps);\n"
-             "it sits at 0 below the first doubling because the minimum manifold is neutral, and\nrises above the fill past 0.99 where the balanced line loses transverse stability",
+             "it sits at 0 below the first doubling (the manifold of minima is neutral). Past 0.99 both collapse toward 0:\norbits linger near the degenerate stationary point x = 0; near 1.158 the full GD is chaotic where the balanced orbit is periodic",
              color=INK, fontsize=5, family="serif", ha="right", va="bottom")
 
     # delta table
