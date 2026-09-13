@@ -35,32 +35,53 @@ ALG_STYLE = {"ridge": ("ridge = RLS (optimal)", style.INK, 1.6, "-"), "gd1": ("G
 summary = {}
 
 # ------------------------------------------------------------------------------------------ race
+def declutter(ys, gap):
+    """push label y-positions (in log10 units) apart by at least gap, keeping order."""
+    order = np.argsort(ys); out = np.array(ys, float)
+    for _ in range(50):
+        moved = False
+        for i in range(1, len(order)):
+            a_, b_ = order[i - 1], order[i]
+            if out[b_] - out[a_] < gap:
+                mid = (out[a_] + out[b_]) / 2
+                out[a_], out[b_] = mid - gap / 2, mid + gap / 2
+                moved = True
+        if not moved:
+            break
+    return out
+
+
 Ls = sorted({v["L"] for v in M.values() if v["sigma"] == 0})
-fig, axs = plt.subplots(1, len(Ls), figsize=(5.2 * len(Ls), 4.6), sharey=True, gridspec_kw=dict(wspace=0.06))
+fig, axs = plt.subplots(1, len(Ls), figsize=(5.0 * len(Ls) + 1.6, 4.9), sharey=True, gridspec_kw=dict(wspace=0.34))
 algs = R["algs"]["0.0"]["risk"]
+handles = []
 for j, (ax, L) in enumerate(zip(np.atleast_1d(axs), Ls)):
     for a, (name, col, lw, ls) in ALG_STYLE.items():
-        ax.plot(t[1:], np.array(algs[a])[1:] / D, color=col, lw=lw, ls=ls)
+        h_, = ax.plot(t[1:], np.maximum(np.array(algs[a])[1:] / D, 1e-6), color=col, lw=lw, ls=ls, label=name)
+        if j == 0:
+            handles.append(h_)
+    labs = []
     for k in KINDS:
         v = get(k, L)
         if v is None:
             continue
         r = np.array(v["risk"]) / D
         ax.plot(t[1:], r[1:], color=style.C[k], lw=2.6)
-        if j == len(Ls) - 1:
-            style.label_end(ax, t[-1], r[-1], style.NAMES[k], style.C[k], dx=6)
+        labs.append((k, np.log10(r[-1])))
         summary[f"risk_t40_{k}_L{L}"] = float(r[-1]); summary[f"risk_t20_{k}_L{L}"] = float(r[19])
+    if labs:
+        ys = declutter([l[1] for l in labs], 0.16)
+        for (k, _), yv in zip(labs, ys):
+            ax.annotate(style.NAMES[k], (40, 10**yv), xytext=(5, 0), textcoords="offset points", color=style.C[k], fontsize=9.5,
+                        fontweight="bold", va="center", annotation_clip=False)
     ax.axvline(D, color="#c9c4ba", lw=1)
     ax.set_yscale("log"); ax.set_ylim(3e-5, 1.3); ax.set_xlim(1, 40)
     ax.set_title(f"{L} layer{'s' if L > 1 else ''}")
     ax.set_xlabel("context examples seen  $t$")
     if j == 0:
         ax.set_ylabel("excess risk / d   (d = 10, noiseless)")
-        for a, (name, col, lw, ls) in ALG_STYLE.items():
-            y = np.array(algs[a])[-1] / D
-            ax.annotate(name, (t[-1], max(y, 4e-5)), xytext=(-4, 7), textcoords="offset points", ha="right", color=col if col != "#c9c4ba" else "#a39c90",
-                        fontsize=9, fontweight="bold")
-        ax.text(D + 0.5, 1.0, "t = d", color=style.MUTED, fontsize=9)
+        ax.text(D + 0.6, 1.5e-4, "t = d: ridge\nbecomes exact", color=style.MUTED, fontsize=9)
+fig.legend(handles=handles, loc="upper center", ncol=4, bbox_to_anchor=(0.45, 1.06), fontsize=10, handlelength=2.4)
 for a in ALG_STYLE:
     summary[f"alg_t40_{a}"] = float(np.array(algs[a])[-1] / D); summary[f"alg_t20_{a}"] = float(np.array(algs[a])[19] / D)
 fig.savefig(HERE / "figures" / "race.png")
@@ -103,48 +124,63 @@ plt.close(fig)
 
 # ------------------------------------------------------------------------------------------ shift
 Lsh = 2 if 2 in Ls else Ls[0]
-fig, axs = plt.subplots(1, 2, figsize=(13, 4.6), gridspec_kw=dict(wspace=0.3))
-ax = axs[0]
+fig, axs = plt.subplots(1, 2, figsize=(13.5, 4.8), gridspec_kw=dict(wspace=0.42))
 cs = np.array(R["scales"])
 late = t >= 30
+handles = []
+ax = axs[0]
 sc_alg = R["algs"]["0.0"]["scale"]
 for a, (name, col, lw, ls) in ALG_STYLE.items():
+    if a == "ridge":
+        continue
     y = [np.mean(np.array(sc_alg[str(c)][a])[late]) / D for c in cs]
-    ax.plot(cs, np.maximum(y, 1e-6), color=col, lw=lw, ls=ls)
-    style.label_end(ax, cs[0], max(y[0], 1e-6), name, col if col != "#c9c4ba" else "#a39c90", dx=-6, ha="right", fontsize=9)
+    h_, = ax.plot(cs, y, color=col, lw=lw, ls=ls, label=name)
+    handles.append(h_)
+labs = []
 for k in KINDS:
     v = get(k, Lsh)
     if v is None:
         continue
     y = [np.mean(np.array(v["scale"][str(c)])[late]) / D for c in cs]
     ax.plot(cs, y, color=style.C[k], lw=2.6, marker="o", ms=5, mec=style.PAPER)
-    style.label_end(ax, cs[-1], y[-1], style.NAMES[k], style.C[k], dx=6)
+    labs.append((k, np.log10(y[-1])))
     summary[f"scale_{k}_L{Lsh}"] = dict(zip(map(str, cs), y))
+for (k, _), yv in zip(labs, declutter([l[1] for l in labs], 0.22)):
+    ax.annotate(style.NAMES[k], (cs[-1], 10**yv), xytext=(6, 0), textcoords="offset points", color=style.C[k], fontsize=9.5, fontweight="bold",
+                va="center", annotation_clip=False)
 ax.axvline(1, color="#c9c4ba", lw=1)
-ax.set_xscale("log", base=2); ax.set_yscale("log"); ax.set_ylim(1e-5, 30)
+ax.set_xscale("log", base=2); ax.set_yscale("log"); ax.set_ylim(2e-4, 5)
 ax.set_xticks(cs); ax.set_xticklabels([f"{c:g}" for c in cs])
 ax.set_xlabel("test inputs rescaled  $x \\to c\\,x$   (trained at c = 1)")
-ax.set_ylabel("excess risk / ($c^2 d$), t = 30…40")
+ax.set_ylabel("excess risk / ($c^2 d$),  t = 30…40")
 ax.set_title(f"a  change the input scale ({Lsh}-layer models)")
+ax.text(0.03, 0.04, "ridge / least squares: exactly 0 at every scale", transform=ax.transAxes, fontsize=9, color=style.INK)
 ax = axs[1]
 ns = np.array(R["noises"])
-nz_alg = R["algs"]["0.5"]["noise"] if "0.5" in R["algs"] else None
+nz_alg = R["algs"]["0.5"]["noise"]
 for a, (name, col, lw, ls) in ALG_STYLE.items():
-    y = [np.mean(np.array(nz_alg[str(s)][a])[late]) / D for s in ns]
-    ax.plot(ns, y, color=col, lw=lw, ls=ls)
+    y = [np.mean(np.array(nz_alg[str(s_)][a])[late]) / D for s_ in ns]
+    h_, = ax.plot(ns, y, color=col, lw=lw, ls=ls, label=name)
+    if a == "ridge":
+        handles.insert(0, h_)
+labs = []
 for k in KINDS:
     v = get(k, 2, 0.5)
     if v is None:
         continue
-    y = [np.mean(np.array(v["noise"][str(s)])[late]) / D for s in ns]
+    y = [np.mean(np.array(v["noise"][str(s_)])[late]) / D for s_ in ns]
     ax.plot(ns, y, color=style.C[k], lw=2.6, marker="o", ms=5, mec=style.PAPER)
-    style.label_end(ax, ns[-1], y[-1], style.NAMES[k], style.C[k], dx=6)
+    labs.append((k, np.log10(y[-1])))
     summary[f"noise_{k}_L2"] = dict(zip(map(str, ns), y))
+for (k, _), yv in zip(labs, declutter([l[1] for l in labs], 0.12)):
+    ax.annotate(style.NAMES[k], (ns[-1], 10**yv), xytext=(6, 0), textcoords="offset points", color=style.C[k], fontsize=9.5, fontweight="bold",
+                va="center", annotation_clip=False)
 ax.axvline(0.5, color="#c9c4ba", lw=1)
 ax.set_yscale("log")
 ax.set_xlabel("test label noise  $\\sigma$   (trained at σ = 0.5)")
-ax.set_ylabel("excess risk / d, t = 30…40")
+ax.set_ylabel("excess risk / d,  t = 30…40")
 ax.set_title("b  change the noise level (2-layer models)")
+fig.legend(handles=handles, loc="upper center", ncol=4, bbox_to_anchor=(0.47, 1.07), fontsize=10, handlelength=2.4)
 fig.savefig(HERE / "figures" / "shift.png")
 plt.close(fig)
 json.dump(summary, open(HERE / "cache" / "seq_summary.json", "w"), indent=1)

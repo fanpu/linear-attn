@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Train the build-on grid. Usage: run_seq_grid.sh "softmax linear" > logs/x.log
+# Train the build-on grid (skips finished models). Usage: run_seq_grid.sh "softmax linear delta gdelta"
 cd "$(dirname "$0")"
 for k in $1; do
   for L in 1 2 4; do
