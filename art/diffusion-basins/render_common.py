@@ -180,6 +180,18 @@ def caption_strip(img, lines, ground=PAPER, ink=INK, size=22, pad=18, mono=False
     """append a caption strip below an image (float RGB)"""
     H, W = img.shape[:2]
     font = ImageFont.truetype(FONT_MONO if mono else FONT, size)
+    wrapped = []  # greedy word wrap to the image width
+    for t in lines:
+        cur = ""
+        for w in t.split(" "):
+            nxt = (cur + " " + w).strip()
+            if cur and font.getlength(nxt) > W - 2 * pad:
+                wrapped.append(cur)
+                cur = w
+            else:
+                cur = nxt
+        wrapped.append(cur)
+    lines = wrapped
     h = pad * 2 + len(lines) * int(size * 1.35)
     strip = Image.new("RGB", (W, h), tuple(int(255 * c) for c in hx(ground)))
     dr = ImageDraw.Draw(strip)

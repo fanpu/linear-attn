@@ -150,7 +150,7 @@ def task_zoom(R, levels, factor=4.0, steps=50, kind="ddpm", tag="zoom"):
                             **{kk: np.stack(vv) for kk, vv in stacks.items()})
 
 
-def task_uncert(M=2048, steps=50):
+def task_uncert(M=2048, steps=50, eps_list=(1e-1, 3e-2, 1e-2, 3e-3, 1e-3)):
     """uncertainty exponent on the sphere: random slice-plane points, displaced by eps radians"""
     t0 = time.time()
     g = torch.Generator(device=DEV).manual_seed(0)
@@ -160,7 +160,7 @@ def task_uncert(M=2048, steps=50):
     e0, u, v = orthonormal_triple(D, SLICE_SEED, DEV)
     base = evaluate("ddpm", great_sphere(e0, u, v, A, B, RADIUS), steps, keep_images=False)["probs"].argmax(-1)
     out = {}
-    for e in [1e-1, 3e-2, 1e-2, 3e-3, 1e-3]:
+    for e in eps_list:
         lab = evaluate("ddpm", great_sphere(e0, u, v, A + e * th.cos(), B + e * th.sin(), RADIUS), steps,
                        keep_images=False)["probs"].argmax(-1)
         out[e] = float((lab != base).mean())
@@ -169,7 +169,7 @@ def task_uncert(M=2048, steps=50):
     sel = f * M >= 10
     alpha = float(np.polyfit(np.log(eps[sel]), np.log(f[sel]), 1)[0]) if sel.sum() >= 3 else float("nan")
     json.dump(dict(eps=eps.tolist(), f=f.tolist(), alpha=alpha, D=2 - alpha, M=M, steps=steps, n_fit=int(sel.sum())),
-              open(f"{CACHE}/mnist_uncert.json", "w"), indent=1)
+              open(f"{CACHE}/mnist_uncert" + ("" if M == 2048 else f"_M{M}") + ".json", "w"), indent=1)
     print("alpha", alpha, flush=True)
 
 
@@ -197,6 +197,9 @@ if __name__ == "__main__":
         task_zoom(int(sys.argv[2]), int(sys.argv[3]), kind=sys.argv[4] if len(sys.argv) > 4 else "ddpm",
                   tag=sys.argv[5] if len(sys.argv) > 5 else "zoom")
     elif w == "uncert":
-        task_uncert()
+        if len(sys.argv) > 2:
+            task_uncert(int(sys.argv[2]), eps_list=(1e-1, 3e-2, 1e-2, 3e-3, 1e-3, 3e-4, 1e-4))
+        else:
+            task_uncert()
     elif w == "f64check":
         task_f64check()

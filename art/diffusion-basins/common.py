@@ -173,7 +173,7 @@ def fit_dimension(sizes, counts, lo=None, hi=None):
 def write_video(frames_dir, pattern, out_mp4, out_gif=None, fps=30, gif_fps=15, gif_width=540):
     import subprocess
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(fps), "-i",
-                    os.path.join(frames_dir, pattern), "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                    os.path.join(frames_dir, pattern), "-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2", "-c:v", "libx264", "-pix_fmt", "yuv420p",
                     "-crf", "16", "-preset", "slow", "-movflags", "+faststart", out_mp4], check=True)
     if out_gif:
         filt = (f"fps={gif_fps},scale={gif_width}:-1:flags=lanczos,split[a][b];"
