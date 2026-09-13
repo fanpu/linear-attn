@@ -16,7 +16,7 @@ import numpy as np
 
 HERE = Path(__file__).parent
 CACHE = HERE / "cache"
-OUT = CACHE / "mandel"
+OUT = CACHE / "mandel_frames"
 OUT.mkdir(parents=True, exist_ok=True)
 CX, CY = "-0.743643887037151", "0.131825904205330"   # seahorse valley (classic zoom target)
 W, H = 960, 1080
@@ -26,7 +26,7 @@ W0, W1 = 3.0, 3e-15
 
 def run(t, width, maxit, w=W, h=H, threads=4):
     tmp = OUT / f"tmp_{t}.bin"
-    subprocess.run([str(CACHE / "mandel"), t, CX, CY, repr(width), str(w), str(h), str(maxit), str(tmp)], check=True,
+    subprocess.run([str(CACHE / "mandel"), t, CX, CY, f"{float(width):.17g}", str(w), str(h), str(maxit), str(tmp)], check=True,
                    env={"OMP_NUM_THREADS": str(threads)})
     return np.fromfile(tmp, np.float32).reshape(h, w)
 
