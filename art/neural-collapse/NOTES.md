@@ -2,7 +2,8 @@
 
 ## State (2026-09-13, session 1 end)
 - **Training runs launched but still QUEUED** behind other agents' jobs (all 8 gpu_run slots were busy).
-  Launched with `./run_train.sh` (background; two `gpu_run.sh` waiters). Logs stay empty until a slot
+  Launched with `./run_train.sh` at 12:38; the two `gpu_run.sh` waiters (PIDs 1002730 c10, 1002731 c4) are
+  orphaned to init (PPID 1), so they survive session end. Do NOT `pkill -f run_train.sh` (it kills your own shell). Logs stay empty until a slot
   is acquired (first line `[gpu_run] slot N acquired`).
   - `cache/c10`: all 10 CIFAR classes, ResNet18 width 32, 200 epochs, stats on 1000/class train subset. `logs/c10.log`
   - `cache/c4`: classes 0-3 (airplane, automobile, bird, cat), width 32, 250 epochs, 2500/class subset. `logs/c4.log`
