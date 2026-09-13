@@ -97,7 +97,7 @@ Periods 5, 8, 13, 21, 34, 55 give stripe lattices of pitch P. The head attends t
 
 <p align="center"><video src="gallery/toy_induction_forming.mp4" autoplay loop muted playsinline width="95%"></video></p>
 
-*Left: all 8 heads of the 2-layer attention-only model on a fixed 64-token probe (16 random tokens x 4), woven, one frame per checkpoint (every 5 steps through the transition, every 40 outside). Right: the loom record for the induction head and the previous-token head, woven down to the current step. Bottom: eval loss with a cursor. GIF: `gallery/toy_induction_forming.gif`.*
+*34 s, 10 fps. Left: all 8 heads of the 2-layer attention-only model on a fixed 64-token probe (16 random tokens x 4), woven, one frame per checkpoint (every 5 steps through the transition, every 40 outside). Right: the loom record for the induction head and the previous-token head, woven down to the current step. Bottom: eval loss with a cursor. GIF: `gallery/toy_induction_forming.gif`.*
 
 | | |
 |---|---|
@@ -121,7 +121,7 @@ Weaker or duplicate styles are in `gallery/extra/` (dark Qwen tapestry at P12, d
 - **Data** (generated on the fly). 75% "Markov text" from a fixed sparse random bigram chain (rows ~ Dirichlet(0.1)), with 2 earlier spans of 8-32 tokens copied verbatim later. 25% "repeated random": a uniform random segment with period drawn from 6..48 per batch, tiled.
 - **Optimisation.** AdamW, lr 1e-3, betas (0.9, 0.98), no weight decay, 200 warm-up steps, batch 128, 6000 steps, float32, seeds 0 (main), 1, 2.
 - **Logging.** Every 5 steps on fixed eval sets: 512 Markov sequences with one copied span, 256 repeated-random sequences with period 32. Logged: all scores in §1, per-position loss, the mean attention pattern on the repeated set, and a single probe pattern. Head ablation every 25 steps. Weights every 5 steps for the main run (1201 checkpoints, 520 MB float16). Post hoc from checkpoints: copying scores every 50 steps, 64-token probe patterns at every checkpoint, and the offset spectrum $S_t(k)=\mathbb{E}_{i\ge 32}\,a_{i,i-k}$.
-- **Wall time.** Main run 39 min (the shared machine was at load ~40; the model itself is tiny).
+- **Wall time.** Main run 39 min; seeds 1 and 2 and the 1-layer control about 25-40 min each. A discarded pilot ran 15 min. The shared machine was at load ~40, and the tiny model spent most of its time on data generation and evaluation, not the GPU.
 
 ```
 python train_toy.py --steps 6000 --ckpt 5 --tag main
@@ -146,7 +146,7 @@ python compute_qwen_selfsim.py --k 8 --out cache/qwen_selfsim_k8.npz
 python compute_qwen_selfsim.py --k 4 --out cache/qwen_selfsim_k4.npz
 python analyze_selfsim.py
 python render_qwen.py; python render_book.py; python render_selfsim.py; python render_words.py
-python render_proof.py movies; python curate.py
+python render_proof.py movies; python replicates.py; python curate.py
 ```
 
 (The k = 2 file came from an earlier version of `compute_qwen_selfsim.py` with Thue-Morse/period-doubling/Fibonacci at 1024 letters, Cantor depth 6 and nested depth 5; it is only used for the resolution check below.)
@@ -166,7 +166,15 @@ python render_proof.py movies; python curate.py
   - L0H3 becomes a previous-token head (score 0.95). L0H2 attends to the current token (k = 0 stripe in the loom).
   - Ablation (+nats on repeats): L0H3 +7.4, L0H2 +4.8, each L1 head +0.06..0.38, reflecting redundancy across the four induction heads.
 - **Co-emergence.** The first induction score > 0.2 comes at step 1665 and the first previous-token score > 0.2 at step 1650 (seed 1: 1535 and 1535). The two halves of the circuit appear together, within one logging interval. They do not appear sequentially.
-- **1-layer control and seed 2.** See `cache/toy_replicates_summary.json` (filled in below if finished).
+- **Replicates** (`python replicates.py` writes `cache/toy_replicates_summary.json`).
+
+  | run | 10%-90% of the loss drop (half-way) | loss on repeats: start -> end | max induction score | ICL score |
+  |---|---|---|---|---|
+  | seed 0 | steps 1480-1850 (1645) | 5.56 -> 0.15 | 0.74 | -1.44 |
+  | seed 1 | steps 1395-1865 (1505) | 5.55 -> 0.15 | 0.67 | -1.43 |
+  | seed 2 | steps 1390-1745 (1530) | 5.56 -> 0.16 | 0.72 | -1.44 |
+
+  The **1-layer control** has no phase change and no induction head. Its loss on repeats drifts slowly from 5.62 to 4.81 over 6000 steps, its maximum induction score is 0.03 and its ICL score is -0.17. This matches Olsson et al.: induction needs two layers (key composition), and in-context learning barely improves without it.
 
 ### Qwen3-0.6B induction heads
 - **Loss per repeat** of a 50-token random segment: 14.45 nats (first copy; random tokens are very unlikely), then 0.92, 0.41, 0.40 on copies 2-4.
