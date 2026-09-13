@@ -102,8 +102,13 @@ def spectrum(W, k_vec):
     lam = (S ** 2 / N)
     ipr_u = (U ** 4).sum(0)  # IPR of left singular vectors (in out-space)
     ipr_v = (Vh ** 4).sum(1)  # IPR of right singular vectors (in in-space)
+    # null model (Martin & Mahoney): same entries, randomly permuted -> destroys correlations, keeps marginals
+    g = torch.Generator(device=W64.device); g.manual_seed(1234)
+    flat = W64.flatten()
+    Wsh = flat[torch.randperm(flat.numel(), device=W64.device, generator=g)].view_as(W64)
+    lam_sh = torch.linalg.svdvals(Wsh) ** 2 / N
     return dict(
-        lam=lam.cpu().numpy(), ipr_out=ipr_u.float().cpu().numpy(), ipr_in=ipr_v.float().cpu().numpy(),
+        lam=lam.cpu().numpy(), lam_shuf=lam_sh.cpu().numpy(), ipr_out=ipr_u.float().cpu().numpy(), ipr_in=ipr_v.float().cpu().numpy(),
         U_top=U[:, :k_vec].float().cpu().numpy(), V_top=Vh[:k_vec].float().cpu().numpy(),
         elem_var=float(W64.var()), N=N, M=M,
     )
@@ -127,11 +132,17 @@ def main():
     ap.add_argument('--seed', type=int, default=0)
     ap.add_argument('--mem', type=float, default=0.10)
     ap.add_argument('--compile', type=int, default=1)
+    ap.add_argument('--device', default='cuda')
+    ap.add_argument('--threads', type=int, default=1)
     args = ap.parse_args()
 
     torch.manual_seed(args.seed); np.random.seed(args.seed)
-    dev = 'cuda'
-    torch.cuda.set_per_process_memory_fraction(args.mem)
+    dev = args.device
+    torch.set_num_threads(args.threads)
+    if dev == 'cuda':
+        torch.cuda.set_per_process_memory_fraction(args.mem)
+    else:
+        args.compile = 0
     torch.backends.cuda.matmul.allow_tf32 = False
     torch.backends.cudnn.allow_tf32 = False
     xtr, ytr, xte, yte = load_data(args.data, dev)
@@ -161,7 +172,7 @@ def main():
     step_fn = torch.compile(train_step, mode='max-autotune-no-cudagraphs') if args.compile else train_step
 
     rec = {k: [] for k in ['step', 'epoch', 'train_loss', 'train_acc', 'test_acc', 'time']}
-    layers = {n: {'lam': [], 'ipr_out': [], 'ipr_in': [], 'U_top': [], 'V_top': [], 'elem_var': [], 'crop': []}
+    layers = {n: {'lam': [], 'lam_shuf': [], 'ipr_out': [], 'ipr_in': [], 'U_top': [], 'V_top': [], 'elem_var': [], 'crop': []}
               for n in model.tracked}
     shapes = {}
     wdir = os.path.join(HERE, 'cache', f'{args.name}_W'); os.makedirs(wdir, exist_ok=True)
@@ -177,6 +188,8 @@ def main():
         m = min(n, x.shape[0]); return loss / m, correct / m
 
     g = torch.Generator(device=dev); g.manual_seed(args.seed)
+    sample_every = max(1, steps_per_epoch // 20)
+    fine = {'step': [], 'loss': []}
     perm = torch.randperm(ntr, device=dev, generator=g); pos = 0
     t0 = time.time(); ci = 0; step = 0
     running = float('nan')
@@ -190,7 +203,7 @@ def main():
             for n, l in model.tracked.items():
                 sp = spectrum(l.weight, args.k_vec)
                 shapes[n] = (sp['N'], sp['M'], tuple(l.weight.shape))
-                for k in ['lam', 'ipr_out', 'ipr_in', 'U_top', 'V_top', 'elem_var']:
+                for k in ['lam', 'lam_shuf', 'ipr_out', 'ipr_in', 'U_top', 'V_top', 'elem_var']:
                     layers[n][k].append(sp[k])
                 if args.crop:
                     layers[n]['crop'].append(l.weight[:args.crop, :args.crop].detach().float().cpu().numpy())
@@ -209,6 +222,8 @@ def main():
         idx = perm[pos:pos + args.bs]; pos += args.bs
         loss = step_fn(xtr[idx], ytr[idx])
         step += 1
+        if step % sample_every == 0:
+            fine['step'].append(step); fine['loss'].append(loss.item())
         if step % 2000 == 0 and not math.isfinite(loss.item()):
             print(f'[{args.name}] diverged at step {step}', flush=True); break
 
@@ -216,6 +231,7 @@ def main():
                                     wall=time.time() - t0)))
     for k, v in rec.items():
         out[k] = np.array(v)
+    out['fine_step'] = np.array(fine['step']); out['fine_loss'] = np.array(fine['loss'])
     for n, d in layers.items():
         for k, v in d.items():
             if len(v):
