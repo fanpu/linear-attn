@@ -24,6 +24,16 @@ def axes(d):
     return ((d["xs"][0] - dx / 2, d["xs"][-1] + dx / 2), (d["ys"][0] - dy / 2, d["ys"][-1] + dy / 2), xl, yl)
 
 
+def fd_split(fd, Hs, horizon=HORIZON):
+    """Signed field for a first-divergence Spectral split at `horizon`: integer part = |fd - horizon + 0.5|
+    (earlier/later departure = further from the seam), fractional tie-break = global rank of the mean
+    sampling entropy (varies smoothly with the knobs inside a cell; declared)."""
+    from scipy.stats import rankdata
+    frac = 0.98 * (rankdata(np.round(Hs, 3).ravel()).reshape(Hs.shape) - 1) / Hs.size
+    dist = np.abs(fd - (horizon - 0.5)) + frac
+    return np.where(fd < horizon, -dist, dist)
+
+
 def put(img, name, sub, d, title, caption, dark=True):
     g, ink = ((0.05, 0.05, 0.06), (0.82, 0.8, 0.75)) if dark else (tuple(R.INK_PAPER), (0.15, 0.15, 0.15))
     R.save(R.frame(img, title, caption, ground=g, ink=ink, axes=axes(d)), name, sub)
@@ -35,21 +45,21 @@ def maps(names=("story_tp256", "list_tp256", "fact_tp256"), s=10):
         d = A.load(C + n + ".npz")
         L = d["tokens"].shape[2]
         q = f"“{d['prompt']}”  Qwen3-0.6B, {d['tokens'].shape[0]}² grid, {L} tokens, shared uniforms"
-        put(R.style_mosaic(d, s), f"{n}_mosaic.png", "hero", d, "Text-hash mosaic", q +
-            "\ncolour = cell of identical text (hash, proper colouring; declared palette); brightness = token at which the text leaves greedy")
+        put(R.style_mosaic(d, s, floor=0.5, grout=1), f"{n}_mosaic.png", "hero", d, "Text-hash mosaic", q +
+            "\ncolour = cell of identical text (hash, proper colouring; declared palette); brightness = token at which the text leaves greedy; 1 px dark grout on cell edges")
         put(R.style_glass(d, s), f"{n}_glass.png", "hero", d, "Stained glass", q +
             "\nlead = boundary between different texts; glass colour and jitter declared from the text hash")
         put(R.style_ink(d, s, w=2), f"{n}_ink.png", "hero", d, "Boundary lines", q +
             "\none line per tile edge whose two texts differ; darker = the texts part at an earlier token", dark=False)
-        put(R.style_age(d, s, w=2), f"{n}_age.png", "hero", d, "Boundary age", q +
-            f"\nboundary colour = token index at which the neighbours part (batlow, 0 → {L - 1})")
+        put(R.style_age(d, s, w=3, floor=0.25), f"{n}_age.png", "hero", d, "Boundary age", q +
+            f"\nboundary colour = token index at which the neighbours part (batlow from 25 %, 0 → {L - 1})")
         if n == "story_tp256":
             fd = A.first_divergence(d["tokens"]).astype(float)
-            sig = fd - (HORIZON - 0.5)
+            sig = fd_split(fd, A.mean_entropy(d, "H_samp"))
             put(R.style_split(sig, s, lead_tokens=d["tokens"][..., :HORIZON]), f"{n}_firstdiv_spectral.png", "hero", d,
                 "First divergence from greedy, Spectral split",
                 q + f"\nsigned = (token where the text leaves the greedy text) − {HORIZON}: purple side leaves before token {HORIZON}, red side later or never."
-                f"\nEach side rank-normalised (declared; sequential quantity, labelled variant). Thin lines: boundaries born before token {HORIZON}")
+                f"\nTies within one token index broken by mean sampling entropy; each side rank-normalised (declared; labelled variant). Thin lines: boundaries born before token {HORIZON}")
             sig, thr = R.coherence_split(d)
             put(R.style_split(sig, s), f"{n}_coherence_spectral.png", "hero", d, "Coherent vs degenerate, Spectral split",
                 q + f"\nsigned = mean model entropy along the text − {thr:.2f} nats (histogram valley); purple = coherent, red = degenerate")
@@ -127,6 +137,42 @@ def table(n="story_tp256", ps=(0.5, 0.9), T_max=1.5, rows=10):
         out.append(hover.transect_table(C + n + ".npz", p, rows, T_max))
     open(f"cache/{n}_transects.html", "w").write("\n".join(out))
     print("\n".join(out)[:3000])
+
+
+def tr(n="story_tr192", ref="story_tp256", s=14):
+    """(T, repetition penalty) map at p = 1: hero styles, penalty Spectral plate, tp-vs-tr diptych."""
+    d = A.load(C + n + ".npz")
+    tk = d["tokens"]
+    L = tk.shape[2]
+    q = f"“{d['prompt']}”  Qwen3-0.6B, {tk.shape[0]}² grid, {L} tokens, top-p = 1, shared uniforms, HF-style penalty on prompt + text"
+    put(R.style_glass(d, s), f"{n}_glass.png", "hero", d, "Stained glass, repetition penalty", q +
+        "\nlead = boundary between different texts; glass colour and jitter declared from the text hash")
+    put(R.style_mosaic(d, s, floor=0.5, grout=1), f"{n}_mosaic.png", "hero", d, "Text-hash mosaic, repetition penalty", q +
+        "\ncolour = cell of identical text (declared palette); brightness = token at which the text leaves greedy; 1 px grout")
+    put(R.style_ink(d, s, w=2), f"{n}_ink.png", "hero", d, "Boundary lines, repetition penalty", q +
+        "\none line per tile edge whose two texts differ; darker = the texts part at an earlier token", dark=False)
+    put(R.style_age(d, s, w=4, floor=0.25), f"{n}_age.png", "hero", d, "Boundary age, repetition penalty", q +
+        f"\nboundary colour = token index at which the neighbours part (batlow from 25 %, 0 → {L - 1})")
+    fd = A.first_divergence(tk, None)
+    diff = tk != tk[0][None]                   # reference = the unpenalised (ρ ≈ 1.003) text in the same T column
+    fdu = np.where(diff.any(-1), diff.argmax(-1), L)
+    sig = fd_split(fdu, A.mean_entropy(d, "H_samp"))
+    put(R.style_split(sig, s, lead_tokens=tk[..., :HORIZON]), f"{n}_penalty_spectral.png", "metrics", d,
+        "Where the penalty rewrites the story, Spectral split", q +
+        f"\nsigned = (token where the text leaves the unpenalised text at the same T) − {HORIZON}: purple = rewritten before token {HORIZON}, red = later or never."
+        f"\nTies broken by mean sampling entropy; each side rank-normalised (declared). Thin lines: boundaries born before token {HORIZON}")
+    # diptych: same prompt, same uniforms, top-p axis vs penalty axis, both at 16 tokens (inside the horizon)
+    dr = A.load(C + ref + ".npz")
+    ims = []
+    for dd, name in [(dr, "top-p ∈ [0, 1], penalty 1"), (d, "repetition penalty ∈ [1, 2], top-p 1")]:
+        dd = dict(dd); dd["tokens"] = dd["tokens"][..., :HORIZON]
+        nc = len(np.unique(A.prefix_hashes(dd["tokens"])[-1]))
+        sc = 2688 // dd["tokens"].shape[0]
+        ims.append(R.frame(R.style_glass(dd, sc), name, f"{nc} distinct {HORIZON}-token texts in {dd['tokens'].shape[0]}² samples", axes=axes(dd)))
+    h = max(i.shape[0] for i in ims)
+    ims = [np.pad(i, ((0, h - i.shape[0]), (0, 0), (0, 0)), constant_values=0.06) for i in ims]
+    R.save(np.concatenate(ims, 1), "diptych_topp_vs_penalty_glass_L16.png", "diptych")
+    print("diptych")
 
 
 def redo():

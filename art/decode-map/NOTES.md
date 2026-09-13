@@ -1,6 +1,18 @@
 # decode-map: NOTES (living handoff)
 
-## State (2026-09-13, agent 4) -- README written, heroes rendered
+## STATUS: COMPLETE (2026-09-13, agent 5). No running jobs. Nothing left in "next".
+- story_tr192 (T x repetition penalty 1-2, p=1, L48, 2126 s) rendered: `python heroes.py tr` ->
+  gallery/hero/story_tr192_{glass,mosaic,ink,age}.png, gallery/metrics/story_tr192_penalty_spectral.png,
+  gallery/diptych/diptych_topp_vs_penalty_glass_L16.png (strongest new image). README section added.
+- Key tr numbers: texts 1483/2542/4078/11922 at l=4/8/16/48 (36864 px); first token ignores rho (3 rho-neighbour
+  pairs differ at l=1, 45 first tokens, vertical stripes); rectilinear cells: T>1, l=16 T-step cuts 95% vs rho-step 31%
+  ((T,p): 24/21%); median first token leaving unpenalised text 19/13/7/3 at rho 1.05/1.2/1.5/2; no degeneration signal
+  within 48 tokens (rep>0 in 0.1% px, coherence split has no valley -> not rendered). Stats: scratch/tr_stats.py, tr_edges.py.
+- Weak plates touched up: firstdiv Spectral tie-broken by mean H_samp (heroes.fd_split), age w=3 floor 0.25,
+  mosaic floor 0.5 + 1 px grout (render.py new args). Films checked (h264 1080² yuv420p, 81 s); GIFs 5.8/6.8 MB, MP4 4 MB.
+- README link check passes (all src/href exist).
+
+## Earlier state (agent 4)
 - README.md complete draft: gallery, placement table, horizon, box counting verdict, commands, caveats.
 - heroes.py (CPU): `maps` (glass/ink/mosaic/age for story/list/fact 256; story also firstdiv/coherence Spectral,
   aurora, riso), `metrics` (sheet, rep Spectral, entropy magma), `diptych` (icdf vs gumbel 128), `table`

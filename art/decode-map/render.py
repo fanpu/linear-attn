@@ -132,7 +132,7 @@ def frame(img, title=None, caption=None, ground=(0.06, 0.06, 0.07), ink=(0.85, 0
 
 
 # ---------------------------------------------------------------------------- styles
-def style_mosaic(d, s, pal="klimt_categorical", ground=(0.05, 0.05, 0.06), gamma=0.6, colours=None):
+def style_mosaic(d, s, pal="klimt_categorical", ground=(0.05, 0.05, 0.06), gamma=0.6, colours=None, floor=0.28, grout=0):
     """Categorical: proper colouring of the output-text cells (adjacent distinct outputs never share
     a colour); brightness = first-divergence position from the greedy output (late = bright)."""
     tk = d["tokens"]
@@ -142,9 +142,14 @@ def style_mosaic(d, s, pal="klimt_categorical", ground=(0.05, 0.05, 0.06), gamma
         colours = A.stable_colours(hs, len(palette(pal)), [L])[0]
     P = palette(pal)
     fd = A.first_divergence(tk)
-    v = 0.28 + 0.72 * (fd / L) ** gamma
+    v = floor + (1 - floor) * (fd / L) ** gamma
     img = P[colours] * v[..., None]
-    return tiles(img, s)
+    canvas = tiles(img, s)
+    if grout:                                   # thin dark grout along cell edges (declared)
+        bv, bh = edge_fields(tk)
+        fn = lambda e: (np.zeros(e.shape + (3,)) + np.array(ground), np.where(e < L, 0.85, 0.0))
+        canvas = paint_edges(canvas, bv.astype(float), bh.astype(float), s, grout, fn)
+    return canvas
 
 
 def style_glass(d, s, lead=None, pal="glass", colours=None, light=True):
@@ -186,7 +191,7 @@ def style_ink(d, s, w=None, paper=INK_PAPER, ink=SUMI, weight_by_age=True):
     return paint_edges(canvas, bv.astype(float), bh.astype(float), s, w, fn)
 
 
-def style_age(d, s, cmap="cmc.batlow", ground=(0.02, 0.02, 0.03), w=None):
+def style_age(d, s, cmap="cmc.batlow", ground=(0.02, 0.02, 0.03), w=None, floor=0.0):
     """Boundary-age plate: each boundary coloured by the token index at which it was born."""
     tk = d["tokens"]
     L = tk.shape[2]
@@ -197,7 +202,7 @@ def style_age(d, s, cmap="cmc.batlow", ground=(0.02, 0.02, 0.03), w=None):
     w = w or max(1, s // 3)
 
     def fn(v):
-        return cm(np.clip(v / max(1, L - 1), 0, 1))[..., :3], np.where(v < L, 1.0, 0.0)
+        return cm(floor + (1 - floor) * np.clip(v / max(1, L - 1), 0, 1))[..., :3], np.where(v < L, 1.0, 0.0)
     return paint_edges(canvas, bv.astype(float), bh.astype(float), s, w, fn)
 
 

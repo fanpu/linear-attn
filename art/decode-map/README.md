@@ -24,10 +24,10 @@ All plates show the story prompt “Write a short story about a lighthouse keepe
 <table>
 <tr><td><img src="gallery/hero/story_tp256_glass.png" width="400"><br><b>Stained glass.</b> Lead = tile edges whose two texts differ; glass colour is a hash-based proper colouring (declared).</td>
 <td><img src="gallery/hero/story_tp256_ink.png" width="400"><br><b>Boundary lines, single ink.</b> Darker lines mark texts that part at an earlier token (opacity 1 − 0.75·t/L, declared).</td></tr>
-<tr><td><img src="gallery/hero/story_tp256_mosaic.png" width="400"><br><b>Text-hash mosaic.</b> Colour = text cell; brightness = token at which the text leaves the greedy text.</td>
-<td><img src="gallery/hero/story_tp256_age.png" width="400"><br><b>Boundary age.</b> Line colour = token index at which the neighbours part (batlow, 0 → 63).</td></tr>
+<tr><td><img src="gallery/hero/story_tp256_mosaic.png" width="400"><br><b>Text-hash mosaic.</b> Colour = text cell; brightness = token at which the text leaves the greedy text; 1 px dark grout (declared).</td>
+<td><img src="gallery/hero/story_tp256_age.png" width="400"><br><b>Boundary age.</b> Line colour = token index at which the neighbours part (batlow from 25 % so early edges stay visible, 0 → 63; 3 px lines).</td></tr>
 <tr><td><img src="gallery/hero/story_tp256_riso.png" width="400"><br><b>Two-ink riso.</b> Blue = boundaries; pink = rank of mean model entropy; pink misregistered by 4 px (declared).</td>
-<td><img src="gallery/hero/story_tp256_firstdiv_spectral.png" width="400"><br><b>First divergence, Spectral split</b> at token 16, the reproducibility horizon (labelled variant for a sequential quantity). Thin lines = boundaries born before token 16.</td></tr>
+<td><img src="gallery/hero/story_tp256_firstdiv_spectral.png" width="400"><br><b>First divergence, Spectral split</b> at token 16, the reproducibility horizon (labelled variant for a sequential quantity). Ties within one token index are broken by mean sampling entropy, which gives the gradients. Thin lines = boundaries born before token 16.</td></tr>
 </table>
 
 ### Continuous metrics
@@ -51,6 +51,26 @@ Both rules sample exactly the same distribution per step, but the maps differ. I
 <td><img src="gallery/hero/list_tp256_ink.png" width="265"><br>List prompt, ink</td>
 <td><img src="gallery/hero/fact_tp256_mosaic.png" width="265"><br>Fact prompt (“capital of Australia”): one answer covers ~97 % of the plane. Only the T > 1.3, p → 1 corner fractures (292 texts).</td>
 </tr></table>
+
+### Temperature × repetition penalty (192², L = 48)
+The same prompt and the same uniforms u<sub>t</sub>, but now top-p is fixed at 1 and the y axis is the HF-style repetition penalty ρ ∈ [1, 2]: for every token already present in the prompt (chat template) or the text so far, a positive logit is divided by ρ and a negative one multiplied by ρ, and only then tempered.
+<img src="gallery/diptych/diptych_topp_vs_penalty_glass_L16.png" width="820"><br>
+<i>Glass, both maps cut at 16 tokens (the reproducibility horizon). Left: (T, top-p). Right: (T, ρ). Measured partitions; colours declared.</i>
+<table>
+<tr><td><img src="gallery/hero/story_tr192_glass.png" width="400"><br><b>Stained glass</b>, L = 48, 11,922 distinct texts.</td>
+<td><img src="gallery/hero/story_tr192_ink.png" width="400"><br><b>Boundary lines, single ink.</b> A Mondrian grid: the boundaries are almost all axis-parallel.</td></tr>
+<tr><td><img src="gallery/hero/story_tr192_mosaic.png" width="400"><br><b>Text-hash mosaic</b> (brightness = token at which the text leaves the T → 0, ρ ≈ 1 text).</td>
+<td><img src="gallery/metrics/story_tr192_penalty_spectral.png" width="400"><br><b>Where the penalty rewrites the story, Spectral split.</b> Signed = (token at which the text leaves the unpenalised text in the same T column) − 16. Purple = rewritten before token 16, red = later or never. Ties broken by mean sampling entropy, each side rank-normalised (declared, labelled variant).</td></tr>
+<tr><td><img src="gallery/hero/story_tr192_age.png" width="400"><br><b>Boundary age</b> (batlow, 0 → 47).</td><td></td></tr>
+</table>
+
+**How it differs from the (T, top-p) map** (`scratch/tr_stats.py`, `scratch/tr_edges.py`):
+- **Geometry.** Top-p cuts the plane along curves, because the nucleus cutoff and the tempered CDF move together. The penalty map is **rectilinear**. Near T = 0 the argmax flips at a penalty value that does not depend on T, which gives horizontal edges. At high T every small T step re-rolls a token while ρ only rescales the few already-seen tokens, which gives vertical stripes. At T > 1 and l = 16, a single T step (ΔT = 0.0078) changes the text in 95 % of neighbour pairs, but a single ρ step (Δρ = 0.0052) changes it in only 31 %. In the (T, p) map the two directions are nearly isotropic there (24 % vs 21 %).
+- **The first token ignores the penalty.** Across the whole plane only 3 neighbour pairs along ρ differ at l = 1. The 45 first-token cells are vertical stripes, mostly at T > 1. (The (T, p) map has 152 first tokens, carved by p.)
+- **More texts.** There are 1483 / 2542 / 4078 / 11,922 texts at l = 4 / 8 / 16 / 48 on 36,864 pixels, against 955 / 1604 / 2056 / 5208 on 65,536 pixels for (T, p). No region is protected: top-p → 0 forces greedy decoding over a large region, but top-p = 1 has none, so the largest cell covers only 13 % of the plane at l = 16 (34 % for (T, p)).
+- **The penalty does rewrite the story, but late at small ρ.** The median token at which the text leaves the unpenalised text is 19 at ρ = 1.05, 13 at ρ = 1.2, 7 at ρ = 1.5 and 3 at ρ = 2.
+- **No visible degeneration effect within 48 tokens.** Verbatim 3-gram repetition shows up in only 0.1 % of pixels across the plane (0.8 % in the (T, p) map), and mean model entropy rises only from 1.61 to 1.71 nats from ρ = 1 to 2. The coherence split has no valley here (99.5 % "coherent"), so it is not rendered. At this length the penalty acts as a re-roll of token choices, not a cure for loops.
+- The bottom row (ρ = 1.003) runs the same setting as the top row of the (T, p) map (p = 0.998). It used KV capacity Ncap = 256 instead of 384, a kernel change of the kind the placement table shows can re-roll late tokens.
 
 ### Films
 <video src="gallery/film/refine_story256_ink.mp4" autoplay loop muted playsinline width="540"></video>
@@ -84,7 +104,7 @@ Walking along T at fixed top-p through the 256² map. Grey = prefix shared with 
 - **Model:** Qwen3-0.6B (HF weights, `local_files_only`). `qwen.py` is a hand-written reimplementation with a **bfloat16 body and fp32 LM head**, a static KV cache and no padding, verified against HF (`test_model.py`). Prompts use the chat template (`sample.py: chat_ids`).
 - **Decoder engine** (`decode.py`): a prefix-trie that forwards each distinct prefix once, with CUDA-graph single-token steps (window Fb = 128, KV capacity Ncap = 384). The **certified sampler** computes per row an fp32 top-2048 plus a 0.04-logit histogram of all 151,936 logits, brackets the tail mass, and accepts a pixel only when the top-p cutoff and the inverse-CDF token agree at both brackets. Otherwise the pixel escalates K′ = 256 → 2048 → 32768 → a full float64 sort. Against a naive batch-1 float64 full-sort reference (`test_engine.py`), the certified and V-wide samplers give **identical maps (0 / 4096 pixels differ)** on the same forward kernels.
 - **Noise:** seed 0, u<sub>t</sub> ~ U(0,1) float64, one per position, shared by every pixel. Gumbel: g<sub>t,v</sub> float64, per position and vocab entry.
-- **Grids:** T ∈ [0, 1.5] and p ∈ [0, 1] at pixel centres. story_tp256 (L = 64, 1860 s, 246k node-steps), list_tp256 (L = 48, 292 s), fact_tp256 (L = 64, 131 s), story_tp128 (L = 48, 311 s), story_tp128_gumbel (44 s), plus placement runs (≈ 3400 s). Total GPU ≈ 2 h on the shared GB10, plus earlier toy runs.
+- **Grids:** T ∈ [0, 1.5] and p ∈ [0, 1] at pixel centres. story_tp256 (L = 64, 1860 s, 246k node-steps), list_tp256 (L = 48, 292 s), fact_tp256 (L = 64, 131 s), story_tp128 (L = 48, 311 s), story_tp128_gumbel (44 s), story_tr192 (T × repetition penalty 1–2, p = 1, L = 48, Ncap 256, 2126 s, 298k node-steps), plus placement runs (≈ 3400 s). Total GPU ≈ 2.6 h on the shared GB10, plus earlier toy runs.
 - **Commands** (from `decode-map/`, `PYTHONPATH=. ../.venv/bin/python`, wrapped in `../_shared/gpu_run.sh`):
 ```
 python decode.py --prompt story --res 256 --L 64 --x 0 1.5 --Fb 128 --Ncap 384 --out cache/story_tp256.npz
@@ -94,8 +114,9 @@ python decode.py --prompt story --res 128 --L 48 --x 0 1.5 --Fb 128 --Ncap 384 -
 python decode.py --prompt story --res 128 --L 48 --x 0 1.5 --rule gumbel --nograph --out cache/story_tp128_gumbel.npz
 python decode.py --prompt story --res 64 --L 32 --x 0 2 [--nograph | --slow --nograph | --fp32 | --shuffle --chunk_cols 2 --Ncap 32 --Fb 16] --out cache/place_story64_*.npz
 python decode.py --prompt story --res 128 --L 48 --x 0 1.5 --shuffle --chunk_cols 8 --Ncap 96 --Fb 32 --out cache/place_story128_shuffle.npz
+python decode.py --prompt story --grid tr --res 192 --L 48 --x 0 1.5 --y 1 2 --p_fixed 1.0 --Fb 128 --Ncap 256 --out cache/story_tr192.npz
 python verify.py placement cells horizon box        # -> cache/verify.json, gallery/verify_*.png
-python heroes.py maps metrics diptych table         # CPU renders
+python heroes.py maps metrics diptych table tr        # CPU renders
 python -c "import anim; anim.main('cache/story_tp256.npz','gallery/film/refine_story256_glass',s=4,mode='glass',hold=22,fade=8)"
 ```
 
@@ -132,7 +153,7 @@ Box counting of the boundary set (ε = 1/256 … 1/4 of the window). **Whole pla
 - 256² is coarse for high T: 79 % of cells there are single pixels, so that corner reads as texture, not resolved geometry.
 - Top-p = 0 is greedy by construction. The y axis is the nucleus mass, not a probability of the output.
 - The inverse-CDF map depends on the (descending-probability) sort order of the CDF; a different order convention gives a different map. Gumbel-max has no such dependence.
-- `story_tr192` ((T, repetition penalty) map) OOMed in the first attempt and was relaunched (see NOTES). It is not in this README yet.
+- The penalty map is one prompt, one seed and L = 48. The penalty is designed for long generations, and its effect on loops past 48 tokens was not measured.
 - Files over 20 MB are not committed: none so far.
 
 ## References
