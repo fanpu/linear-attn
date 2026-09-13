@@ -38,9 +38,10 @@ p.add_argument("--ntest", type=int, default=200_000)
 p.add_argument("--D", type=int, default=24)
 p.add_argument("--out", type=str, required=True)
 p.add_argument("--log_every", type=int, default=2000)
+p.add_argument("--mem_frac", type=float, default=0.10)
 args = p.parse_args()
 
-torch.cuda.set_per_process_memory_fraction(0.10)
+torch.cuda.set_per_process_memory_fraction(args.mem_frac)
 torch.backends.cuda.matmul.allow_tf32 = False
 torch.backends.cudnn.allow_tf32 = False
 dev = "cuda"
@@ -99,10 +100,13 @@ print(f"pools built in {time.time()-t0:.1f}s", flush=True)
 
 configs = [(f, d, s) for f in fams for d in dims for s in range(args.seeds)]
 M = len(configs)
-Xpool = torch.stack([pools[(f, d)][0] for f, d, s in configs])  # (M, P, D)
-Ypool = torch.stack([pools[(f, d)][1] for f, d, s in configs])  # (M, P)
-Xtest = torch.stack([tests[(f, d)][0] for f, d, s in configs])
-Ytest = torch.stack([tests[(f, d)][1] for f, d, s in configs])
+# one pool per (family, d), shared by the seeds; models index into it (saves seeds-x memory)
+keys = [(f, d) for f in fams for d in dims]
+Xpool = torch.stack([pools[k][0] for k in keys])  # (K, P, D)
+Ypool = torch.stack([pools[k][1] for k in keys])  # (K, P)
+Xtest = torch.stack([tests[k][0] for k in keys])
+Ytest = torch.stack([tests[k][1] for k in keys])
+cfg_key = torch.tensor([keys.index((f, d)) for f, d, s in configs], device=dev)
 del pools, tests
 
 
@@ -126,9 +130,27 @@ def fwd(params, x, return_hidden=False):
 def test_loss(params, chunk=50_000):
     tot = torch.zeros(M, device=dev, dtype=torch.float64)
     for i in range(0, Xtest.shape[1], chunk):
-        e = (fwd(params, Xtest[:, i:i + chunk]) - Ytest[:, i:i + chunk]).double()
+        e = (fwd(params, Xtest[cfg_key, i:i + chunk]) - Ytest[cfg_key, i:i + chunk]).double()
         tot += (e * e).sum(1)
     return (tot / Xtest.shape[1]).cpu().numpy()
+
+
+def save_all():
+    os.makedirs(os.path.dirname(args.out), exist_ok=True)
+    save = dict(configs=np.array([(f, str(d), str(s)) for f, d, s in configs]),
+                dims=np.array(dims), fams=np.array(fams), widths=np.array(widths), D=D,
+                args=json.dumps(vars(args)), norms=json.dumps({f"{k[0]}_{k[1]}": v for k, v in norms.items()}),
+                **{f"Q{d}": Qs[d].numpy() for d in dims},
+                **{f"teacher_{f}_W{i}": w.numpy() for f in fams for i, w in enumerate(teachers[f][0])},
+                **{f"teacher_{f}_b{i}": b.numpy() for f in fams for i, b in enumerate(teachers[f][1])})
+    for n, r in results.items():
+        save[f"w{n}_N"] = r["N"]; save[f"w{n}_test"] = r["test"]; save[f"w{n}_train"] = r["train"]
+        save[f"w{n}_curve_steps"] = r["curve_steps"]; save[f"w{n}_curve"] = r["curve"]
+        save[f"w{n}_wall"] = r["wall"]
+        for li, (W, b) in enumerate(r["params"]):
+            save[f"w{n}_W{li}"] = W; save[f"w{n}_b{li}"] = b
+    np.savez(args.out, **save)
+    print("saved", args.out)
 
 
 results = {}
@@ -157,8 +179,8 @@ for n in widths:
         if pos + B > P:
             perm = torch.randperm(P, device=dev, generator=gidx); pos = 0
         idx = perm[pos:pos + B]; pos += B
-        xb = Xpool[:, idx]
-        yb = Ypool[:, idx]
+        xb = Xpool[:, idx][cfg_key]
+        yb = Ypool[:, idx][cfg_key]
         loss_per = ((fwd(params, xb) - yb) ** 2).mean(1)
         opt.zero_grad(set_to_none=True)
         loss_per.sum().backward()
@@ -175,7 +197,7 @@ for n in widths:
     with torch.no_grad():
         tr = torch.zeros(M, device=dev, dtype=torch.float64)
         for i in range(0, 200_000, 50_000):
-            e = (fwd(params, Xpool[:, i:i + 50_000]) - Ypool[:, i:i + 50_000]).double()
+            e = (fwd(params, Xpool[cfg_key, i:i + 50_000]) - Ypool[cfg_key, i:i + 50_000]).double()
             tr += (e * e).sum(1)
         train = (tr / 200_000).cpu().numpy()
     results[n] = dict(
@@ -184,19 +206,5 @@ for n in widths:
         params=[(W.detach().cpu().numpy(), b.detach().cpu().numpy()) for W, b in params],
         wall=time.time() - t0)
     print(f"== n={n} N={N} done in {time.time()-t0:.0f}s", flush=True)
+    save_all()
 
-os.makedirs(os.path.dirname(args.out), exist_ok=True)
-save = dict(configs=np.array([(f, str(d), str(s)) for f, d, s in configs]),
-            dims=np.array(dims), fams=np.array(fams), widths=np.array(widths), D=D,
-            args=json.dumps(vars(args)), norms=json.dumps({f"{k[0]}_{k[1]}": v for k, v in norms.items()}),
-            **{f"Q{d}": Qs[d].numpy() for d in dims},
-            **{f"teacher_{f}_W{i}": w.numpy() for f in fams for i, w in enumerate(teachers[f][0])},
-            **{f"teacher_{f}_b{i}": b.numpy() for f in fams for i, b in enumerate(teachers[f][1])})
-for n, r in results.items():
-    save[f"w{n}_N"] = r["N"]; save[f"w{n}_test"] = r["test"]; save[f"w{n}_train"] = r["train"]
-    save[f"w{n}_curve_steps"] = r["curve_steps"]; save[f"w{n}_curve"] = r["curve"]
-    save[f"w{n}_wall"] = r["wall"]
-    for li, (W, b) in enumerate(r["params"]):
-        save[f"w{n}_W{li}"] = W; save[f"w{n}_b{li}"] = b
-np.savez(args.out, **save)
-print("saved", args.out)
