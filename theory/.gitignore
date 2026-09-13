@@ -4,3 +4,4 @@ _shared/*.lock
 */cache/
 */_preview/
 */post.html
+!_shared/vendor/katex/dist/
