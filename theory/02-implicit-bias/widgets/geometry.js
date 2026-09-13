@@ -131,7 +131,7 @@
       else { ctx.save(); ctx.strokeStyle = C.ink; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(AX(x[0]), AY(x[1]), 4, 0, 7); ctx.fillStyle = C.paper; ctx.fill(); ctx.stroke(); ctx.restore(); }
     });
     ctx.restore();
-    ctx.fillStyle = "rgba(252,251,248,0.93)"; ctx.fillRect(14, 8, 330, 40);
+    ctx.fillStyle = "rgba(252,251,248,0.93)"; ctx.fillRect(10, 0, 420, 48);
     text(ctx, "data space", 20, 14, { size: 13, color: C.ink, weight: 500, base: "top" });
     text(ctx, "● / ○ the two classes;  dashed: max-margin boundaries", 20, 32, { size: 11, base: "top" });
     const lg = [["L₂", C.blue], ["L∞", C.orange], ["L₁", C.aqua]];
@@ -177,7 +177,7 @@
       dot(ctx, BX(r * Math.cos(t)), BY(r * Math.sin(t)), 5, c, C.paper);
     }
     ctx.restore();
-    ctx.fillStyle = "rgba(252,251,248,0.93)"; ctx.fillRect(14, 8, 372, 58);
+    ctx.fillStyle = "rgba(252,251,248,0.93)"; ctx.fillRect(10, 0, 430, 64);
     text(ctx, "weight space", 20, 14, { size: 13, color: C.ink, weight: 500, base: "top" });
     text(ctx, "shaded: all w with margin ≥ 1.  Each norm's ball grows until it", 20, 32, { size: 11, base: "top" });
     text(ctx, "touches the shaded set; lines: current direction of each optimizer", 20, 47, { size: 11, base: "top" });
