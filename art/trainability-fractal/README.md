@@ -71,6 +71,9 @@ Here both layers share one learning rate η (vertical) and both weight matrices 
 | zoom keyframes (tanh, full batch) | 256² each, 14 keyframes | 500 | float64 | 5–38 min each (29–200 px/s under contention) |
 | overview hero | 1024² | 500 | **float32** (see verification) | <!-- HEROT --> |
 | architecture diptych | 3 × 256² | 500 | float64 | ~5 min each |
+| training-steps film | 384², checkpoints T = 10…1000 | 1000 | float64 | 82 min |
+| semantic σ × η | 384² | 500 | float64 | 44 min |
+| ReLU overview (for tanh-vs-ReLU diptych) | 512² | 500 | float64 | 28 min |
 | quadratic null zoom | 13 × 256² | 500 | float64 | ~90 s each |
 | Liu-type toy | 1024², 2048², zoom 31 × 256² | 500 | float64 (CPU) | 50–180 s |
 | probes, 1-ulp floor blocks, resolution check | 64²–128² | 500 | float64 / float32 | minutes |

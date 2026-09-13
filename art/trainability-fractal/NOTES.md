@@ -66,3 +66,6 @@ GPU time so far: sessions 1-2 ~10 GPU-h wall (contended); session 3 jobs above a
 - REMAINING: sem_wd (running, ~16:30) -> `python render_windows.py semantic` + README <!-- SEM-WD -->;
   hero f64 + deep1024 (~21:15) -> render_hero (spectral, aurora_ember, indigo_madder), fill <!-- HERO -->/<!-- HEROT -->, drop f32 caveat;
   diptych OV (`python render_windows.py diptych OV`); deep1024 -> render_hero + deep_verify.py deep_zoomA4_1024_f64 zoomA:4 -> README "Across decades"; rm dummy deep_zoomA3.
+- GPU wall this session (contended, 1 slot each): sem_sigma 0.74 h, steps 1.36 h, relu 0.47 h, fill 1.56 h; hero f64 + deep1024 each ~9 h wall when done (started 12:19/12:31, ~1000 s per 32768-px chunk, 32 chunks).
+- README "What was computed" table has rows for steps/semantic/relu; add hero f64 seconds (<!-- HEROT -->) and deep1024 + sem_wd rows when done.
+- Session 4 ended at ~115k context (HANDOFF). All CPU renders finished; only the gpu_run jobs above remain (s3_hero64, s3_deep1024, s3_sem[sem_wd]).
