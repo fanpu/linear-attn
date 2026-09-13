@@ -68,7 +68,10 @@ ML aside: stochastic rounding (floor(x + U[0,1))) is RPDF nonsubtractive dither.
 <p><img src="gallery/sd_zoom_golden.gif" width="45%"> &nbsp; <a href="gallery/sd_zoom_golden.mp4">MP4 (864², 24 fps)</a><br>
 <em>Continuous exponential zoom toward 1/φ (half-width 0.38 → 5e-5, ×7600) with a p/q ticker. N = 2<sup>17</sup> per input (floor 7.6e-6).</em></p>
 
-Paper and riso versions: `sd_zoomseq_*_paper.png`, `sd_idle_*_{dark,paper,riso}.png`, `sd_idle_zoom_*.png`.
+<p><img src="gallery/hero_sd_idle_zoom_spectral_variant.png" width="40%"><br>
+<em>Stylistic variant: Sohl-Dickstein Spectral with rank-normalised dB (his `readout='probe_point'` mapping). dB is sequential, so the hue bands in the noise floor are colour-map artefacts; only the dark-red rays are tones.</em></p>
+
+Paper and riso versions: `sd_zoomseq_*_paper.png`, `sd_idle_*_{dark,paper,riso}.png`, `sd_idle_zoom_*.png`. In the deep panels (×125–×3125) the frequency axis is cropped to f ∈ [0.372, 0.392]·f<sub>s</sub> around fold(1/φ); at full band, max-pooling hundreds of line-filled bins per column paints vertical stripes (first attempt, rejected).
 
 ### 2b. The lattice: bit-depth series
 

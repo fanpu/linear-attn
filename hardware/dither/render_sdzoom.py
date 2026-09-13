@@ -183,6 +183,19 @@ if __name__ == "__main__":
         src = deep_source()
         for st in ("dark", "paper"):
             seq(st, "sd_zoomseq_golden_deep", "Toward rho = 1/phi, x1 to x3125: Fibonacci ratios at every scale", n=6, src=src)
+    if "spectral" in which:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("pc", os.path.join(rc.HERE, "..", "posterize", "common.py"))
+        pc = importlib.util.module_from_spec(spec); spec.loader.exec_module(pc)
+        S = np.load(f"{rc.CACHE}/sd_dc_maps.npz")["mz"].astype(np.float32)[::-1]
+        img = pc.cmap_rgb((pc.cdf_sequential_sd(S) + 1) / 2, "Spectral")   # Sohl-Dickstein readout='probe_point' mapping
+        cv = rc.canvas(4096, 4096 + 110, rc.PAPER)
+        rc.paste(cv, img, 0, 0)
+        rc.text(cv, (40, 4096 + 22), "STYLISTIC VARIANT (Sohl-Dickstein Spectral, rank-normalised dB): same data as hero_sd_idle_zoom. dB is sequential, so",
+                34, rc.INK, rc.FONT_MONO)
+        rc.text(cv, (40, 4096 + 66), "hue bands in the noise floor are colour-map artefacts, not structure; only the dark-red rays are tones.  " + rc.STACK, 26, rc.INK, rc.FONT_MONO)
+        rc.save_png(cv, f"{rc.GAL}/hero_sd_idle_zoom_spectral_variant.png")
+        print("spectral variant")
     if "hero" in which:
         for st in ("dark", "paper", "riso"):
             hero(st)
