@@ -254,3 +254,38 @@ def save_png(img, path, max_mb=19.0):
 def box_down(v, f):
     h, w = v.shape[:2]
     return v[: h // f * f, : w // f * f].reshape(h // f, f, w // f, f, *v.shape[2:]).mean((1, 3))
+
+
+# ------------------------------------------------------------------ Sohl-Dickstein "Spectral" styles
+def cdf_signed_sd(x, x_ref=None, buffer=0.25):
+    """Exact port of cdf_img() from Sohl-Dickstein, "the_boundary_of_neural_network_trainability_is_fractal.ipynb"
+    (readout='loss'): sort the reference; negatives -> linspace(-1, -buffer), non-negatives -> linspace(buffer, 1);
+    y = interp(x, sorted, v); return -y.  Displayed with cmap 'Spectral', vmin -1, vmax 1.
+    Result: the extremes sit at the dark ends (large positive -> deep red #9e0142, most negative -> purple #5e4fa2),
+    and the zero crossing is a hard jump between the pale inner colours at +-buffer."""
+    u = np.sort((x if x_ref is None else x_ref).ravel())
+    nneg = int(np.sum(u < 0))
+    v = np.concatenate([np.linspace(-1, -buffer, nneg), np.linspace(buffer, 1, u.size - nneg)])
+    return -np.interp(x, u, v)
+
+
+def cdf_sequential_sd(x, x_ref=None):
+    """Same notebook, readout='probe_point': the whole range rank-normalised onto [-1, 1] (sequential data)."""
+    u = np.sort((x if x_ref is None else x_ref).ravel())
+    return -np.interp(x, u, np.linspace(-1, 1, u.size))
+
+
+def spectral_sd(x, x_ref=None, buffer=0.25):
+    return cmap_rgb((cdf_signed_sd(x, x_ref, buffer) + 1) / 2, "Spectral")
+
+
+def spectral_seam(x, x_ref=None):
+    """Variant described in the shared brief: each sign rank-normalised separately, the two DARK ends meet at zero.
+    x > 0 (and x == 0): purple (at 0) -> blue -> green -> pale yellow (largest);  x < 0: deep red (at 0) -> orange -> pale yellow."""
+    ref = (x if x_ref is None else x_ref).ravel()
+    pos = np.sort(ref[ref >= 0]); neg = np.sort(-ref[ref < 0])
+    out = np.empty(x.shape)
+    m = x >= 0
+    out[m] = 1 - 0.5 * np.interp(x[m], pos, np.linspace(0, 1, pos.size)) if pos.size else 1
+    out[~m] = 0.5 * np.interp(-x[~m], neg, np.linspace(0, 1, neg.size)) if neg.size else 0
+    return cmap_rgb(out, "Spectral")
