@@ -140,7 +140,7 @@ COLV = None
 
 
 def _frame(args):
-    fi, ti, out = args
+    fi, ti, out, fade = args
     P = style.use("dark")
     fig = plt.figure(figsize=(9, 9), dpi=120)
     ax = fig.add_axes([0, 0, 1, 1])
@@ -159,10 +159,13 @@ def _frame(args):
     ax.scatter(TRAJ[ti, 0], TRAJ[ti, 1], s=7, c=cols, lw=0, zorder=5)
     ax.scatter([0], [0], s=80, facecolor="none", edgecolor="white", lw=1.2, zorder=6)
     ax.set_xlim(-LIM, LIM); ax.set_ylim(-LIM, LIM); ax.axis("off")
-    ax.text(-1.9, 1.9, f"t = {ti * DT:3.1f}", color=style.NIGHT_INK, fontsize=15, va="top", family="monospace")
+    box = dict(boxstyle="round,pad=0.45", fc=style.NIGHT, ec="none", alpha=0.72)
+    ax.text(-1.9, 1.9, f"t = {ti * DT:3.1f}", color=style.NIGHT_INK, fontsize=15, va="top", family="monospace", bbox=box, zorder=9)
     ax.text(-1.9, -1.92, "1,400 initialisations of  ŷ = b·a·x,  gradient flow on  E = ½(s − ab)²\n"
             "bright curves: the minima ab = s   ·   colour: time to converge (lighter = slower)",
-            color=style.NIGHT_INK, alpha=0.8, fontsize=11.5, va="bottom", linespacing=1.5)
+            color=style.NIGHT_INK, fontsize=11.5, va="bottom", linespacing=1.5, bbox=box, zorder=9)
+    if fade < 1:
+        ax.add_patch(plt.Rectangle((-LIM, -LIM), 2 * LIM, 2 * LIM, color=style.NIGHT, alpha=1 - fade, zorder=20))
     fig.savefig(out, dpi=120, facecolor=style.NIGHT)
     plt.close(fig)
 
@@ -184,7 +187,10 @@ def anim():
     fps = 30
     n = int(10 * fps)
     tis = [int(round((k / (n - 1)) * (len(TRAJ) - 1))) for k in range(n)] + [len(TRAJ) - 1] * int(1.0 * fps)
-    jobs = [(k, ti, fr / f"f{k:04d}.png") for k, ti in enumerate(tis)]
+    fades = [min(1.0, (k + 1) / 8) for k in range(n)] + [1.0] * (len(tis) - n)
+    tis += [len(TRAJ) - 1] * 12
+    fades += [1 - (k + 1) / 12 for k in range(12)]
+    jobs = [(k, ti, fr / f"f{k:04d}.png", fd) for k, (ti, fd) in enumerate(zip(tis, fades))]
     with mp.Pool(4) as pool:
         pool.map(_frame, jobs, chunksize=4)
     out = FIG / "landscape_swarm.mp4"

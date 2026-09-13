@@ -131,7 +131,7 @@ Singular vectors sound abstract until you pick a dataset where they mean somethi
 The SVD of this item → feature matrix *is* the hierarchy. Its singular values are 2.01 (a mode shared by all living things), 1.40 (animal vs plant), 1.12 (bird vs fish), 0.87 (tree vs flower) and 0.50, four times over (the individual items). Broad distinctions are shared by many features and many items, so they carry more variance and have larger singular values. By §2, larger singular values are learned first.
 
 <figure class="wide">
-<video autoplay loop muted playsinline src="figures/matrix_sharpening.mp4"></video>
+<video autoplay loop muted playsinline poster="figures/matrix_final.png" src="figures/matrix_sharpening.mp4"></video>
 <figcaption>Top: the target. Middle: what a 8→16→34 linear network (small random init, $\sigma = 10^{-3}$, float64 gradient descent) currently predicts for each item. Bottom: the target split into its SVD pieces, each drawn at the fraction the network has learned so far. The middle row is, up to small cross-terms, the sum of the bottom row. Notice the "illusory" features on the way: for a while robins are predicted to be a little bit yellow and to sing a little. At that point the network knows <em>birds</em>, not yet <em>canaries</em>.</figcaption>
 </figure>
 
@@ -184,7 +184,7 @@ Everything above is about linear networks. Transformers are not linear, but thei
 
 <span class="tag lit">literature</span> Boix-Adserà et al. (2023) proved that transformers with *diagonal* weights and small init learn through incremental rank increases of $\Delta W$, and observed similar behaviour in vision and language transformers. Zhang, Singh, Latham & Saxe (2025) solved *linear* attention trained on in-context regression. With separate key and query matrices, it shows saddle-to-saddle dynamics, learning the principal components one at a time in a time that scales as $\lambda^{-2}$.
 
-<span class="tag new">new here</span> We take a single **softmax** attention head, with separate $W_Q, W_K, W_V, W_O$ and small random init, and give it a task that has both a "where to look" and a "what to copy" component with controllable singular values. We measure the plateaus, fit the scaling exponents, and compare everything to a four-vector reduced model derived in the spirit of §2.
+<span class="tag new">new here</span> We take a single **softmax** attention head, with separate $W_Q, W_K, W_V, W_O$ and small random init, and give it a task that has both a "where to look" and a "what to copy" component with controllable singular values. We measure the plateaus, fit the scaling exponents, and compare everything to a small reduced model (a handful of vectors) derived in the spirit of §2.
 
 **The task.** A sequence has $T = 8$ tokens $e_t = [x_t;\ \text{onehot}(t)]$ with random content $x_t \in \mathbb{R}^8$. At the last position, the head must output $y = M x_1$: find the first token and apply a fixed linear map to it. $M$ has singular values we choose. There is no MLP, no residual stream and no LayerNorm. Training is full-batch gradient descent (lr 0.05) on 2,048 sequences whose contents are exactly whitened.
 
@@ -226,7 +226,14 @@ Everything above is about linear networks. Transformers are not linear, but thei
 <figcaption>The copy-and-transform task. The query at the last position must attend to token 1 (a positional "where") and push its content through $M$ (a low-rank "what").</figcaption>
 </figure>
 
-**What happens.** Here is a target with singular values 3, 1.5 and 0.75, next to two controls: attention frozen uniform ($W_Q = W_K = 0$), and attention frozen on token 1, which turns the head into a plain two-layer linear network.
+**What happens.** Here is a target with singular values 3, 1.5 and 0.75.
+
+<figure class="wide">
+<video autoplay loop muted playsinline src="figures/attention_saddles.mp4" style="border-radius:10px"></video>
+<figcaption>The trained head (seed 0), replayed. Arc thickness is the measured average attention from the query to token 1; the rest is split evenly over the seven distractors. Bars show how much of each singular mode of $M$ the value/output circuit has learned (white ticks: the same run with attention frozen uniform). For a long time the attention pattern doesn't move at all. Then it snaps.</figcaption>
+</figure>
+
+Below are the same run and two controls in detail: attention frozen uniform ($W_Q = W_K = 0$), and attention frozen on token 1, which turns the head into a plain two-layer linear network.
 
 <figure class="wide">
 <img src="figures/attn_showcase.png" alt="Attention head training dynamics against a reduced model">
