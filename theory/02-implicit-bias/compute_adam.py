@@ -5,7 +5,7 @@ correction, beta1 = 0.9, beta2 = 0.999, constant lr, eps in {0, 1e-16, 1e-12, 1e
 Gradients are carried in log-scale (g = e^C * ghat, moments rescaled every step) so exp(-margin) underflow can never
 freeze or corrupt the eps = 0 runs.  Writes cache/adam_<name>.npz.
 
-    python compute_adam.py gauss|geom [T] [lr] [const|sqrt]
+    python compute_adam.py gauss|geom [T] [lr] [const|sqrt] [beta2]
 """
 import sys, time
 import numpy as np
@@ -16,7 +16,8 @@ T = int(float(sys.argv[2])) if len(sys.argv) > 2 else 10 ** 7
 lr = float(sys.argv[3]) if len(sys.argv) > 3 else 1e-3
 sched = sys.argv[4] if len(sys.argv) > 4 else "const"   # const | sqrt  (lr_t = lr / sqrt(t), as in Zhang et al. with a = 1/2)
 EPS = np.array([0.0, 1e-16, 1e-12, 1e-8, 1e-6, 1e-4])
-b1, b2 = 0.9, 0.999
+b1 = 0.9
+b2 = float(sys.argv[5]) if len(sys.argv) > 5 else 0.999
 
 if name == "gauss":
     data = [gaussian_separable(40, 50, s) for s in range(8)]
@@ -62,6 +63,6 @@ for t in range(1, T + 1):
 
 W2 = np.array([svm(X, y, "l2")[0] for X, y in data])
 Winf = np.array([svm(X, y, "linf")[0] for X, y in data])
-np.savez(f"cache/adam_{name}_lr{lr:g}_{sched}.npz", steps=ts, W=rec.reshape(len(ts), S_, E, d), logC=recC.reshape(len(ts), S_, E),
-         log10_sqrtv=recV.reshape(len(ts), S_, E), eps=EPS, lr=lr, sched=sched, Z=Zs, W_l2=W2, W_linf=Winf)
+np.savez(f"cache/adam_{name}_lr{lr:g}_{sched}" + ("" if b2 == 0.999 else f"_b2{b2:g}") + ".npz", steps=ts, W=rec.reshape(len(ts), S_, E, d), logC=recC.reshape(len(ts), S_, E),
+         log10_sqrtv=recV.reshape(len(ts), S_, E), eps=EPS, lr=lr, sched=sched, b2=b2, Z=Zs, W_l2=W2, W_linf=Winf)
 print("done", time.time() - t0)

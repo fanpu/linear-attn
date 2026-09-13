@@ -32,24 +32,32 @@ if "summary" in only:
     for lab, f, col, off in series:
         vals = [f(m) for m in ms]
         for x, v in zip(xs, vals):
-            ax.bar(x + off, max(v, 0.004), width=0.12, color=col, zorder=2)
-            ax.text(x + off, max(v, 0.004) + 0.02, f"{v:.2f}" if v >= 0.005 else "0", ha="center", fontsize=8.5, color=S.INK2)
+            hv = min(max(v, 0.004), 1.12)
+            ax.bar(x + off, hv, width=0.12, color=col, zorder=2)
+            txt = f"{v:.2f}" if v >= 0.005 else "0"
+            if v > 1.12:
+                txt = f"{v:.2f}\n(not\nconverged)"
+            ax.text(x + off + (0.02 if v > 1.12 else 0), hv + 0.02, txt, ha="center", fontsize=8.5, color=S.INK2, va="bottom" if v <= 1.12 else "bottom")
         ax.bar([np.nan], [np.nan], color=col, label=lab)
     ax.set_xticks(xs); ax.set_xticklabels([f"{m} entries\n({m / 100:.1f}% observed)" for m in ms])
     ax.set_ylabel(r"relative error $\|W - W^\star\|_F / \|W^\star\|_F$")
     ax.set_title("Completing a 100×100 rank-5 matrix")
-    ax.legend(loc="upper right", fontsize=9.5)
-    ax.set_ylim(0, 1.25)
+    ax.legend(loc="upper right", fontsize=9.5, bbox_to_anchor=(1.0, 1.0))
+    ax.set_ylim(0, 1.45)
     ax.grid(axis="x", visible=False)
 
     ax = axs[1]
     for N, tag, lab in [(2, "", "depth 2"), (3, "_slow", "depth 3")]:
         D = load(N, 2000, tag)
-        meas, pred = D["dsv_meas"][:, :5], D["dsv_pred"][:, :5]
+        meas, pred, svv = D["dsv_meas"][:, :5], D["dsv_pred"][:, :5], D["sv"][:, :5]
         ok = (np.abs(pred) > 1e-12)
-        ax.scatter(np.abs(pred[ok]), np.abs(meas[ok]), s=12, color=S.DEPTH_COLORS[N], alpha=0.7, lw=0, label=lab)
-        r = np.median(meas[ok] / pred[ok])
-        print(lab, "median measured/predicted", r)
+        big = ok & (svv >= 1e-3)
+        small = ok & (svv < 1e-3)
+        ax.scatter(np.abs(pred[small]), np.abs(meas[small]), s=9, color=S.AXIS, alpha=0.6, lw=0)
+        r = np.median(meas[big] / pred[big])
+        ax.scatter(np.abs(pred[big]), np.abs(meas[big]), s=14, color=S.DEPTH_COLORS[N], alpha=0.8, lw=0,
+                   label=f"{lab}: median measured/predicted = {r:.4f}")
+        print(lab, "median measured/predicted (sigma >= 1e-3)", r, " (sigma < 1e-3)", np.median(meas[small] / pred[small]))
     lim = [1e-10, 1]
     ax.loglog(lim, lim, color=S.INK, lw=1, ls=(0, (4, 3)))
     ax.set_xlim(lim); ax.set_ylim(lim)
@@ -57,7 +65,7 @@ if "summary" in only:
     ax.set_ylabel(r"measured change of $\sigma_r$ per GD step")
     ax.set_title("Arora et al.'s singular-value dynamics, checked")
     ax.legend(loc="upper left", fontsize=9.5)
-    ax.text(3e-3, 1e-7, "top-5 singular values,\nall recorded steps", fontsize=9.5, color=S.INK2)
+    ax.text(2e-4, 1e-8, "top-5 singular values at every recorded step\ngray: $\\sigma_r < 10^{-3}$, where the random init is\nnot yet balanced and the equation does not apply", fontsize=9.5, color=S.INK2)
     fig.savefig("figures/mc_summary.png", bbox_inches="tight")
     print("wrote mc_summary.png")
 

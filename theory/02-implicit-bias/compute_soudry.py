@@ -25,12 +25,12 @@ if part == "hero":
     s, W = flow_logtime(Z, s_eval[-1], w0=sol0.y[:, -1], s_eval=s_eval)
     t_all = np.concatenate([t_lin[:-1], np.exp(s)])
     W_all = np.vstack([sol0.y.T[:-1], W])
-    # discrete GD check (eta = 0.1) up to 1e6 steps: w_gd(k) should track the flow at time eta*k
-    eta = 0.1
+    # discrete GD check up to 1e7 steps at a step size inside Soudry et al.'s condition eta < 2 / (beta sigma_max^2), beta = 1/4
+    eta = 0.5 * 8.0 / np.linalg.norm(X, 2) ** 2
     ts, Wgd = [], []
     w = np.zeros(2)
-    ck = set(log_checkpoints(10 ** 6, 20).tolist())
-    for k in range(1, 10 ** 6 + 1):
+    ck = set(log_checkpoints(10 ** 7, 20).tolist())
+    for k in range(1, 10 ** 7 + 1):
         w = w - eta * logistic_grad(Z, w)
         if k in ck:
             ts.append(k); Wgd.append(w.copy())
