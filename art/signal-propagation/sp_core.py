@@ -15,20 +15,25 @@ import torch
 ACT = {"erf": torch.erf, "tanh": torch.tanh}
 
 
+NMAX = 1024
+
+
 def layer_draw(seed, N, l, device="cuda", dtype=torch.float64):
     """Standard-normal (W, b) for layer l (1-indexed); always drawn in float64 on CPU
-    so float32 and float64 runs share bit-identical underlying draws."""
-    g = torch.Generator(device="cpu").manual_seed(int(seed) * 1_000_003 + int(N) * 7919 + int(l))
-    W = torch.randn(N, N, generator=g, dtype=torch.float64)
-    b = torch.randn(N, generator=g, dtype=torch.float64)
+    so float32 and float64 runs share bit-identical underlying draws.
+    Width-nested CRN: one NMAX x NMAX master draw per (seed, layer); the width-N network uses
+    its top-left N x N block (and first N bias entries), so widths share draws too."""
+    g = torch.Generator(device="cpu").manual_seed(int(seed) * 1_000_003 + int(l))
+    W = torch.randn(NMAX, NMAX, generator=g, dtype=torch.float64)[:N, :N].contiguous()
+    b = torch.randn(NMAX, generator=g, dtype=torch.float64)[:N].contiguous()
     return W.to(device=device, dtype=dtype), b.to(device=device, dtype=dtype)
 
 
 def inputs_draw(seed, N, n=2, device="cuda", dtype=torch.float64):
     """n independent Gaussian inputs normalised so that |h0|^2 / N = 1
     (paper: unit-norm x, with activations carried as h/sqrt(N))."""
-    g = torch.Generator(device="cpu").manual_seed(int(seed) * 1_000_003 + int(N) * 7919 - 1)
-    X = torch.randn(n, N, generator=g, dtype=torch.float64)
+    g = torch.Generator(device="cpu").manual_seed(int(seed) * 1_000_003 - 1)
+    X = torch.randn(n, NMAX, generator=g, dtype=torch.float64)[:, :N]
     X = X / X.norm(dim=1, keepdim=True) * math.sqrt(N)
     return X.to(device=device, dtype=dtype)
 

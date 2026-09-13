@@ -115,17 +115,28 @@ def first_below(delta, floor, start):
 
 
 tail = slice(D - 99, D + 1)
-cAB, cAC = series["cAB"].astype(np.float64), series["cAC"].astype(np.float64)
-cstar = 0.5 * (cAB[tail].mean(0) + cAC[tail].mean(0))
-cnoise = 0.5 * (cAB[tail].std(0) + cAC[tail].std(0))
-cfloor = np.maximum(4 * cnoise, 2e-6)
-ys_c, ms_c = [], []
-for c in (cAB, cAC):
-    delta = np.abs(c - cstar[None, :])
-    m = first_below(delta, cfloor, 2)
-    ys_c.append(np.log(np.maximum(delta, 1e-300))); ms_c.append(m)
-sl, npts_c = joint_slope(ys_c, ms_c)
-xi_c = np.where((sl < 0) & (npts_c >= 4), -1 / sl, np.nan)
+cAB = series["cAB"].astype(np.float64)
+cstar = cAB[tail].mean(0)
+cnoise = cAB[tail].std(0)
+Lr = np.arange(D + 1)[:, None]
+
+
+def fit_xi_c(fhi, kf, minpts):
+    delta = np.abs(cAB - cstar[None, :])
+    floor = np.maximum(kf * cnoise, 2e-6)
+    below = (delta < floor[None, :]) | (Lr == D)
+    stop = np.argmax(below, axis=0)
+    m = (delta <= fhi * delta[0][None, :]) & (Lr < stop[None, :]) & (Lr < D - 100) & (Lr >= 1)
+    sl, npts = joint_slope([np.log(np.maximum(delta, 1e-300))], [m])
+    return np.where((sl < 0) & (npts >= minpts), -1 / sl, np.nan), npts
+
+
+# window chosen on a toy run against theory (README): the asymptotic regime |c - c*| <= 0.3 |c0 - c*|,
+# stopped at 2 sigma of the finite-width noise floor; pixels with too few points use the full window
+xi_c, npts_c = fit_xi_c(0.3, 2, 3)
+xi_c_full, _ = fit_xi_c(1.0, 2, 2)
+xi_c_flag = np.isnan(xi_c) & np.isfinite(xi_c_full)
+xi_c = np.where(np.isnan(xi_c), xi_c_full, xi_c)
 
 qA, qE = series["qA"].astype(np.float64), series["qE"].astype(np.float64)
 qstar = 0.5 * (qA[tail].mean(0) + qE[tail].mean(0))
@@ -141,7 +152,6 @@ xi_q = np.where((slq < 0) & (npts_q >= 2), -1 / slq, np.nan)
 # chi_1: growth/decay of an infinitesimal perturbation, after the length transient (l >= 8),
 # while it stays in the linear regime (d < 1e-3 q) and above the float32 floor (d > 1e-10 q)
 dAD = series["dAD"].astype(np.float64)
-Lr = np.arange(D + 1)[:, None]
 ok = (dAD < 1e-3 * qA) & (dAD > 1e-10 * np.maximum(qA, 1e-12)) & (Lr >= 8) & (Lr <= 120)
 bad = ~ok & (Lr >= 8)
 bad[-1] = True
@@ -154,9 +164,10 @@ sub = max(1, P // 200000)
 np.savez_compressed(os.path.join(here, args.out), sw2=xs, sb2=ys, N=N, D=D, K=K, wall=time.time() - t0,
                     xi_c=xi_c.reshape(args.H, args.W), xi_q=xi_q.reshape(args.H, args.W),
                     chi1=chi1.reshape(args.H, args.W), cstar=cstar.reshape(args.H, args.W),
-                    qstar=qstar.reshape(args.H, args.W), npts_c=npts_c.reshape(args.H, args.W),
+                    qstar=qstar.reshape(args.H, args.W), npts_c=npts_c.reshape(args.H, args.W), xi_c_flag=xi_c_flag.reshape(args.H, args.W),
                     cAB=series["cAB"].reshape(D + 1, args.H, args.W).astype(np.float16),
                     cAC=series["cAC"].reshape(D + 1, args.H, args.W).astype(np.float16),
+                    qE=series["qE"].reshape(D + 1, args.H, args.W).astype(np.float16),
                     qA=series["qA"].reshape(D + 1, args.H, args.W).astype(np.float16),
                     dAD=series["dAD"].reshape(D + 1, args.H, args.W))
 print("done", time.time() - t0)

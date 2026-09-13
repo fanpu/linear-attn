@@ -31,7 +31,7 @@ args = ap.parse_args()
 
 torch.cuda.set_per_process_memory_fraction(0.10)
 dtype = torch.float64 if args.dtype == "f64" else torch.float32
-tau_hit = 1e-24 if dtype == torch.float64 else 1e-10
+tau_hit = 1e-10  # same for f32/f64 (f32 floor ~1e-13)
 here = os.path.dirname(os.path.abspath(__file__))
 out = os.path.join(here, "cache", f"zoom_{args.tag}_N{args.N}_D{args.D}_s{args.seed}_{args.dtype}_r{args.res}.npz")
 log = lambda s: print(time.strftime("%H:%M:%S"), s, flush=True)
