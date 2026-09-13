@@ -40,8 +40,11 @@ def colorize(v, st):
     return rc.multiply_layers([(blue, rc.RISO_BLUE), (rc.shift(rc.floyd_steinberg(np.clip((v - .5) / .4, 0, 1)), 2, -2), rc.RISO_PINK)])
 
 
-def panel_img(S, size, lo=LO, hi=HI):
-    v = rc.unit(S.astype(np.float32), lo, hi, G)
+def panel_img(S, size, lo=LO, hi=HI, maxpool=False):
+    S = S.astype(np.float32)
+    if maxpool:  # 2x2 max-pool first so 1-px lines survive the downsample (declared, deep panels only)
+        S = S[: S.shape[0] // 2 * 2, : S.shape[1] // 2 * 2].reshape(S.shape[0] // 2, 2, S.shape[1] // 2, 2).max((1, 3))
+    v = rc.unit(S, lo, hi, G)
     return np.array(Image.fromarray((v * 65535).astype(np.uint16)).resize((size, size), Image.BOX)) / 65535
 
 
@@ -79,9 +82,13 @@ def seq(st, name, title, n=5, prefix="gold", lo=LO, hi=HI, order=1, src=None):
         S = Z[f"{prefix}_{i}"]
         rho = Z[f"{prefix}_{i}_rho"]
         x0 = L + i * (P + gap)
-        rc.paste(cv, colorize(panel_img(S, P, lo, hi), st), x0, T)
+        deep = src is not None and i >= 3
+        rc.paste(cv, colorize(panel_img(S, P, -64.0 if deep else lo, -30.0 if deep else hi, maxpool=deep), st), x0, T)
         a, b = float(rho[-1]), float(rho[0])
-        rc.text(cv, (x0, T - 50), f"rho in [{a:.6f}, {b:.6f}]   x{int(round(hws[0] / hws[i]))}", 24, fg, rc.FONT_MONO)
+        ftxt = ""
+        if src is not None and i >= 3:
+            ftxt = "   f in [0.372, 0.392]"
+        rc.text(cv, (x0, T - 50), f"rho in [{a:.7f}, {b:.7f}]   x{int(round(hws[0] / hws[i]))}{ftxt}", 22, fg, rc.FONT_MONO)
         m = 0.05 * (b - a)
         used = []
         for fr in rationals(a + m, b - m, nmax=5 if i < 3 else 4):
@@ -96,15 +103,15 @@ def seq(st, name, title, n=5, prefix="gold", lo=LO, hi=HI, order=1, src=None):
             y1 = T + int((b - b2) / (b - a) * (P - 1))
             y2 = T + int((b - a2) / (b - a) * (P - 1))
             rc.line(cv, [(x0 - 12, y1), (x0 - 4, y1), (x0 - 4, y2), (x0 - 12, y2)], acc, 3)
-    rc.text(cv, (L, T + P + 40), "x: frequency 0 .. fs/2 (never zoomed).  y: DC input, as rotation number rho = (1+u)/2 (zoomed 5x per panel; "
+    rc.text(cv, (L, T + P + 40), "x: frequency (0 .. fs/2 unless marked).  y: DC input, as rotation number rho = (1+u)/2 (zoomed 5x per panel; "
             "bracket at the left of each panel = next window).  labels: rationals p/q in the window with the smallest q.", 26, fg, rc.FONT_SANS)
     floor_txt = ("resolution floor: inputs are distinguishable only if their rotation numbers differ by more than ~1/N. Panels x1-x25: "
-                 "N = 2^14 (floor 6e-5); panels x125-x3125: N = 2^20 (floor 9.5e-7), so the convergents keep resolving.") if src is not None else \
+                 "N = 2^14 (floor 6e-5), full band. Panels x125-x3125: N = 2^20 (floor 9.5e-7), and frequency cropped to 0.372-0.392 around fold(1/phi).") if src is not None else \
         ("resolution floor: two inputs are distinguishable only if their rotation numbers differ by more than ~1/N = 6e-5, "
          "so panels x125 and x625 show the finite-length (phase-slip / window) kernel, not finer number theory.")
     rc.text(cv, (L, T + P + 120), floor_txt, 26, fg, rc.FONT_SANS)
     rc.text(cv, (L, T + P + 165), f"1-bit {['', 'first', 'second'][order]}-order sigma-delta, 2048 inputs/panel, {'2^14 / 2^20' if src is not None else '2^14'} samples each after warm-up, Blackman-Harris, "
-            f"max-pooled 4x in f, colour [{lo:.0f}, {hi:.0f}] dB, gamma {G} (declared).  " + rc.STACK, 22, fg, rc.FONT_MONO)
+            f"max-pooled 4x in f, colour [{lo:.0f}, {hi:.0f}] dB{' (deep panels: 2x2 max-pool, [-64, -30] dB)' if src is not None else ''}, gamma {G} (declared).  " + rc.STACK, 22, fg, rc.FONT_MONO)
     rc.save_png(cv, f"{rc.GAL}/{name}_{st}.png")
     print(name, st)
     Z = Zsave
