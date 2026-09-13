@@ -30,6 +30,7 @@
 - render_mnist.py written (basin, mosaic, memo, steps, zoom) but UNTESTED.
 
 ### Next
+0. zoom_iter_ring8 plate VIEWED: excellent nested 8-petal flowers repeating from width 8 to 2.3e-10 (hero candidate). But gallery/zooms/zoom_iter_ring8.gif = 54 MB and .mp4 = 35 MB: both exceed commit.sh 20 MB cap and GIF target 15 MB -> re-encode (GIF 360 px / 8 fps / fewer frames_per_level; MP4 higher CRF) before commit.
 1. View: zoom_iter_ring8 plate/gif, steps anim, toy_dimension.png; fix weaknesses (captions clip if long: caption_strip does not wrap).
 2. gamma anim, ode zoom, ring6 zoom renders; learned-score maps.
 3. MNIST renders when cache/mnist_hero.npz etc. exist; thumbnail mosaic.
