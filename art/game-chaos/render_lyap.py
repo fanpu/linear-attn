@@ -29,7 +29,9 @@ def stills():
             save_png(flip(spectral(L, pairing='aurora_ember')), f'{GAL}/lyap_{name}_aurora.png')
             save_png(flip(dark_diverging(L)), f'{GAL}/lyap_{name}_dark.png')
         print('stills', name, flush=True)
-    plate('full'); plate('z4_shrimp')
+    for n in ('full', 'z4_shrimp', 'z3_shrimp'):
+        if os.path.exists(f'cache/cong_{n}.npz'):
+            plate(n)
 
 
 def plate(name):

@@ -96,7 +96,8 @@ def dark(tag='0.50', R=2400, name=None):
     wsum = np.zeros((R, R))
     ix = ((pts[:, 0] - lo[0]) / (hi[0] - lo[0]) * (R - 1)).astype(int)
     iy = (R - 1 - (pts[:, 1] - lo[1]) / (hi[1] - lo[1]) * (R - 1)).astype(int)
-    col = cm(0.75 - 0.72 * llog)[:, :3]
+    col = np.where((lam > CHAOS_THR)[:, None], hexrgb('#9fd3ff')[None] * (0.75 + 0.25 * llog[:, None]),
+                   hexrgb('#e39a55')[None] * (1 - 0.35 * llog[:, None]))
     wgt = np.where(lam > CHAOS_THR, 4.0, 1.0)
     for c in range(3):
         np.add.at(img[..., c], (iy, ix), col[:, c])

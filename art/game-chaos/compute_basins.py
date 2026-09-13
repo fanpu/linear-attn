@@ -6,7 +6,7 @@ invariant, so the map is x -> x * exp(-eta c (1 + x)) / Z on the 2-simplex).
 Each pixel of the simplex is one initial condition, run T0 steps; the attractor reached is
 identified by (period, time-averaged strategy over T1 steps, Lyapunov exponent).
 
-python compute_basins.py toy | plates | boxcount
+python compute_basins.py toy | atlas
 """
 import sys
 import time
@@ -91,6 +91,62 @@ def toy():
         print(f'eta={eta}: {time.time()-t:.0f}s  #labels={len(vals)}  top(label,count,period)={top}  '
               f'chaotic frac={np.mean(per.numpy()[mm]==0):.3f}', flush=True)
         np.savez_compressed(f'cache/basin_toy_eta{eta}.npz', per=per.numpy(), mean=mean.numpy(), lam=lam.numpy(), mask=mm)
+
+
+@torch.no_grad()
+def basin_2x2(sign, s, q, R, T=3000):
+    """MWU on a symmetric 2x2 coordination (sign=+1) or anti-coordination (sign=-1) game,
+    u' = u + sign*s*(sigma(v)-q), v' = v + sign*s*(sigma(u)-q); pixel = (x0, y0) in (0,1)^2.
+    Label: 0/1/2/3 = pure profile (x->1?, y->1?) reached (|logit| > 30), 4 = not converged."""
+    g = torch.linspace(0, 1, R + 2, dtype=DT, device=dev())[1:-1]
+    Y, X = torch.meshgrid(g, g, indexing='ij')
+    u = torch.log(X / (1 - X)); v = torch.log(Y / (1 - Y))
+    for _ in range(T):
+        u, v = u + sign * s * (torch.sigmoid(v) - q), v + sign * s * (torch.sigmoid(u) - q)
+        u = u.clamp(-60, 60); v = v.clamp(-60, 60)
+    conv = (u.abs() > 30) & (v.abs() > 30)
+    lab = torch.where(conv, 2 * (u > 0).long() + (v > 0).long(), torch.full_like(u, 4, dtype=torch.long))
+    return lab.cpu().numpy()
+
+
+@torch.no_grad()
+def basin_3link(c, eta, R, T=4000):
+    """Two agents, three links, exponential MWU, full (asymmetric) game. Pixel = player 1's start x0 on
+    the simplex; player 2 starts at the P<->R swap of x0. Label = 3*argmax(x)+argmax(y) once both
+    strategies are within 1e-3 of pure, 9 = not converged, -1 = outside the simplex."""
+    X, m = simplex_grid(R)
+    X = X.to(dev()); c = torch.as_tensor(c, dtype=DT, device=dev())
+    Qx = torch.log(X); Qy = torch.log(X[..., [1, 0, 2]])
+    for _ in range(T):
+        x = torch.softmax(Qx, -1); y = torch.softmax(Qy, -1)
+        Qx, Qy = Qx - eta * c * (1 + y), Qy - eta * c * (1 + x)
+        Qx = (Qx - Qx.max(-1, keepdim=True).values).clamp_min(-700); Qy = (Qy - Qy.max(-1, keepdim=True).values).clamp_min(-700)
+    x = torch.softmax(Qx, -1); y = torch.softmax(Qy, -1)
+    conv = (x.amax(-1) > 0.999) & (y.amax(-1) > 0.999)
+    lab = torch.where(conv, 3 * x.argmax(-1) + y.argmax(-1), torch.full(x.shape[:-1], 9, device=dev()))
+    lab = torch.where(m.to(dev()), lab, torch.full_like(lab, -1))
+    return lab.cpu().numpy()
+
+
+ATLAS = [  # name, kind, params (large step) , null params (small step)
+    ('coord2x2', 'c2', dict(sign=1, s=20.0, q=0.45), dict(sign=1, s=0.5, q=0.45)),
+    ('anti2x2', 'c2', dict(sign=-1, s=30.0, q=0.7), dict(sign=-1, s=0.5, q=0.7)),
+    ('link3_a', 'l3', dict(c=[1.0, 1.2, 1.5], eta=60.0), dict(c=[1.0, 1.2, 1.5], eta=1.0)),
+    ('link3_b', 'l3', dict(c=[1.0, 1.3, 1.1], eta=40.0), dict(c=[1.0, 1.3, 1.1], eta=1.0)),
+]
+
+
+def atlas():
+    out = {}
+    for name, kind, big, small in ATLAS:
+        for tag, prm in (('big', big), ('null', small)):
+            for R in (256, 512, 1024):
+                t = time.time()
+                lab = basin_2x2(R=R, **prm) if kind == 'c2' else basin_3link(R=R, **prm)
+                out[f'{name}_{tag}_R{R}'] = lab.astype(np.int8)
+                print(f'{name} {tag} R={R}: {time.time()-t:.0f}s labels={np.unique(lab).tolist()} '
+                      f'nonconv={np.mean(lab == (4 if kind == "c2" else 9)):.4f}', flush=True)
+    np.savez_compressed('cache/basin_atlas.npz', **out, meta=str(ATLAS))
 
 
 if __name__ == '__main__':
