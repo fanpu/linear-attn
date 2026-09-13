@@ -40,12 +40,16 @@ p.add_argument('--only', default=None, help='comma list of keyframe indices (wit
 p.add_argument('--minibatch', type=int, default=None)
 p.add_argument('--chunk', type=int, default=32768)
 p.add_argument('--floor', type=int, default=1, help='measure ulp flip floor')
+p.add_argument('--device', default='cuda')
 args = p.parse_args()
 
-tf.setup_gpu(0.10)
+if args.device == 'cuda':
+    tf.setup_gpu(0.10)
+else:
+    torch.set_num_threads(4)
 out_dir = f'cache/zoom_{args.tag}'
 os.makedirs(out_dir, exist_ok=True)
-prob = tf.make_problem(0, nonlin=args.nonlin)
+prob = tf.make_problem(0, nonlin=args.nonlin, device=args.device)
 K = int(round(args.depth / args.dec)) + 1
 ratio = 10 ** (-args.dec)
 R = args.res
@@ -82,6 +86,7 @@ def choose_next(M, hw, c0, c1):
     *coherent* boundary (dust removed), both phases >= 15% of the sub-window, with a mild
     preference for staying central. (v1 counted raw edges and walked into a region of
     isolated diverged 'dust' pixels at eta0 ~ 1e5.5; kept as a documented negative.)"""
+    R = M.shape[0]                            # keyframes may differ in resolution
     L = coherent_labels(M)
     E = edges(np.where(L, -1.0, 1.0))
     s = int(round(R * ratio))
@@ -122,7 +127,7 @@ for k in range(K):
         print(f'[{k}] cached', flush=True)
     else:
         t0 = time.time()
-        e0, e1 = tf.log_grid(c0, c1, hw, R)
+        e0, e1 = tf.log_grid(c0, c1, hw, R, dev=args.device)
         M = tf.run_grid(prob, e0, e1, steps=args.steps, chunk=args.chunk,
                         minibatch=args.minibatch, verbose=False).reshape(R, R)
         dt = time.time() - t0
@@ -133,23 +138,24 @@ for k in range(K):
         fe = edges(M).mean()
         print(f'[{k}] c=({c0:.15f},{c1:.15f}) hw={hw:.3e} conv={np.mean(M<0):.3f} '
               f'edge_frac={fe:.4f} rel_sp={rel_sp:.2e} {dt:.0f}s ({R*R/dt:.0f} px/s)', flush=True)
-    entry = dict(k=k, c0=c0, c1=c1, hw=hw, res=R)
+    entry = dict(k=k, c0=c0, c1=c1, hw=hw, res=int(M.shape[0]))
     nc0 = nc1 = None
     if not path:
         nc0, nc1, score = choose_next(M, hw, c0, c1)
         entry['score'] = score
     # precision floor: 1-ulp perturbation on a 64x64 block of this keyframe's grid
     if args.floor and 'flip_frac' not in (meta['keyframes'][k] if k < len(meta['keyframes']) else {}):
-        B = min(64, R)
-        e0, e1 = tf.log_grid(c0, c1, hw, R)
-        e0 = e0.view(R, R); e1 = e1.view(R, R)
+        Rk = M.shape[0]
+        B = min(64, Rk)
+        e0, e1 = tf.log_grid(c0, c1, hw, Rk, dev=args.device)
+        e0 = e0.view(Rk, Rk); e1 = e1.view(Rk, Rk)
         if not path and nc0 is not None:
             # block centred on the chosen next centre (where the boundary is)
-            px = 2 * hw / R
+            px = 2 * hw / Rk
             cx = int(round((nc0 - (c0 - hw)) / px)); cy = int(round((nc1 - (c1 - hw)) / px))
         else:
-            cx = cy = R // 2
-        x0 = min(max(cx - B // 2, 0), R - B); y0 = min(max(cy - B // 2, 0), R - B)
+            cx = cy = Rk // 2
+        x0 = min(max(cx - B // 2, 0), Rk - B); y0 = min(max(cy - B // 2, 0), Rk - B)
         sl = (slice(y0, y0 + B), slice(x0, x0 + B))
         ulp = 1.0 + 2.0 ** -52
         Mp = tf.run_grid(prob, (e0[sl] * ulp).reshape(-1), (e1[sl] * ulp).reshape(-1),

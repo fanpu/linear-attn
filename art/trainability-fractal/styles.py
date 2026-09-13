@@ -28,6 +28,20 @@ def upscale(img, f):
     return np.repeat(np.repeat(img, f, axis=0), f, axis=1)
 
 
+# ---------------------------------------------------------------- 0. his Spectral (primary)
+def spectral(M, M_ref=None):
+    """Faithful reproduction of Sohl-Dickstein's colab colouring: cdf_img (rank-normalise
+    negatives = converged into [-1,-0.25] and positives = diverged into [0.25,1], keep the
+    sign, then negate) shown with matplotlib 'Spectral', vmin=-1, vmax=1, nearest
+    interpolation. Converged: slowest (next to the boundary) = deep purple (+1), fastest =
+    pale yellow-green (+0.25). Diverged: slowest = deep red (-1), fastest = pale orange
+    (-0.25). The two dark ends meet at the boundary. M_ref: distribution used for the rank
+    normalisation (his reference_scale; default = the image itself)."""
+    y = cdf_img(M, M_ref)
+    cm = mpl.colormaps['Spectral']
+    return _to_u8(cm((_flip(y) + 1) / 2)[..., :3])
+
+
 # ---------------------------------------------------------------- 1. dark continuous
 def dark_magma(M, M_ref=None, cmap='magma'):
     """His colouring (cdf restretch, sign kept, gap of +/-0.25 around zero) shown through

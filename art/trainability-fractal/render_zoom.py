@@ -23,7 +23,7 @@ p = argparse.ArgumentParser()
 p.add_argument('tag')
 p.add_argument('--plates', action='store_true')
 p.add_argument('--video', action='store_true')
-p.add_argument('--style', default='magma')
+p.add_argument('--style', default='spectral')
 p.add_argument('--fps', type=int, default=30)
 p.add_argument('--sec', type=float, default=4.0, help='seconds per keyframe transition')
 p.add_argument('--size', type=int, default=1080)
@@ -56,6 +56,8 @@ hw0 = kfs[0]['hw']
 
 
 def colour(M, ref=None):
+    if args.style == 'spectral':
+        return S.spectral(M, ref)
     if args.style == 'magma':
         return S.dark_magma(M, ref)
     if args.style == 'fireice':
@@ -65,7 +67,7 @@ def colour(M, ref=None):
 
 # ------------------------------------------------------------------ plates
 if args.plates:
-    outdir = f'gallery/plates_{args.tag}'
+    outdir = f'gallery/plates_{args.tag}_{args.style}'
     os.makedirs(outdir, exist_ok=True)
     thumbs = []
     prev = None
@@ -82,7 +84,7 @@ if args.plates:
             f'field width {2*e["hw"]:.3e} decades on each axis   magnification 10^{zoom_dec:.1f} = {hw0/e["hw"]:.3g}x',
             f'{e["res"]}x{e["res"]} independent networks (one per cell), 16-unit {e["nonlin"]}, '
             f'{e["steps"]} steps full-batch GD, float64',
-            '~colour: Sohl-Dickstein restretch of sum-of-losses (converged, light) / sum of inverse losses (diverged, dark), magma',
+            f'~colour ({args.style}): Sohl-Dickstein rank restretch; converged = sum of normalised losses, diverged = sum of inverse losses',
             '~' + seeing,
         ]
         loc = None
@@ -114,7 +116,7 @@ if args.plates:
         z = math.log10(hw0 / kfs[i]['hw'])
         mark = '  (precision floor)' if floor_k is not None and kfs[i]['k'] >= floor_k else ''
         dd.text((x, y + T + 6), f'{i+1:02d}  10^{z:.1f}{mark}', font=font(MONO, 24), fill=(90, 84, 80))
-    sheet.save(f'gallery/zoom_{args.tag}_contact_sheet.png')
+    sheet.save(f'gallery/zoom_{args.tag}_{args.style}_contact_sheet.png')
     print('plates done')
 
 # ------------------------------------------------------------------ video
@@ -124,10 +126,14 @@ if args.video:
     # centres as offsets from the deepest centre (exact float64 differences)
     for e in kfs:
         e['d0'] = e['c0'] - ref['c0']; e['d1'] = e['c1'] - ref['c1']
-    rgbs = [torch.from_numpy(colour(e['M'])[::-1].copy()).permute(2, 0, 1).float() / 255 for e in kfs[:K]]
+    import matplotlib as mpl
+    cmap_name = {'spectral': 'Spectral', 'magma': 'magma'}[args.style]
+    LUT = torch.from_numpy(mpl.colormaps[cmap_name](np.linspace(0, 1, 1024))[:, :3]).float()
     N = args.size
-    frames_dir = f'cache/frames_{args.tag}'
+    frames_dir = f'cache/frames_{args.tag}_{args.style}'
     os.makedirs(frames_dir, exist_ok=True)
+    for fexist in glob.glob(f'{frames_dir}/*.png'):
+        os.remove(fexist)
     fpt = int(round(args.sec * args.fps))
     grid_off = (torch.arange(N, dtype=torch.float64) + 0.5) / N * 2 - 1
 
@@ -142,32 +148,44 @@ if args.video:
         cs1 = (e2['d1'] - e1['d1'] * r) / (1 - r)
         return cs0 + (e1['d0'] - cs0) * g, cs1 + (e1['d1'] - cs1) * g, w1 * g
 
-    def sample(j, d0, d1, hw):
+    def sample(Y, j, d0, d1, hw):
+        """nearest-neighbour sample of scalar field Y (row 0 = low eta1) of keyframe j."""
         e = kfs[j]
-        R = e['res']
-        # frame pixel -> normalised coords of keyframe j in [-1,1]
         gx = ((d0 - e['d0']) + grid_off * hw) / e['hw']
         gy = ((d1 - e['d1']) + grid_off * hw) / e['hw']
         GY, GX = torch.meshgrid(gy, gx, indexing='ij')
+        inside = (GX.abs() <= 1) & (GY.abs() <= 1)
         grid = torch.stack([GX, GY], -1).float()[None]
-        img = F.grid_sample(rgbs[j][None], grid, mode='bilinear', padding_mode='border', align_corners=False)[0]
-        # feather mask: 1 inside, falling to 0 over 3 keyframe pixels at the edge
-        m = torch.clamp((1 - torch.maximum(GX.abs(), GY.abs())) * R / 2 / 3, 0, 1).float()
-        return img, m
+        v = F.grid_sample(torch.from_numpy(Y).float()[None, None], grid, mode='nearest',
+                          padding_mode='border', align_corners=False)[0, 0]
+        return v, inside
+
+    def to_rgb(v):
+        i = ((v + 1) / 2 * 1023).round().clamp(0, 1023).long()
+        return LUT[i]
 
     idx = 0
+    arr = None
     for j in range(K - 1):
+        layers = [l for l in (j, j + 1, j + 2) if l < K]
+        # his colour blending: every layer rank-normalised against keyframe j and j+1
+        Yref = {(l, rr): cdf_img(kfs[l]['M'], kfs[rr]['M']) for l in layers for rr in (j, j + 1)}
         for t in range(fpt):
             a = t / fpt
+            s_ = math.sin(a * math.pi / 2) ** 2
             d0, d1, hw = window(a, j)
-            base, _ = sample(j, d0, d1, hw)
-            out = base
-            for jj, wgt in ((j + 1, 1.0), (j + 2, a)):
-                if jj < K:
-                    im, m = sample(jj, d0, d1, hw)
-                    w = m * wgt
-                    out = out * (1 - w) + im * w
-            arr = (out.clamp(0, 1).permute(1, 2, 0).numpy()[::-1] * 255 + 0.5).astype(np.uint8)
+            rgb = None
+            for li, l in enumerate(layers):
+                Y = (1 - s_) * Yref[(l, j)] + s_ * Yref[(l, j + 1)]
+                v, inside = sample(Y, l, d0, d1, hw)
+                c = to_rgb(v)
+                if rgb is None:
+                    rgb = c
+                else:
+                    wgt = 1.0 if li == 1 else a
+                    m = inside.float()[..., None] * wgt
+                    rgb = rgb * (1 - m) + c * m
+            arr = (rgb.clamp(0, 1).numpy()[::-1] * 255 + 0.5).astype(np.uint8)
             Image.fromarray(arr).save(f'{frames_dir}/f_{idx:05d}.png')
             idx += 1
     # hold last keyframe 2 s

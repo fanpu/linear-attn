@@ -336,7 +336,7 @@ def run_grid(prob, h0, h1, steps=500, chunk=32768, trainer=None, verbose=True,
     """h0,h1: flat (P,) hyperparameter tensors (eta0, eta1). Extra (P,) tensors in kw
     (sigma0, sigma1, wd) are chunked alongside. Returns numpy float64 measure (P,), or
     (measure, measure_T (K,P) float32) if checkpoints is given."""
-    trainer = trainer or (train_chunk_quadratic if prob['nonlin'] == 'quadratic' else train_chunk)
+    trainer = trainer or {'quadratic': train_chunk_quadratic, 'liu': train_chunk_liu}.get(prob['nonlin'], train_chunk)
     P = h0.numel()
     out = np.empty(P, dtype=np.float64)
     outT = None
@@ -368,3 +368,29 @@ def run_grid(prob, h0, h1, steps=500, chunk=32768, trainer=None, verbose=True,
 def setup_gpu(frac=0.10):
     torch.cuda.set_per_process_memory_fraction(frac)
     torch.backends.cuda.matmul.allow_tf32 = False
+
+
+# ---------------------------------------------------------------------------
+# Liu (2024)-style trivially non-convex 2-parameter loss, same measure (see liu_toy.py)
+# ---------------------------------------------------------------------------
+def train_chunk_liu(prob, lr0, lr1, steps=500, eps=0.05, lam=0.2, rho=0.3, **kw):
+    a = torch.ones_like(lr0); b = torch.ones_like(lr0)
+    k = 2 * math.pi / lam
+    S = torch.zeros_like(a); Sinv = torch.zeros_like(a); Slast = torch.zeros_like(a)
+    l0 = None
+    for t in range(steps):
+        u = a - b
+        L = a * a + 2 * rho * a * b + b * b + eps * (1 + torch.cos(k * u))
+        L = torch.where(torch.isfinite(L), L, torch.full_like(L, MAX_VAL))
+        if t == 0:
+            l0 = L.clone()
+        v = torch.clamp(L / l0, max=MAX_VAL)
+        S += v; Sinv += 1 / v
+        if t >= steps - LAST:
+            Slast += v
+        s = -eps * k * torch.sin(k * u)
+        ga = 2 * a + 2 * rho * b + s
+        gb = 2 * b + 2 * rho * a - s
+        a = a - lr0 * ga
+        b = b - lr1 * gb
+    return dict(measure=torch.where(Slast / LAST < 1, -S, Sinv))
