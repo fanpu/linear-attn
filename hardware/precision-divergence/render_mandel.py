@@ -41,17 +41,17 @@ def colorize(v, maxit, style="dark", lo_hi=None):
         rgb[inside] = 0.02
     elif style == "paper":
         # ink: iso-count contour bands in one ink on paper
-        bands = (np.floor(v * 1.0) % 2 == 0) & ~inside
+        bands = (np.floor(t * 14) % 2 == 0) & ~inside   # 14 iso-bands of normalised log count
         base = np.array([0.953, 0.933, 0.886])
         ink = np.array([0.106, 0.102, 0.090])
-        a = (0.15 + 0.85 * t) * bands
+        a = (0.25 + 0.75 * t) * bands
         a[inside] = 1.0
         rgb = base * (1 - a[..., None]) + ink * a[..., None]
     else:  # riso: two spot inks by count parity, density by depth
         base = np.array([0.957, 0.937, 0.902])
         pink = np.array([1.0, 0.31, 0.545])
         blue = np.array([0.122, 0.373, 0.749])
-        par = (np.floor(v / 3) % 2 == 0)
+        par = (np.floor(t * 10) % 2 == 0)
         covp = np.where(par, 0.2 + 0.7 * t, 0.0)
         covb = np.where(~par, 0.2 + 0.7 * (1 - t), 0.0)
         covb[inside] = 1.0
@@ -88,10 +88,10 @@ def video():
         im.save(out / f"{s['i']:05d}.png")
     mp4 = GALLERY / "mandel_floor_zoom.mp4"
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-framerate", "24", "-i", str(out / "%05d.png"), "-c:v", "libx264",
-                    "-pix_fmt", "yuv420p", "-crf", "18", str(mp4)], check=True)
+                    "-pix_fmt", "yuv420p", "-crf", "32", "-preset", "slow", str(mp4)], check=True)  # crf 32 keeps it < 20 MB
     gif = GALLERY / "mandel_floor_zoom.gif"
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-framerate", "24", "-i", str(out / "%05d.png"),
-                    "-vf", "fps=12,scale=800:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=160[p];[b][p]paletteuse=dither=sierra2_4a",
+                    "-vf", "fps=8,scale=640:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=96[p];[b][p]paletteuse=dither=bayer:bayer_scale=3",
                     str(gif)], check=True)
     print("wrote", mp4, gif)
 

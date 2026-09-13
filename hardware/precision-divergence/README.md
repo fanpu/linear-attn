@@ -114,7 +114,7 @@ Median divergence step n\*(δ = 0.1) over 2000 seeds (10–90% range):
 - Over ideal p-bit floats the median n\*(0.1) = p − 1 for 8 ≤ p ≤ 48, a slope of one step per bit.
 - Protocol B has no input rounding and gains about 1–3 steps.
 
-**Finite-precision death at 0.** Share of orbits sitting exactly on 0 by step 120: bf16 91.9%, fp16 34.3%, fp32 1.5%, fp64 0%. Longer-run shares from Brent cycle detection: fp32 18.9%, fp64 15.2%. The path is x → exactly 0.5 → 1 → 0, or an underflow.
+**Finite-precision death at 0.** Share of orbits sitting exactly on 0 by step 120: bf16 91.9%, fp16 34.3%, fp32 1.5%, fp64 0%. Longer-run shares from Brent cycle detection: fp32 18.9%, fp64 15.2%. The path is an x close enough to 0.5 that 4x(1−x) rounds to exactly 1, then 1 → 0 (the braid seed: 0.51171875 → 1 → 0 at step 17), or an underflow.
 
 **Cycle census across formats.**
 
