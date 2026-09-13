@@ -28,7 +28,14 @@ There are no biases. $W_0\in\mathbb R^{16\times16}$ and $W_1\in\mathbb R^{1\time
 <img src="gallery/zoom_zoomAB_spectral_contact_sheet.png" width="100%">
 
 The sequence runs from the $(\eta_0,\eta_1)\in[10^{-3},10^{6}]^2$ overview (plate 1) to a window of half-width $4.5\times10^{-6}$ decades at magnification $10^{6.5}\approx3\times10^{6}$ (plate 14). Every window lies inside the previous one and is centred on a boundary pixel of it. Each plate is 256² float64 networks. Full-page plates, each with its coordinates, 1-ulp flip fraction and a locator inset: [Spectral](gallery/plates_zoomAB_spectral/), [two-ink riso](gallery/plates_zoomAB_riso/), [plotter isolines](gallery/plates_zoomAB_isolines/) ([sheet](gallery/zoom_zoomAB_isolines_contact_sheet.png)), and [aurora/ember split palette](gallery/plates_zoomAB_aurora_ember/) ([sheet](gallery/zoom_zoomAB_aurora_ember_contact_sheet.png)). The isolines are contours of the within-phase speed rank, pre-smoothed with a Gaussian of σ = 0.8 px (aesthetic), drawn in ink on the converged side and red on the diverged side. The heavier line is the converge/diverge boundary. In the riso style, converged runs print in pink and diverged runs in blue, with halftone density set by the within-phase speed rank. Screens, inks and misregistration are aesthetic.
-<!-- ZOOM-VIDEO: add <video> once fills are merged -->
+
+<video src="gallery/zoom_zoomAB_spectral.mp4" autoplay loop muted playsinline width="70%"></video>
+
+**Zoom film** ([MP4](gallery/zoom_zoomAB_spectral.mp4), 1080², 54 s, [GIF](gallery/zoom_zoomAB_spectral.gif)). The camera zooms exponentially through the 14 keyframes, 4 s per half-decade, about the fixed point of each window-to-window similarity map. Colour uses his interpolation: every layer is rank-normalised against both neighbouring keyframes, the two are blended, and then the colour map is applied. Nearest-neighbour sampling is used throughout, so no value is invented between networks. Near the end of each transition the outer ring shows the previous keyframe's 256² pixels as coarse blocks. You can also see the texture change at the edge of the inset window when a finer keyframe takes over; this is the unresolved pixel-level texture described under "Resolution check", not a rendering bug. Camera path, timing and the blend are aesthetic.
+
+<img src="gallery/descent_zoomAB_spectral.png" width="100%">
+
+**Descent poster.** The same 14 keyframes in snake order on a dark ground. Each panel carries the outline of the next window (boxes drawn at least 14 px wide), and the connectors are the classic zoom-figure lines. Variant: [aurora/ember split palette](gallery/descent_zoomAB_aurora_ember.png).
 
 ### 2. Same window, three architectures
 

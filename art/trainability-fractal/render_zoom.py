@@ -27,9 +27,9 @@ p.add_argument('--style', default='spectral')
 p.add_argument('--fps', type=int, default=30)
 p.add_argument('--sec', type=float, default=4.0, help='seconds per keyframe transition')
 p.add_argument('--size', type=int, default=1080)
-p.add_argument('--crf', type=int, default=24)
-p.add_argument('--gif_px', type=int, default=360)
-p.add_argument('--gif_fps', type=int, default=10)
+p.add_argument('--bitrate', default='2700k')
+p.add_argument('--gif_px', type=int, default=300)
+p.add_argument('--gif_fps', type=int, default=8)
 p.add_argument('--maxk', type=int, default=None)
 p.add_argument('--floor_cut', type=float, default=0.5,
                help='stop the sequence at the first keyframe whose 1-ulp flip fraction of boundary px exceeds this')
@@ -209,10 +209,13 @@ if args.video:
     for t in range(2 * args.fps):
         Image.fromarray(arr).save(f'{frames_dir}/f_{idx:05d}.png'); idx += 1
     mp4 = f'gallery/zoom_{args.tag}_{args.style}.mp4'
-    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-framerate', str(args.fps), '-i', f'{frames_dir}/f_%05d.png',
-                    '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', str(args.crf), '-preset', 'slow', mp4], check=True)
+    # two-pass ABR keeps the noisy deep-zoom texture under the 20 MB commit limit
+    enc = ['ffmpeg', '-y', '-loglevel', 'error', '-framerate', str(args.fps), '-i', f'{frames_dir}/f_%05d.png',
+           '-c:v', 'libx264', '-b:v', args.bitrate, '-preset', 'slow', '-pix_fmt', 'yuv420p', '-passlogfile', f'{frames_dir}/2pass']
+    subprocess.run(enc + ['-pass', '1', '-f', 'null', '/dev/null'], check=True)
+    subprocess.run(enc + ['-pass', '2', '-movflags', '+faststart', mp4], check=True)
     gif = f'gallery/zoom_{args.tag}_{args.style}.gif'
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', mp4, '-vf',
-                    f'fps={args.gif_fps},scale={args.gif_px}:{args.gif_px}:flags=lanczos,split[a][b];[a]palettegen=max_colors=64[p];[b][p]paletteuse=dither=none',
+                    f'fps={args.gif_fps},scale={args.gif_px}:{args.gif_px}:flags=lanczos,split[a][b];[a]palettegen=max_colors=48:stats_mode=full[p];[b][p]paletteuse=dither=none',
                     gif], check=True)
     print('video', mp4, os.path.getsize(mp4) / 1e6, 'MB; gif', os.path.getsize(gif) / 1e6, 'MB')
