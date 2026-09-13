@@ -27,7 +27,7 @@ figure.hero figcaption { color: #8e929c; padding: .2rem 1.1rem .9rem; }
 
 <figure class="hero wide">
 <video autoplay loop muted playsinline poster="figures/hero_still.png" src="figures/hero.mp4"></video>
-<figcaption>Logistic regression trained by plain gradient descent on data a line can separate. The white line is the decision boundary; the dashed lilac line is the maximum-margin (hard SVM) boundary. Watch the clock on the right: it counts to $10^{100}$ steps, and the boundary is <em>still</em> not there. The dashed curve in the angle panel is the closed-form asymptote from Soudry et al. (2018); after $t \approx 10^{10}$ the measured $w(t)$ sits on it to within $10^{-8}$.</figcaption>
+<figcaption>Logistic regression trained by plain gradient descent on data a line can separate. The white line is the decision boundary; the dashed lilac line is the maximum-margin (hard SVM) boundary. Watch the clock on the right. It counts gradient-flow time (steps × learning rate) up to $10^{100}$, and the boundary is <em>still</em> not there. The dashed curve in the angle panel is the closed-form asymptote from Soudry et al. (2018); after $t \approx 10^{10}$ the measured $w(t)$ sits on it to within $10^{-8}$.</figcaption>
 </figure>
 
 Here is a small puzzle. Take a dataset that a straight line can separate, and train logistic regression on it with gradient descent. The loss goes to zero. But logistic loss never actually *reaches* zero: you can always make it smaller by scaling up the weights. So there is no minimum. Instead there is a whole cone of directions, every one of which drives the loss to zero as $\|w\| \to \infty$.
@@ -67,7 +67,7 @@ $$\hat w = \sum_{n \in \text{closest}} \alpha_n\, y_n x_n, \qquad \alpha_n \ge 0
 
 These are exactly the optimality (KKT) conditions of the hard-margin SVM, $\min \|w\|_2^2$ subject to $y_n x_n^\top w \ge 1$. The $\alpha_n$ are its dual variables and the closest points are its support vectors.
 
-<div class="keyeq">
+<div class="keyeq" markdown="1">
 
 **Theorem (Soudry, Hoffer, Nacson, Gunasekar & Srebro, 2018).** For separable data, a loss with an exponential tail and step size $\eta < 2\beta^{-1}\sigma_{\max}^{-2}(X)$, gradient descent satisfies
 
@@ -138,7 +138,7 @@ $$w = u^2 - v^2 = 2\alpha^2 \sinh\!\big(X^\top \nu\big) \quad\text{for some } \n
 
 That is precisely the stationarity condition of the convex problem
 
-<div class="keyeq">
+<div class="keyeq" markdown="1">
 
 $$\min_w\ Q_\alpha(w) = \alpha^2 \sum_i q\!\left(\frac{w_i}{\alpha^2}\right) \quad \text{s.t.}\ \ Xw = y,$$
 
@@ -224,7 +224,7 @@ $$|\Delta w_i| = \text{lr}\cdot \frac{1-\beta_1}{1-\beta_1 e^{r}} \sqrt{\frac{1 
 
 A sign-like step of that size raises the margin, and hence $-\ln(\text{gradient})$, by $\gamma$ times the step, where $\gamma$ is the $L_\infty$-normalized margin. Self-consistency therefore requires
 
-<div class="keyeq">
+<div class="keyeq" markdown="1">
 
 $$r = \gamma\,\text{lr}\,\frac{1-\beta_1}{1-\beta_1 e^{r}}\sqrt{\frac{1-\beta_2 e^{2r}}{1-\beta_2}}, \qquad\text{so}\qquad r < \tfrac12 \ln(1/\beta_2) \approx \tfrac{1-\beta_2}{2}.$$
 
@@ -266,11 +266,11 @@ The decaying-step schedule the theory analyses is slower in this range (0.922 at
 
 The reason is in panel (c). Jordan's coefficients are tuned to push singular values into a band quickly, not to converge to 1. I measured the band as 0.68–1.13; more iterations make the output hop around inside it rather than settle. The update is therefore $U\,\mathrm{diag}(\phi_i)\,V^\top$, where the $\phi_i \ne 1$ depend on the gradient's singular-value ratios. That is steepest descent in a slightly different, state-dependent geometry. Dropping momentum changes nothing: the no-momentum variant ends within $10^{-5}$ of the momentum run.
 
-**Caveats.** This is one small linear multiclass problem. For hidden layers of real networks the relevant notion is layerwise, and nets aren't linear. Whether a 7% margin shortfall matters for generalization is a separate question I did not test. The 5-step curve was still rising slowly at $10^6$; the 10- and 20-step curves were flat. I did not test a Newton–Schulz variant that converges exactly (for example cubic iterations run to convergence), which should behave like the exact polar factor.
+**Caveats.** This is one small linear multiclass problem. For nonlinear homogeneous networks the known results are weaker: limit directions are KKT points of a margin problem in the matching norm (Lyu & Li 2020 for GD; Tsilivis, Vardi & Kempe 2025 for steepest descent), not global max-margin solutions, and Muon acts layerwise. Whether a 7–8% margin shortfall matters for generalization is a separate question I did not test. The 5-step curve was still rising slowly at $10^6$; the 10- and 20-step curves were flat. I did not test a Newton–Schulz variant that converges exactly (for example cubic iterations run to convergence), which should behave like the exact polar factor.
 
-<div class="callout">
+<div class="callout" markdown="1">
 
-**Summary of the build-on.** The classical theorem, "steepest descent picks its own norm's margin", holds robustly for Adam with $\varepsilon = 0$, sign GD, spectral descent and exact-polar Muon. Two details of real implementations change the answer. Adam's $\varepsilon$ ends the $L_\infty$ phase after a predictable $t_\times \propto \ln(1/\varepsilon)$ steps, after which Adam crawls toward $L_2$. Muon's Newton–Schulz approximation leaves it short of the spectral-norm solution and tilted toward Frobenius.
+**Summary of the build-on.** The classical theorem, "steepest descent picks its own norm's margin", holds for sign GD, spectral descent and exact-polar Muon, and (more slowly) for Adam with $\varepsilon = 0$. Two details of real implementations change the answer. Adam's $\varepsilon$ ends the $L_\infty$ phase after a predictable $t_\times \propto \ln(1/\varepsilon)$ steps, after which Adam crawls toward $L_2$. Muon's Newton–Schulz approximation leaves it short of the spectral-norm solution and tilted toward Frobenius.
 
 </div>
 
@@ -283,7 +283,7 @@ The four reproductions matched their theorems quantitatively. The places where t
 - **The step-size condition matters, but only for the path.** My first discrete-GD check on the 2D data used $\eta = 0.1$, which is 5.7× the theorem's limit $2\beta^{-1}\sigma_{\max}^{-2}$. GD still converged to the same $\tilde w$, but it approached from the other side, along a visibly different path from gradient flow. At half the limit (the figure) GD and flow agree.
 - **Margin converges; direction may not.** Gunasekar et al. only promise the direction when the max-margin solution is unique. $L_\infty$ problems are often nearly degenerate. Sign GD reached 99.996% of the optimal $L_\infty$ margin in $d = 50$, yet on one dataset its direction stalled 5.2° from the LP optimum, at a point whose margin is within 0.05% of it.
 - **Discrete GD is not gradient flow for diagonal nets.** With constant step $\eta = c/(8\lambda_{\max}\|w_{\text{BP}}\|_\infty)$, the solution GD lands on moves away from $\arg\min Q_\alpha$ roughly in proportion to $c$. At $\alpha = 0.1$ the gap is $4\cdot10^{-4}$, $1.6\cdot10^{-3}$, $4.0\cdot10^{-3}$ and $6.4\cdot10^{-3}$ for $c = 0.05, 0.2, 0.5, 0.8$. The shift is always toward a slightly *larger* $L_1$ norm: finite steps make GD a little less sparse than its flow. (Even, Pesme, Gunasekar & Flammarion (2023) analyse this effect for (S)GD.)
-- **The rich regime is expensive.** Getting within $10^{-3}$ of basis pursuit needed $\alpha \approx 10^{-4}$. The flow then spends time $\propto \log(1/\alpha)$ on the saddle at the origin before it moves, and float64 precision bounds how small $\alpha$ can usefully be.
+- **The rich regime is expensive.** Getting within $10^{-3}$ of basis pursuit needed $\alpha \approx 3\cdot10^{-5}$. The flow then spends time $\propto \log(1/\alpha)$ on the saddle at the origin before it moves, and float64 precision bounds how small $\alpha$ can usefully be.
 - **Balancedness is an assumption.** The singular-value equation is exact only for balanced factors. From a random init of scale $10^{-3}$, the factors are not balanced while $\sigma_r \lesssim 10^{-3}$. There the measured change was on average 1.09× (depth 2) and 1.37× (depth 3) the prediction. Above that scale the ratio was 1.0001 and 1.0000.
 - **Float64 tunnels through a barrier the flow can't cross.** In the Razin–Cohen example the exact flow keeps $\det W > 0$ forever. Numerically, $\sigma_2(W)$ fell to $10^{-16}$ (depth 2, by $t \approx 80$) and $10^{-18}$ (depth 3, by $t \approx 3\cdot10^9$), after which round-off flipped the sign of the determinant and the solver found a finite zero-loss completion. The theorem describes an exact dynamical system; finite precision breaks its invariant.
 - **Where the classical story stops for modern optimizers.** Adam with a realistic $\varepsilon$ is neither the $L_\infty$ nor the $L_2$ story. It follows one, then the other, with a handover time set by $\varepsilon$ and $\beta_2$ (§6a). Muon with Newton–Schulz is neither the spectral nor the Frobenius story: its approximate orthogonalization changes the limit (§6b).
@@ -293,22 +293,29 @@ The four reproductions matched their theorems quantitatively. The places where t
 Everything runs on CPU in float64 (`OMP_NUM_THREADS=1`, at most four processes). From `theory/02-implicit-bias/` with `PY=../.venv/bin/python`:
 
 ```bash
-# measurements -> cache/*.npz            (wall-clock on a busy 20-core GB10)
-$PY compute_soudry.py hero               # 2D log-time flow to 1e100 + 1e7 GD steps      (~2 min)
-$PY compute_soudry.py gd 1e8             # d=50, 8 datasets, 1e8 GD steps + flows         (~40 min)
-for m in ngd ngd_sqrt sign; do $PY compute_soudry.py $m 1e7; done                         # (~5 min each)
-$PY compute_diag.py                      # diagonal nets: alpha sweep, GD step sizes, n sweep, 2D toy  (~3 min)
+# measurements -> cache/*.npz   (wall-clock on a shared 20-core GB10)
+$PY compute_soudry.py hero                 # 2D flow to t=1e100, 1e7 GD steps   ~2 min
+$PY compute_soudry.py gd 1e8               # d=50, 8 datasets                   ~40 min
+for m in ngd ngd_sqrt sign; do $PY compute_soudry.py $m 1e7; done          # ~5 min each
+$PY compute_diag.py                        # diagonal nets                      ~3 min
 $PY compute_matrix.py razin
-for N in 1 2 3; do for m in 1250 2000 3000; do $PY compute_matrix.py complete $N $m; done; done
-$PY compute_matrix.py complete 3 2000 0 4e-4 5e5 _slow; $PY compute_matrix.py complete 3 1250 0 4e-4 5e5
+for N in 1 2 3; do for m in 1250 2000 3000; do
+  $PY compute_matrix.py complete $N $m; done; done                         # ~5 min each
+$PY compute_matrix.py complete 3 2000 0 4e-4 5e5 _slow
+$PY compute_matrix.py complete 3 1250 0 4e-4 5e5
 for m in 1250 2000 3000; do $PY compute_matrix.py nuclear $m; done
-$PY compute_adam.py geom 3e6 1e-2 const; $PY compute_adam.py geom 1e6 1e-3 const
-$PY compute_adam.py geom 1e6 1e-2 const 0.99; $PY compute_adam.py geom 2e6 1e-2 const 0.9999
-$PY compute_adam.py gauss 3e6 1e-3 const; $PY compute_adam.py gauss 3e6 1e-2 const        # (~15 min each)
-$PY compute_spectral.py 1e6                                                                # (~1 h)
+$PY compute_adam.py geom 3e6 1e-2 const
+$PY compute_adam.py geom 1e6 1e-3 const
+$PY compute_adam.py geom 1e6 1e-2 const 0.99
+$PY compute_adam.py geom 2e6 1e-2 const 0.9999
+$PY compute_adam.py gauss 3e6 1e-3 const   # ~15 min
+$PY compute_adam.py gauss 3e6 1e-2 const   # ~15 min
+$PY compute_spectral.py 1e6                # ~25 min
+$PY compute_ns.py 1e6                      # ~11 min
 # figures, widget data, tests, page
-$PY render_hero.py; $PY render_soudry.py; $PY render_diag.py; $PY render_matrix.py
-$PY render_adam.py; $PY render_spectral.py; $PY export_widgets.py; $PY test_core.py
+$PY render_hero.py; $PY render_soudry.py; $PY render_diag.py
+$PY render_matrix.py; $PY render_adam.py; $PY render_spectral.py
+$PY export_widgets.py; $PY test_core.py
 $PY ../_shared/render_post.py post.md --shot
 ```
 

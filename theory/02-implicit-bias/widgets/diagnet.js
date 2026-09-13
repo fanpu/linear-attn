@@ -202,11 +202,13 @@
     [2, 3, 4].forEach(d => {
       const arr = sideCache[key][d];
       line(ctx, arr.map(([la, w]) => [SX(la), SY(w[1])]), d === D ? C.violet : "rgba(74,58,167,0.28)", d === D ? 2.5 : 1.4);
-      // label where the curve crosses half-way between the two answers
-      const half = 0.5 * l2y;
+      // label where the curve crosses a depth-specific fraction of the way between the two answers
+      const frac = { 2: 0.5, 3: 0.75, 4: 0.3 }[d];
+      const half = frac * l2y;
       let lab = arr[0];
       for (const q of arr) { if ((q[1][1] - half) * Math.sign(l2y || 1) >= 0) { lab = q; break; } }
-      text(ctx, `D = ${d}`, SX(lab[0]) + 8, SY(lab[1][1]), { size: 11.5, color: d === D ? C.ink : C.muted });
+      const left = d === 2;
+      text(ctx, `D = ${d}`, SX(lab[0]) + (left ? -8 : 8), SY(lab[1][1]), { size: 11.5, align: left ? "right" : "left", color: d === D ? C.ink : C.muted });
     });
     const end = path(x, a, D, 8).end;
     dot(ctx, SX(Math.log10(a)), SY(end[1]), 6, ramp((Math.log10(a) + 3) / 4), C.paper);
