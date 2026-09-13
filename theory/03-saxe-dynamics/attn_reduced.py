@@ -99,5 +99,5 @@ def run_file(name, t_end, dt):
 
 if __name__ == "__main__":
     run_file("showcase", 150.0, 0.02)
-    run_file("sweep_rank1", 600.0, 0.02)
+    run_file("sweep_rank1", 700.0, 0.02)
     run_file("sweep_mode3", 300.0, 0.02)
