@@ -37,6 +37,26 @@ def fmt_log_centre(c, hw):
     return f'{c:.{nd}f}'
 
 
+def _paste_vtext(page, text, fnt, fill, paper, x_right, y, align='centre'):
+    """Paste text rotated 90 deg (reading bottom-to-top) with its right edge at x_right.
+    align: 'start' = text begins at y and runs upward, 'end' = text ends at y,
+    'centre' = centred on y."""
+    if not text:
+        return
+    bb = fnt.getbbox(text)
+    w, h = bb[2] - bb[0] + 4, bb[3] - bb[1] + 8
+    tmp = Image.new('RGBA', (w, h), paper + (0,))
+    ImageDraw.Draw(tmp).text((2 - bb[0], 4 - bb[1]), text, font=fnt, fill=fill)
+    tmp = tmp.rotate(90, expand=True)          # now h wide, w tall; text reads upward
+    if align == 'start':
+        top = int(y - w)
+    elif align == 'end':
+        top = int(y)
+    else:
+        top = int(y - w / 2)
+    page.paste(tmp, (int(x_right - h), top), tmp)
+
+
 def plate_page(img, meta, lines, title, plate_no=None, locator=None, W=2400, H=3150,
                img_px=2048, paper=PAPER, ink=INKC, tick_labels=True):
     """img: uint8 RGB (top row = high eta1). meta: dict with c0,c1,hw (log10 units) and
@@ -72,18 +92,11 @@ def plate_page(img, meta, lines, title, plate_no=None, locator=None, W=2400, H=3
             ly = f'{offy:+.3g}' if f != 0.5 else fmt_log_centre(c1, hwy)
             anc = {0: 'lt', 0.5: 'mt', 1.0: 'rt'}[f]
             d.text((x, mt + img_px + 28), lx, font=f_tick, fill=GREY, anchor=anc)
-            ancy = {0: 'rb', 0.5: 'mb', 1.0: 'rt'}[f]
-            # y labels rotated: draw on a temp image
-            tmp = Image.new('RGBA', (900, 40), paper + (0,))
-            ImageDraw.Draw(tmp).text((450, 20), ly, font=f_tick, fill=GREY, anchor='mm')
-            tmp = tmp.rotate(90, expand=True)
-            yy = int(y - 450) if f == 0.5 else (int(y - 900) if f == 0 else int(y))
-            if f == 0:
-                yy = int(y - 900 + 450 - 0)  # bottom label: end at y
-                yy = int(y) - 900 + 0
-            page.paste(tmp, (ml - 70, yy), tmp)
+            _paste_vtext(page, ly, f_tick, GREY, paper, x_right=ml - 30, y=y,
+                         align={0: 'start', 0.5: 'centre', 1.0: 'end'}[f])
     d.text((ml, mt + img_px + 70), meta.get('xlabel', ''), font=f_cap, fill=ink, anchor='lt')
-    d.text((ml + img_px, mt + img_px + 70), meta.get('ylabel', ''), font=f_cap, fill=ink, anchor='rt')
+    _paste_vtext(page, meta.get('ylabel', ''), f_cap, ink, paper, x_right=ml - 70, y=mt + img_px / 2,
+                 align='centre')
     # caption
     y = mt + img_px + 135
     d.text((ml, y), title, font=f_title, fill=ink, anchor='lt')
