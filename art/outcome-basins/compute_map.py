@@ -7,7 +7,8 @@ import argparse, json, os, sys, time
 import numpy as np
 import torch
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from engine import gpu_setup, run_gd, slice_grid, DEV, DT
+from engine import gpu_setup, slice_grid, DEV, DT
+import cuda_gd
 import problems as PR
 
 ap = argparse.ArgumentParser()
@@ -17,7 +18,6 @@ ap.add_argument('--win', type=float, nargs=4, required=True, metavar=('A0', 'A1'
 ap.add_argument('--res', type=int, default=512)
 ap.add_argument('--T', type=int, default=20000)
 ap.add_argument('--tol', type=float, default=1e-12)
-ap.add_argument('--check', type=int, default=20)
 ap.add_argument('--s', type=float, default=1.0)
 ap.add_argument('--seed', type=int, default=0)
 ap.add_argument('--H', type=int, default=2)
@@ -40,11 +40,14 @@ for eta in args.eta:
     if os.path.exists(name):
         print('exists', name); continue
     t0 = time.time()
-    r = run_gd(prob, th0, eta, args.T, tol=args.tol, check=args.check, log=sys.stdout)
+    if args.problem == 'fact3':
+        r = cuda_gd.run('fact', th0, eta, args.T, tol=args.tol)
+    else:
+        r = cuda_gd.run('mlp', th0, eta, args.T, tol=args.tol, X=PR.XOR_X, Y=PR.XOR_T, H=args.H)
     if args.problem == 'fact3':
         cl = PR.fact3_classify(r['theta'], r['status'])
         th = torch.as_tensor(r['theta'], dtype=DT, device=DEV)
-        sharp = prob.sharpness(th).cpu().numpy()
+        sharp = prob.sharpness(th).cpu().numpy(); del th
     else:
         cl = PR.xor_classify(prob, r['theta'], r['status'])
         sharp = np.concatenate([prob.gn_sharpness(torch.as_tensor(r["theta"][i:i + (1 << 18)], dtype=DT, device=DEV)).cpu().numpy()

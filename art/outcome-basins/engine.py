@@ -77,7 +77,7 @@ class MLP:
         """Largest eigenvalue of the Gauss-Newton matrix (1/N) J^T J (= Hessian at zero loss)."""
         J = self.jacobian(th)
         K = J @ J.transpose(1, 2) / self.N
-        return torch.linalg.eigvalsh(K)[:, -1]
+        return torch.from_numpy(np.linalg.eigvalsh(K.cpu().numpy())[:, -1])
 
 
 class ScalarFact:
