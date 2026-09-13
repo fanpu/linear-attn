@@ -276,18 +276,19 @@ Everything runs from `theory/` with the shared venv. The linear-network parts ar
 
 ```bash
 cd theory
-export OMP_NUM_THREADS=4 PY=.venv/bin/python
-$PY 03-saxe-dynamics/test_core.py                      # closed forms + GD vs theory (5 tests)
-$PY 03-saxe-dynamics/compute_reproduce.py              # §2 toy + §3 semantic run   -> cache/
-$PY 03-saxe-dynamics/compute_breaks.py all             # §4 sweeps                   -> cache/
-_shared/gpu_run.sh $PY 03-saxe-dynamics/compute_attention.py showcase
-_shared/gpu_run.sh $PY 03-saxe-dynamics/compute_attention.py sweep_rank1
-_shared/gpu_run.sh $PY 03-saxe-dynamics/compute_attention.py sweep_mode3
-$PY 03-saxe-dynamics/attn_reduced.py                   # reduced model from the same inits
-for r in modes landscape breaks attention; do $PY 03-saxe-dynamics/render_$r.py; done
-$PY 03-saxe-dynamics/render_landscape.py --anim
-$PY 03-saxe-dynamics/render_hero.py && $PY 03-saxe-dynamics/render_matrix.py
-$PY _shared/render_post.py 03-saxe-dynamics/post.md --shot
+export OMP_NUM_THREADS=4 PY=.venv/bin/python D=03-saxe-dynamics
+$PY $D/test_core.py                  # closed forms + GD vs theory
+$PY $D/compute_reproduce.py          # §2 toy, §3 semantic run
+$PY $D/compute_breaks.py all         # §4 sweeps
+for e in showcase sweep_rank1 sweep_mode3; do
+  _shared/gpu_run.sh $PY $D/compute_attention.py $e
+done
+$PY $D/attn_reduced.py               # §5 reduced model
+for r in modes landscape breaks attention; do $PY $D/render_$r.py; done
+$PY $D/render_landscape.py --anim
+$PY $D/render_hero.py; $PY $D/render_matrix.py; $PY $D/render_attn_anim.py
+$PY _shared/render_post.py $D/post.md --shot
+```
 ```
 
 ## References
