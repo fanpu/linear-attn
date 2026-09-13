@@ -1,6 +1,6 @@
 # Order and Chaos, and the Finite-Width Frontier
 
-*A deep random network is either a machine that forgets (every input collapses to the same output) or one that scrambles (nearby inputs fly apart). At infinite width the line between the two is a smooth curve; one fixed network of width 100 turns it into a laminated, filamentary coastline that you can zoom into by a factor of 65,000 and still not reach a smooth edge.*
+*A deep random network is either a machine that forgets (every input collapses to the same output) or one that scrambles (nearby inputs fly apart). At infinite width the line between the two is a smooth curve; one fixed network of width 100 turns it into a laminated, filamentary coastline that stays intricate for five decades of magnification before it finally resolves into smooth laminated stripes near ×260,000.*
 
 <p align="center"><img src="gallery/frontier_N100_magnification_spectral.png" width="100%"></p>
 
@@ -27,6 +27,10 @@ This project renders both halves: **Part A** reproduces and measures the tanh ph
 <td width="50%"><img src="gallery/frontier_N100_poster_spectral.png"><br><sub><b>Four magnifications, 2×2 poster (Spectral split).</b> x1, x16, x1024, x65536 of the same N = 100 network; each panel computed natively (see captions).</sub></td>
 <td width="50%"><img src="gallery/phase_spectral_analytic.png"><br><sub><b>The tanh phase diagram, infinite width.</b> Side = sign(χ₁ − 1); shade = ξ_c rank-normalised per side (declared Spectral split); the dark seam is where ξ_c diverges.</sub></td>
 </tr>
+<tr>
+<td width="50%"><img src="gallery/frontier_single_N100_x256_f32_r1280_spectral_raw.png"><br><sub><b>×256, one pixel per computed point</b> (1280², float32, no text). The most intricate level of the chain, where the box-counting slope peaks (1.87 at 256² float64). Spectral split, declared.</sub></td>
+<td width="50%"><img src="gallery/frontier_single_N100_x4096_f32_r1280_aurora_raw.png"><br><sub><b>×4,096, native 1280²</b> (float32), aurora/ember split (declared palette). Filaments have begun to align into laminated stripes; slope 1.70.</sub></td>
+</tr>
 </table>
 
 <p align="center"><video src="gallery/deepzoom_spectral.mp4" autoplay loop muted playsinline width="640"></video><br>
@@ -45,7 +49,7 @@ Signed field for the split styles (declared): **ordered** pixels (the pair reach
 <tr><td><sub>Single ink: frontier cells (2×2 neighbourhoods with both outcomes) inked; chaotic side lightly tinted.</sub></td><td><sub>Two-drum riso: teal = ordered, fluorescent orange = chaotic; density = closeness rank; 3/4 px misregistration declared.</sub></td></tr>
 </table>
 
-Single native plates (no text, one pixel per computed point): `gallery/frontier_N100_x{1,16}_f32_r1280_{style}_raw.png`, `gallery/frontier_N100_x{1024,65536}_f64_r1024_{style}_raw.png`.
+Single native plates (no text, one pixel per computed point): `gallery/frontier_N100_x{1,16}_f32_r1280_{style}_raw.png`, `gallery/frontier_N100_x{1024,65536}_f64_r1024_{style}_raw.png`, and `gallery/frontier_single_N100_x{256,4096}_f32_r1280_{spectral,aurora,riso}_raw.png`. Poster (2×2) versions of every style: `gallery/frontier_N100_poster_{style}.png`.
 
 **Motion.**
 
@@ -59,6 +63,8 @@ Single native plates (no text, one pixel per computed point): `gallery/frontier_
 <td><video src="gallery/depth_dial_spectral.mp4" autoplay loop muted playsinline width="100%"></video><br><sub><b>Depth as the dial</b>: one N = 100 network read out at l = 1 … 1000 (left) beside the mean-field closed form (right). Also <a href="gallery/depth_dial_magma.mp4">magma</a>, <a href="gallery/depth_dial_ink.mp4">ink</a>.</sub></td>
 </tr>
 </table>
+
+Every film also exists as a small GIF with the same name: `gallery/deepzoom_{spectral,magma,ink}.gif`, `gallery/width_as_time_{spectral,magma,ink}.gif`, `gallery/depth_dial_{spectral,magma,ink}.gif`, `gallery/flow_correlation_{spectral,oslo,cyanotype}.gif`. A text-free version of the analytic phase hero: `gallery/phase_spectral_analytic_raw.png`.
 
 <table>
 <tr>
@@ -109,7 +115,7 @@ All code is in this directory; compute scripts write `cache/`, render scripts re
 - Analysis: `$PY analyze_fractal.py --tag B --label sync --null_levels 10` and `--tag A` → `cache/fractal_report_*.json`.
 - Renders: `render_phase.py`, `render_flow.py`, `render_width.py`, `render_depth_dial.py`, `render_lyapunov.py`, `render_verification.py`, `render_zoom_plates.py --chain <file:level> ...`, `render_zoom_video.py --chain cache/zoom_Bvideoall_N100_D1000_s0_f32_r1280.npz`.
 
-Total GPU time: see §5 (end).
+Total GPU time: about 13 GPU-slot-hours of wall clock on the shared GB10 (measured map 2.4 h, trainability 1.3 h, zoom chains A/B/f32/perturbed 2.1 h, width maps 1.4 h, video keyframes 1.5 h, 512²/1024² resolution plates 1.8 h, Lyapunov and depth dial 0.15 h, plus roughly 1–2 h of jobs killed by the queue and recomputed). The analytic map and mean-field t_hit ran on CPU.
 
 ## 5. Verification and honesty
 
@@ -159,9 +165,9 @@ Yes. The analytic critical point at σ_b² = 0.05 is σ_w² = 1.7610 (Schoenholz
 Reading the table:
 
 - **Paper label: area-filling past ×256, not a stable non-integer dimension.** The local slope climbs 1.14 → 1.49 → 1.70 → 1.92 and then sits at 1.98–1.99 from ×256 to ×65,536. There, the label of adjacent pixels is almost uncorrelated (0.07–0.13), so at every grid we can afford the frontier fills the window like noise. D → 2 means "unresolved at this resolution"; it is not evidence of a fractal curve. The ordered/chaotic classification is nonetheless *deterministic*: re-running in float64 with inputs perturbed by 1e-13 flips at most 0.35% of pixels (0 at most deep levels), so this is real sensitivity of a 1000-layer map to (σ_w, σ_b), not roundoff. float32, in contrast, flips up to 43%.
-- **Sync label: a hump, not a plateau.** With "did the pair ever merge (L < 1e-10)?" the slope rises to a peak of 1.87 at ×256 and then falls steadily to 1.48 at ×262,144, while the neighbour correlation recovers from 0.47 to 0.87. Deep windows show laminated stripes (see the ×4,096 and ×65,536 plates) that become resolved as we zoom: a frontier that is smooth below some scale (≈ 1e-8 in σ at depth 1000) would look exactly like this. Finite depth sets an inner cutoff; there is no evidence of self-similarity continuing indefinitely. SYNC_PERT_TBD
+- **Sync label: a hump, not a plateau.** With "did the pair ever merge (L < 1e-10)?" the slope rises to a peak of 1.87 at ×256 and then falls steadily to 1.48 at ×262,144, while the neighbour correlation recovers from 0.47 to 0.87. Deep windows show laminated stripes (see the ×4,096 and ×65,536 plates) that become resolved as we zoom: a frontier that is smooth below some scale (≈ 1e-8 in σ at depth 1000) would look exactly like this. Finite depth sets an inner cutoff; there is no evidence of self-similarity continuing indefinitely. The sync label is just as deterministic: float64 with inputs perturbed by 1e-13 flips **0 pixels** both at ×256 (the slope peak) and at ×262,144 (`Bpert`, 256²).
 - **Null model.** The N = ∞ mean-field frontier through the identical pipeline (its own boundary-centred zoom chain) gives slope 0.98–1.03 at every level, and neighbour correlation 0.99. The roughness is a finite-width effect.
-- **Resolution check.** The same windows recomputed at 512² float64 give local slopes 1.16 (×1), 1.85 (×256), 1.67 (×4,096), against 1.08, 1.87, 1.70 at 256², and box counts at matched physical box sizes agree to within a few per cent (panel f). RES1024_TBD
+- **Resolution check.** The same windows recomputed at 512² float64 give local slopes 1.16 (×1), 1.85 (×256), 1.67 (×4,096), against 1.08, 1.87, 1.70 at 256², and box counts at matched physical box sizes agree to within a few per cent (panel f). At 1024² float64 (`Bplate2a`, `Bplate2b`) the fitted slopes are 1.75 at ×1,024 and 1.45 at ×65,536 (1.82 and 1.52 at 256²), and at 512² the ×262,144 window gives 1.41 (1.48 at 256²). Finer grids lower the deep-zoom slope a little, which is what resolving stripes predicts and the opposite of what a hidden fractal would do. The hump shape survives every resolution.
 - **Stitched count.** Multiplying box counts across nested windows gives global slopes of 1.97 (sync, 6.9 decades of ε) and 2.03 (paper label, 6.3 decades). These numbers are upper-biased by construction, because every window is chosen at maximal mixing. We report them only for completeness.
 - **Threshold dependence.** At a fixed window the slope varies strongly with τ. At ×4 it spans 1.35–1.74 over τ ∈ [1e-12, 1], and deeper windows range from below 0.5 to 1.99. A dimension quoted without its τ, zoom and box range is not meaningful.
 - **Where the frontier is.** From ×16 on, every zoom window lies entirely on the *chaotic* side of the mean-field line (mean-field chaotic fraction 1.00). At N = 100 the frontier is shifted into the mean-field chaotic phase, so the roughness is not a thickening of the mean-field curve.

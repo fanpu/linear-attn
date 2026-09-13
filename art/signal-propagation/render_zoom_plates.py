@@ -121,8 +121,18 @@ for style in styles:
         save_rgb(style_rgb(p, style)[::-1], f"{args.prefix}_N{N}_x{zoom_label(p):.0f}_{p['dtype']}_r{p['R']}_{style}_raw.png")
     pw = args.pw
     s_ = pw / 1024
-    gap, top, bot, side_m = int(60 * s_), int(230 * s_), int(380 * s_), int(110 * s_)
+    gap, top, side_m = int(60 * s_), int(230 * s_), int(110 * s_)
     W = side_m * 2 + len(PAN) * pw + (len(PAN) - 1) * gap
+    labtxt = (f"Measured: two independent inputs through {D} layers; a pixel is chaotic if the pair never came within L = |x1 - x2|^2 < 1e-10, "
+              "ordered if it did." if LABEL == "sync" else
+              f"Measured: L = |x1 - x2|^2 after {D} layers (mean of the last 20) for two independent inputs; frontier at L = {args.tau:g}.")
+    wrapw = int((W - 2 * side_m) / (18 * s_))
+    caption = ("\n".join(textwrap.wrap(labtxt + " Every panel computed natively on its own grid (larger grids shown area-averaged to the panel); each zoom centred on the sub-window with the most ordered/chaotic mixing.", wrapw))
+               + "\n" + "\n".join(textwrap.wrap(STYLE_NOTE[style], wrapw)) + "\n" + "\n".join(textwrap.wrap("Slope = local box-counting slope of the frontier at that zoom (256 x 256 float64 chain, box sizes 2 to 32 px). "
+               "It rises from ~1 to a peak near 1.87 and falls again: no single fractal dimension. At infinite width the frontier is the smooth mean-field curve (null model slope "
+               + (f"{np.nanmean([d['slope'] for d in rep['null']]):.2f}" if rep else "~1") + ").", wrapw)))
+    nlines = caption.count("\n") + 1
+    bot = int(170 * s_ + nlines * 12 * 1.6 * 200 * s_ / 72 + 60 * s_)
     H = top + pw + bot
     fig = fig_px(W, H, bg=BG[style], dpi=int(200 * s_))
     fg = FG[style]
@@ -152,14 +162,7 @@ for style in styles:
                  color=fg, fontsize=10.5, ha="center", va="center", alpha=0.8, family="DejaVu Sans Mono")
         fig.text((x0 + pw / 2) / W, 1 - (top + pw + 115 * s_) / H, f"computed at {p['R']} x {p['R']}, {'float64' if p['dtype']=='f64' else 'float32'}",
                  color=fg, fontsize=10.5, ha="center", va="center", alpha=0.7, family="DejaVu Sans Mono")
-    labtxt = (f"Measured: two independent inputs through {D} layers; a pixel is chaotic (red half) if the pair never came within L = |x1 - x2|^2 < 1e-10, "
-              "ordered (purple half) if it did." if LABEL == "sync" else
-              f"Measured: L = |x1 - x2|^2 after {D} layers (mean of the last 20) for two independent inputs; frontier at L = {args.tau:g}.")
-    fig.text(side_m / W, 1 - (top + pw + 170 * s_) / H,
-             "\n".join(textwrap.wrap(labtxt + " Every panel computed natively on its own grid (larger grids shown area-averaged to the panel); each zoom centred on the sub-window with the most ordered/chaotic mixing.", int((W - 2 * side_m) / (18 * s_))))
-             + "\n" + STYLE_NOTE[style] + "\n" + "\n".join(textwrap.wrap("Slope = local box-counting slope of the frontier at that zoom (256 x 256 float64 chain, box sizes 2 to 32 px). "
-             "It rises from ~1 to a peak near 1.87 and falls again: no single fractal dimension. At infinite width the frontier is the smooth mean-field curve (null model slope "
-             + (f"{np.nanmean([d['slope'] for d in rep['null']]):.2f}" if rep else "~1") + ").", int((W - 2 * side_m) / (18 * s_)))),
+    fig.text(side_m / W, 1 - (top + pw + 170 * s_) / H, caption,
              color=fg, fontsize=12, va="top", linespacing=1.6, alpha=0.9, wrap=False)
     savefig(fig, f"{args.prefix}_N{N}_magnification_{style}.png", dpi=int(200 * s_))
     if len(PAN) == 4:
@@ -179,7 +182,7 @@ for style in styles:
             dr.text((x0 + 10, y0 + pw - 30), tag, font=fS, fill=FG[style])
         yc = m + 2 * pw + g + 30
         dr.text((m, yc), f"The order/chaos frontier of one random erf network (width {N}, depth {D}), magnified " + ", ".join(f"x{zoom_label(p):,.0f}" for p in PAN), font=fB, fill=FG[style])
-        dr.text((m, yc + 50), "centres " + ";  ".join(f"({0.5*(p['win'][0]+p['win'][1]):.8f}, {0.5*(p['win'][2]+p['win'][3]):.8f})" for p in PAN[1:]) + "  in (sigma_w, sigma_b)", font=fS, fill=FG[style])
+        dr.text((m, yc + 50), "centres " + ";  ".join(f"x{zoom_label(p):,.0f} ({0.5*(p['win'][0]+p['win'][1]):.8f}, {0.5*(p['win'][2]+p['win'][3]):.8f})" for p in PAN[1:]) + "  in (sigma_w, sigma_b)", font=fS, fill=FG[style])
         dr.text((m, yc + 80), "native grids: " + "; ".join(f"x{zoom_label(p):,.0f} {p['R']}^2 {'float64' if p['dtype']=='f64' else 'float32'}" for p in PAN), font=fS, fill=FG[style])
         for j, ln in enumerate(textwrap.wrap(STYLE_NOTE[style], int((Wp - 2 * m) / 10.3))[:2]):
             dr.text((m, yc + 108 + 26 * j), ln, font=fS, fill=FG[style])

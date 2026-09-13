@@ -1,6 +1,20 @@
 # NOTES: signal-propagation (Order and Chaos + Finite Width)
 
-Living handoff (replaces PAUSED.md). `cache/` is gitignored; it survives locally but is not in git.
+## STATUS: COMPLETE (session 4, final)
+All GPU jobs finished (bvideo2, bplate2a, bplate2b, batch2 = Bpert + Bres3). No background processes left.
+Session 4 did: analyze_fractal B (final report), render_verification + boxcount plate, zoom plates in 5 styles + posters,
+raw x256/x4096 singles (spectral/aurora/riso; the 2-panel "frontier_single" sheets were deleted: title overflowed),
+merged video chain (cache/zoom_Bvideoall...npz, 13 levels), deepzoom_{spectral,magma,ink}.{mp4,gif}
+(magma/ink rendered in parallel under --name dzp and renamed), README tokens filled, GPU time line, link check, commit.
+Fixes to render_zoom_plates.py: caption block height now computed from the wrapped line count (text was cut off at
+the bottom); caption no longer says "red half/purple half" on non-split styles; poster centres labelled by zoom.
+
+Final key numbers (cache/fractal_report_B_N100_sync.json):
+- Sync label local slope by zoom x1..x262144: 1.08 1.39 1.60 1.79 1.87 1.82 1.70 1.65 1.52 1.48 (hump, peak x256).
+- Bpert (f64, 1e-13 input perturbation) mismatch: 0 at x256 and x262144.
+- Resolution check: 512^2 x1 1.16, x256 1.85, x4096 1.67, x262144 1.41; 1024^2 x1024 1.75, x65536 1.45.
+- Null (mean field) 0.98-1.03; stitched 1.97 (upper-biased). Chain A (paper label) -> 1.98-1.99 past x256 (area-filling).
+- GPU total ~13 slot-hours.
 
 ## Session 3 (agent 3) progress
 - analyze_fractal.py now records `adj_corr` (label correlation of adjacent pixels) and saves `cache/null_labels_{label}_r256.npz`; A and B reports rerun (B rescheck 512: 1.16/1.85/1.67 vs 256: 1.08/1.87/1.70). Chain A adj corr 0.07-0.13 past x256; B 0.47 (x256) -> 0.87 (x262k).
