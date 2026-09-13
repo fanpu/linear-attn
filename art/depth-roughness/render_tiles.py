@@ -43,7 +43,8 @@ def tile(key):
         rgb = cmc.oslo(np.clip((g - lo) / (hi - lo + 1e-12), 0, 1))[..., :3] * 0.9
         line = ink_coverage(f, c, 4, weight=2)
         line = ink_coverage(f, c, 4, weight=1)
-        return mix(rgb, np.array([1.0, 0.86, 0.55]), np.clip(line * 1.6, 0, 0.85))
+        amax = 0.5 if key.startswith("heaviside") else 0.85   # round 2: let the field show through dense coastlines
+        return mix(rgb, np.array([1.0, 0.86, 0.55]), np.clip(line * 1.6, 0, amax))
     if style == "topo":
         if key.startswith("heaviside"):
             qs, wts = [c], [1]

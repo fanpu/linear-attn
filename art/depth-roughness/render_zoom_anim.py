@@ -61,6 +61,7 @@ if mode == "widths":
         nets.append((n, HeavisideNet(n, 2, 11), z["p"], float(z["u"])))
     P, SS = 600, 2
     F0, F1 = np.pi / 4 / 16, 2.4e-7
+    FPD = 30
     nfr = int(np.ceil(np.log2(F0 / F1) * FPD))
     dd = "cache/frames_zoom_widths"
     os.makedirs(dd, exist_ok=True)
@@ -87,6 +88,6 @@ if mode == "widths":
                 font=font(30, "italic"), fill=(110, 105, 96), spacing=8)
         dr.text((30, 250 + P + 90), f"field of view {F:.2e} rad    magnification x{np.pi/4/F:,.0f}", font=font(32, "mono"), fill=(27, 27, 34))
         img.save(path)
-        if i % 45 == 0:
+        if i % 15 == 0:
             print(i, nfr, f"F={F:.2e}", flush=True)
     write_video(dd, "gallery/zoom_width_limit.mp4", fps=30, gif="gallery/zoom_width_limit.gif", gif_width=720, gif_fps=12)
