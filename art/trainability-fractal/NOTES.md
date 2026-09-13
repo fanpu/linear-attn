@@ -1,6 +1,6 @@
 # NOTES (handoff) - trainability-fractal
 
-## State (end of session 3, 2026-09-13 12:40)
+## State: COMPLETE (session 5). Historical state from session 3 below.
 - Engine `tfractal.py` (batched hand-written fwd/bwd, float64, torch.compile); styles `styles.py`
   (spectral, dark_magma, riso_two_ink, line_boundary, hillshade, NEW isolines); plate pages `pages.py`.
 - Deep zoom DONE to 10^6.5: zoomA kf0-5 (half-decade, 10^0..10^2.5) + zoomB kf0-3 (10^3.5..10^6.5).
@@ -69,3 +69,13 @@ GPU time so far: sessions 1-2 ~10 GPU-h wall (contended); session 3 jobs above a
 - GPU wall this session (contended, 1 slot each): sem_sigma 0.74 h, steps 1.36 h, relu 0.47 h, fill 1.56 h; hero f64 + deep1024 each ~9 h wall when done (started 12:19/12:31, ~1000 s per 32768-px chunk, 32 chunks).
 - README "What was computed" table has rows for steps/semantic/relu; add hero f64 seconds (<!-- HEROT -->) and deep1024 + sem_wd rows when done.
 - Session 4 ended at ~115k context (HANDOFF). All CPU renders finished; only the gpu_run jobs above remain (s3_hero64, s3_deep1024, s3_sem[sem_wd]).
+
+## Session 5 (final, 2026-09-13 ~17:45): PROJECT COMPLETE
+- All GPU jobs finished; dummy deep_zoomA3 removed. No background processes left.
+- Rendered: hero_overview_tanh_{spectral,aurora_ember,indigo_madder}_{print,labelled} (float64, 16673 s, conv 58.1%);
+  hero_deep_swirl_{spectral,aurora_ember}_{print,labelled} + riso/isolines prints (render_deep_styles.py); diptych_OV_{spectral,magma,overprint}
+  (tanh 58.1% vs ReLU 33.6%); sem_wd_lr_384_{spectral,magma,riso,line} (conv 39.6%, D=1.02; diagonal edge at eta*lambda=10^0.29~2, linear stability).
+- deep_verify (cache/verify_deep_deep_zoomA4_1024_f64.json): D=1.67+-0.04 b=2-256 (2.1 dec, r2 .997); local slopes 1.47-1.62 for b=2-64, then 1.85/2.12 (saturation);
+  4-128: 1.64; 2-32: 1.58 vs keyframe 1.61; subsample agreement 97.0%, conv 51.19 vs 51.27%.
+- f32 vs f64 overview: 99.80% label agreement, D 1.329 vs 1.327, 29% of f64 boundary px differ in f32 (README paragraph replaced).
+- README: all placeholders filled (hero at top = deep swirl), sections 2 (OV diptych) and 6 (wd x lr), verification "Over two decades", reproduce block; link check passes.

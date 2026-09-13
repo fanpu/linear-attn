@@ -2,7 +2,13 @@
 
 *Every pixel is a separate neural network trained for 500 steps. Colour says whether it learned, and how quickly. The line between learning and blowing up is jagged at every scale we could afford to look at.*
 
-<!-- HERO -->
+<img src="gallery/hero_deep_swirl_spectral_print.png" width="100%">
+
+**Hero: $10^{2}$ into the boundary, native 1024² float64.** A million separate tanh networks, one per pixel, over $\log_{10}\eta_0\in[1.035,1.125]$, $\log_{10}\eta_1\in[2.257,2.347]$ (the window of zoom plate 5, computed natively at 4× its density). Red to pale yellow = diverged, purple to pale green = trained. The dark seam where the two ends of Spectral meet is the measured converge/diverge boundary. Box counting on it gives $D=1.67\pm0.04$ over box sizes 2–256 px (2.1 decades), details under Verification. Colour follows his rank-normalised Spectral split (declared aesthetic). [Labelled](gallery/hero_deep_swirl_spectral_labelled.png) · [aurora/ember split](gallery/hero_deep_swirl_aurora_ember_labelled.png) · [two-ink riso](gallery/hero_deep_swirl_riso_print.png) · [isoline survey sheet](gallery/hero_deep_swirl_isolines_print.png).
+
+<img src="gallery/hero_overview_tanh_spectral_labelled.png" width="49%"> <img src="gallery/hero_overview_tanh_aurora_ember_print.png" width="49%">
+
+**The overview, native 1024² float64**, $\eta_0,\eta_1\in[10^{-3},10^{6}]$, in his labelled-figure idiom (left) and the `palettes.py` aurora/ember split (right, declared aesthetic). Trainable fraction 58.1 %. At this scale the boundary is a nearly straight seam with a ragged right-hand end; the structure in the hero above lives inside that seam. Print versions: [Spectral](gallery/hero_overview_tanh_spectral_print.png), [indigo/madder split](gallery/hero_overview_tanh_indigo_madder_print.png) ([labelled](gallery/hero_overview_tanh_indigo_madder_labelled.png)).
 
 ## The phenomenon
 
@@ -43,6 +49,10 @@ The sequence runs from the $(\eta_0,\eta_1)\in[10^{-3},10^{6}]^2$ overview (plat
 
 The window is $\log_{10}\eta_0\in[1.64, 3.61]$, $\log_{10}\eta_1\in[0.52, 2.48]$, with 256² networks per panel, 500 steps, float64 and identical data and init. The activation changes: $\tanh(\sqrt2 z)$, $\sqrt2\,\mathrm{relu}(z)$, and $\sin(\sqrt2 z)$, which is smooth but non-monotone. The trainable fraction is 82% / 11% / 91%. Only tanh has its boundary at the top of the frame. ReLU's boundary is a wide diagonal band of dust, and sin's is a thin arc. Colour is Spectral (primary); variants: [magma](gallery/diptych_B_magma.png), [three-ink overprint of the boundaries alone](gallery/diptych_B_overprint.png).
 
+<img src="gallery/diptych_OV_spectral.png" width="100%">
+
+**Full overview, tanh versus ReLU** ($\eta_0,\eta_1\in[10^{-3},10^{6}]$, tanh 1024², ReLU 512², both float64, same data and init). tanh trains on 58.1 % of the plane and ReLU on 33.6 %. For tanh the input-layer rate barely matters: the edge is a horizontal seam at $\eta_1\approx10^{2}$ all the way across. ReLU adds a vertical wall at $\eta_0\approx10^{3.5}$, fringed with isolated diverged specks, so its trainable region is a closed corner. Measured: phase and within-phase rank. Aesthetic: Spectral split, panel layout. Variants: [magma](gallery/diptych_OV_magma.png), [boundary overprint](gallery/diptych_OV_overprint.png).
+
 ### 3. The deflationary companion: no neural network at all
 
 <img src="gallery/deflation_liu_diptych_spectral.png" width="100%">
@@ -62,14 +72,21 @@ One 384² run of 1000 steps over the window $\log_{10}\eta_0\in[0.41,1.31]$, $\l
 <img src="gallery/sem_sigma_lr_384_spectral.png" width="49%"> <img src="gallery/sem_sigma_lr_384_riso.png" width="49%">
 
 Here both layers share one learning rate η (vertical) and both weight matrices are scaled at init by σ (horizontal), over six decades each, with 384² float64 networks. The trainability edge sits at $\eta\approx10^{2.0}$–$10^{2.2}$ across all six decades of σ: the learning rate decides trainability almost alone. The edge is ragged at small σ and smoother at large σ; box counting gives $D=1.21\pm0.05$ over the whole plate (b = 2–32 px). The trainable fraction is 60.1 %. Variants: [magma](gallery/sem_sigma_lr_384_magma.png), [boundary line only](gallery/sem_sigma_lr_384_line.png).
-<!-- SEM-WD -->
+
+### 6. Semantic axes: weight decay × learning rate
+
+<img src="gallery/sem_wd_lr_384_spectral.png" width="49%"> <img src="gallery/sem_wd_lr_384_riso.png" width="49%">
+
+An L2 term $\lambda W$ is added to both gradients, with one shared learning rate η (vertical) and λ over $[10^{-5},10^{3}]$ (horizontal), 384² float64 networks. The trainable region has two edges with different characters. For small λ it is the familiar ragged edge at $\eta\approx10^{2.1}$, the same height as in the σ × η plate. For $\lambda\gtrsim10^{-1.5}$ it is a perfectly straight diagonal at $\eta\lambda = 10^{0.29\text{–}0.30}\approx2$, which is exactly where the decay factor $1-\eta\lambda$ passes −1 and the weights oscillate out of control. That is linear stability, not fractal. A thin dotted line of isolated converged pixels also runs through the diverged region along $\eta\lambda\approx1$, where the decay factor vanishes. Because the diagonal dominates the edge set, box counting over the whole plate gives $D=1.02\pm0.01$ (b = 2–32 px); the fractal part is confined to the short small-λ edge. Trainable fraction 39.6 %. Variants: [magma](gallery/sem_wd_lr_384_magma.png), [boundary line only](gallery/sem_wd_lr_384_line.png).
 
 ## What was computed
 
 | piece | grid | steps | precision | wall time (shared GB10) |
 |---|---|---|---|---|
 | zoom keyframes (tanh, full batch) | 256² each, 14 keyframes | 500 | float64 | 5–38 min each (29–200 px/s under contention) |
-| overview hero | 1024² | 500 | **float32** (see verification) | <!-- HEROT --> |
+| overview hero (tanh) | 1024² | 500 | float64 | 16 673 s (4.6 h, 63 px/s) |
+| deep hero, plate-5 window natively | 1024² | 500 | float64 | 17 758 s (4.9 h) |
+| semantic λ × η | 384² | 500 | float64 | 30 min |
 | architecture diptych | 3 × 256² | 500 | float64 | ~5 min each |
 | training-steps film | 384², checkpoints T = 10…1000 | 1000 | float64 | 82 min |
 | semantic σ × η | 384² | 500 | float64 | 44 min |
@@ -89,7 +106,8 @@ Here both layers share one learning rate η (vertical) and both weight matrices 
 ../_shared/gpu_run.sh ../.venv/bin/python zoom_compute.py --tag zoomA --res 256 --dec 0.5 --depth 2.5
 ../_shared/gpu_run.sh ../.venv/bin/python zoom_compute.py --tag zoomB --res 256 --dec 1.0 --depth 3 \
     --c0 1.0748861791423199 --c1 2.2984270722598947 --hw 0.0014230249470757708
-../_shared/gpu_run.sh ../.venv/bin/python window_compute.py --name hero_overview_tanh_1024_f32 --res 1024 --dtype float32
+../_shared/gpu_run.sh ../.venv/bin/python window_compute.py --name hero_overview_tanh_1024_f64 --res 1024   # (+ _f32 with --dtype float32 for the precision comparison)
+../_shared/gpu_run.sh ../.venv/bin/python window_compute.py --name deep_zoomA4_1024_f64 --res 1024 --from_zoom zoomA:4
 for NL in tanh relu sin; do ../_shared/gpu_run.sh ../.venv/bin/python window_compute.py --name dip_B_$NL --nonlin $NL --res 256 --c0 2.625 --c1 1.5 --hw 0.984; done
 ../_shared/gpu_run.sh ../.venv/bin/python zoom_compute.py --tag null_quadratic --nonlin quadratic --res 256 --dec 0.5 --depth 6
 OMP_NUM_THREADS=4 ../.venv/bin/python liu_toy.py --name liu_eps05_1024 --res 1024 --eps 0.05 --lam 0.2   # and --eps 0, --res 2048
@@ -100,7 +118,9 @@ python merge_zoom.py fillpath; ../_shared/gpu_run.sh ../.venv/bin/python zoom_co
 ../_shared/gpu_run.sh ../.venv/bin/python window_compute.py --name sem_wd_lr_384 --axes wd_lr --res 384 --c0 -1 --c1 1.5 --hw 4
 python merge_zoom.py; python render_zoom.py zoomAB --video; for S in spectral riso isolines aurora_ember; do python render_zoom.py zoomAB --plates --style $S; done
 python render_descent.py zoomAB --cols 7; python render_descent.py zoomAB --cols 7 --style aurora_ember
-python render_windows.py steps steps_zoomA2_384; python render_windows.py semantic; python render_hero.py hero_overview_tanh_1024_f32 overview_tanh
+python render_windows.py steps steps_zoomA2_384; python render_windows.py semantic; for S in spectral aurora_ember indigo_madder; do python render_hero.py hero_overview_tanh_1024_f64 overview_tanh --style $S; done
+python render_hero.py deep_zoomA4_1024_f64 deep_swirl; python render_hero.py deep_zoomA4_1024_f64 deep_swirl --style aurora_ember; python render_windows.py diptych OV
+python deep_verify.py deep_zoomA4_1024_f64 zoomA:4; python render_deep_styles.py
 python render_windows.py diptych B; python render_windows.py liu; python verify.py zoomAB null_quadratic liu
 ```
 Sanity tests: `test_core.py` (gradients, early exit, checkpoints) and `test_early_exit_speckle.py`.
@@ -134,6 +154,10 @@ In short: from $10^{1.5}$ to $10^{6.5}$ (11 plates) the network boundary has $D$
 
 **Across decades.** No single image covers more than 1.2 decades of box size. The multi-decade evidence is that the local slope stays well above 1 at every zoom level from $10^{1.5}$ to $10^{6.5}$ (panel b plots the slopes against absolute box size in decades of learning rate). It is not a single straight line over many decades. The estimate also depends on where the window sits: it rises as the window closes in on the boundary, so this is a *local* dimension of the region we zoomed into. Sohl-Dickstein reports 1.66 for tanh full batch (median over ~50 frames); our deep frames are in the same range.
 
+<img src="gallery/verify_deep_deep_zoomA4_1024_f64.png" width="100%">
+
+**Over two decades in one image.** The hero window (plate 5, $10^{2}$) was recomputed natively at 1024² float64, so box sizes run 2–256 px. The fit over b = 2–256 (2.1 decades, 8 sizes, $r^2=0.997$) gives $D=1.67\pm0.04$. It is not a perfectly straight line, and the local slopes show why: 1.47, 1.57, 1.61, 1.62, 1.62 between successive sizes from 2 to 64 px, then 1.85 and 2.12 at 64–256 px. The top two sizes leave only 16–64 boxes, nearly all occupied, so the slope heads to 2 through saturation, not structure. The honest scaling range is b ≈ 4–64 px (1.2 decades) at $D\approx1.6$. Over b = 4–128 (1.5 decades) the fit is $1.64\pm0.02$; over 2–32 it is $1.58\pm0.02$, against 1.61 for the 256² keyframe of the same window. **Consistency with the keyframe:** sampling the 1024² grid at every 4th pixel reproduces the 256² plate's trainable fraction (51.19 % vs 51.27 %), edge-pixel count (5369 vs 5381) and $D$ (1.62 vs 1.61), with 97.0 % label agreement. The sample points sit half a native pixel off the keyframe centres, and in a region this rough that shift alone flips some labels.
+
 **Null model (quadratic, same pipeline).** The loss $\ell(a,b)$ of $\hat y = Xa/\sqrt n + \phi(XW_0/\sqrt n)\,b/n$ with $W_0$ frozen is exactly quadratic, so GD is linear. Its stability boundary is the algebraic curve $\rho(I-P\,\nabla^2\ell)=1$. Through the identical zoom, chooser, colour and box counter, it stays a smooth curve and then a straight line. $D$ = 1.01 at the overview and 1.04–1.11 at every level from $10^{1}$ to $10^{6}$ (one outlier, 1.65, at $10^{0.5}$, where the window contains a sharp corner and only ~500 edge pixels). The rendering does not manufacture a fractal.
 
 **Precision floor ("seeing").** At every keyframe a 64² block on the boundary is recomputed with both learning rates multiplied by $(1+2^{-52})$, one ulp. The quoted number is the fraction of boundary pixels whose converge/diverge label flips: at most 0.2 % of boundary pixels at every network plate from $10^{0.5}$ to $10^{6.5}$ (exactly 0 on 11 of those 13; 0.2 % at $10^{4}$, 0.1 % at $10^{5}$), and 0.6 % at the overview. For the network, labels are essentially deterministic to one ulp all the way down, so the filaments are resolved structure and not roundoff noise. The learning-rate grid itself stays representable: relative pixel spacing is $2.6\times10^{-8}$ at the deepest plate, far above $2.2\times10^{-16}$, so the float64 floor for this 256² grid would sit around $10^{13}$ magnification. We were limited by GPU time, not precision.
@@ -146,7 +170,7 @@ The trainable fraction is stable (36.6 %, 36.4 %, 36.5 %), so the phase areas ar
 
 **Isolated red specks** (single diverged pixels inside the converged region at $\eta_0\sim10^{5.5}$, visible in early exploration). Recomputing a 64² block at 2× density gave 87 specks against 26 in the same area at 1× (3.3×, against 4× more pixels), and the diverged fraction stayed at 0.55–0.63 %. They are genuine isolated divergent runs, a sparse "dust" that is not resolved at either resolution. They are not a rendering artifact. A 1-ulp nudge flips 6 % of boundary pixels there, against 0 % along the chosen zoom path, so this region is also closer to roundoff sensitivity. Zoom windows were steered away from it.
 
-**The overview hero is float32.** Under GPU contention a float64 1024² run was estimated at 5–6 h. A 256² float32 overview matches float64 on 99.8 % of pixels, with median relative difference of the measure $1.5\times10^{-5}$. **20 % of boundary pixels change label**, so the hero's large-scale geometry is faithful, but its pixel-level edge texture is a float32 realisation. Every zoom plate is float64.
+**Float32 versus float64 overview.** The overview was first computed in float32 (5354 s) and then in float64 (16 673 s), and the float64 run is the one shown. The two 1024² grids agree on 99.80 % of pixel labels, and their box-counting dimensions over b = 2–256 are the same to three digits (1.327 vs 1.329). But **29 % of the float64 boundary pixels have a different label in float32**. The large-scale geometry survives float32, while the pixel-scale texture of the edge does not. Every plate in this gallery is float64.
 
 **Liu-type toy: a negative worth stating.** With these parameters ($\epsilon=0.05,\lambda=0.2$, 500 steps) the ripple toy's boundary band is *chaotic at one ulp*. From $10^{1.5}$ down, ~50 % of boundary pixels flip under a 1-ulp nudge and the "dimension" saturates at 2.08, which means the band is space-filling noise. Its $D\approx1.7$ at the overview is therefore partly a roundoff-chaos measurement. The deflationary point still stands (a trivially non-convex loss makes a rough boundary with no network), but in our runs the network's boundary is *more* deterministic under zoom than the toy's.
 
@@ -160,7 +184,7 @@ The trainable fraction is stable (36.6 %, 36.4 %, 36.5 %), so the phase areas ar
 1. **Automatic motif hunt / specimen drawer.** Score windows by coherent-boundary mixing and cluster the motifs. The scorer exists (`choose_next`); the drawer was not rendered because of GPU time.
 2. **Hillshaded relief** of signed log speed (`styles.hillshade`). Tested on toys. At 256² it reads as noise-dominated relief, and it needs ≥1024² native keyframes.
 3. **Training-step animation**: rendered (section 4). His measure is taken at many T from one run; checkpoint test gives 6e-8 agreement with separate runs.
-4. **Semantic axes** (σ × η, λ × η): σ × η rendered at 384² (section 5).
+4. **Semantic axes** (σ × η, λ × η): both rendered at 384² (sections 5 and 6).
 5. **sin activation** included in the diptych. Minibatch-16 toy computed, not included.
 6. **Cyclic colour map**: skipped. No quantity here is genuinely cyclic.
 
@@ -169,7 +193,7 @@ The trainable fraction is stable (36.6 %, 36.4 %, 36.5 %), so the phase areas ar
 - **A 2D slice.** Structure in this slice implies structure in the full hyperparameter space. A smooth slice would imply little.
 - **Finite steps.** "Converged" means the mean of the last 20 normalised losses is below 1 after 500 steps. Longer training moves the boundary, and some pixels near it are still undecided.
 - **One draw of data and init** (seed 0). A different seed gives a different, statistically similar picture.
-- **Box counting here is local** (1.2 decades per image) and depends on the window; it is not a global Hausdorff dimension.
+- **Box counting here is local** and depends on the window; it is not a global Hausdorff dimension. Each 256² keyframe gives 1.2 decades of box size. The single native 1024² plate gives 2.1 decades, but its clean scaling range is closer to 1.2–1.5 decades (large boxes saturate).
 - **Colour is aesthetic.** Spectral with rank normalisation is his choice and is reproduced for continuity. Rank normalisation per image means colours are not comparable between plates; only sign and rank within a plate are data.
 
 ## References
