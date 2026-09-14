@@ -11,6 +11,7 @@
 - Phase numbers (2026-09-14 11:45): idle 11.4 W / 37 C; matmul 94 W sustained (123 W first samples), SM 2400 -> 2150 MHz, no
   throttle reason flagged; copy 27 W; prefill B64x256 55 W, 20.8k tok/s, 2.6 mJ/token; decode B64 47 W, 2044 tok/s, 23 mJ/token;
   decode B1 28 W, 84 tok/s, 0.34 J/token.
-- Status: phases COMPLETE. Soak recorded 11:59-12:20 by `hardware/run_part2.sh`; render with `--tag soak`, then add the tau values
-  to README (section "Gallery" already names the plate). Extras: a longer soak to reach steady state, fan/pump sensors if any appear
+- Soak (11:59-12:20): heating tau 30 s (+20.4 C from 59), plateau 80-82 C at 89 W / 2150 MHz, 94.7 TFLOP/s sustained over 900 s,
+  cooling tau 44 s; unexplained 4 C drop at ~560 s at constant power (fan step? no fan sensor). `cache/soak_fits.json`.
+- Status: COMPLETE (README, gallery, index row). Extras: a longer soak to reach steady state, fan/pump sensors if any appear
   in hwmon, correlating the clock sag with the power reading at 10 ms via NVML directly (pynvml) instead of nvidia-smi.

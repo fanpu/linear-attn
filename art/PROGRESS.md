@@ -6,7 +6,7 @@
 
 **Update:** resumed with at most 5 agents at a time; the other agents keep their context and continue where they stopped.
 - **ALL PROJECTS COMPLETE.** art (19): attention-textile, color-research, decode-map, depth-roughness, diffusion-basins, edge-of-stability, game-chaos, gd-bifurcation, grokking, hessian-spectrum, loss-landscape, mode-connectivity, neural-collapse, ouroboros, outcome-basins, scaling-dimension, signal-propagation, trainability-fractal, weight-spectrum. hardware Part I (5): block-quant, dither, float-ruler, posterize, precision-divergence.
-- Gallery index: `art/README.md`. Hardware Part II (§6–§10, timing/sensor pieces on an idle GPU): **lattice** (§6) done 2026-09-13; **fingerprint** (§7) and **roofline** (§9) done 2026-09-14; **staircase** (§8) and **pulse** (§10) running in `hardware/run_part2.sh` (sequential: two concurrent GPU jobs OOM'd the driver on 2026-09-14 05:28, see `hardware/fingerprint/NOTES.md`). §11 whine and §12 heat need a microphone / thermal camera and are not started.
+- Gallery index: `art/README.md`. Hardware Part II (§6–§10, timing/sensor pieces on an idle GPU): **lattice** (§6) done 2026-09-13; **fingerprint** (§7) and **roofline** (§9) done 2026-09-14; **staircase** (§8) and **pulse** (§10) done 2026-09-14 12:20 (run sequentially by `hardware/run_part2.sh`: two concurrent GPU jobs OOM'd the driver on 2026-09-14 05:28, see `hardware/fingerprint/NOTES.md`). **All of Part II that this machine can measure is complete.** §11 whine and §12 heat need a microphone / thermal camera and are not started.
 
 ## Shared setup (done, reusable)
 

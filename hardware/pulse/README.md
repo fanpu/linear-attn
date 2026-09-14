@@ -46,6 +46,19 @@ A GPU's power and temperature respond to work on very different time scales: pow
 
 At 0.25 s on/off the instant reading sits at a flat 118 W for the first 13 s of the phase and then a flat 14 W for the remaining 47 s, while the GPU temperature climbs from 59 to 78 °C (the hottest point of the session) and the utilisation counter, itself a ~1 s window, drifts from 100 % to 0 % and back. The GPU is doing the work; the sensor is not seeing it. The reading changes 1.9 times per second over the whole recording (819 distinct values in 8059 samples), so a 2 Hz square wave is sampled stroboscopically and the sensor freezes at whatever phase it happens to be in. Anything faster than about 1 Hz is invisible to NVML on this board, and the token rhythm of decoding (84 Hz at B = 1, 2 kHz at B = 64) is far beyond it. The proposal's rhythm piece is therefore impossible with this sensor, and this plate is the proof rather than the piece.
 
+**Thermal soak** (`pulse_soak_soak_night.png`: 60 s idle, 900 s of 8192² bf16 matmul, 300 s idle):
+
+| | |
+|---|---|
+| heating fit T0 + ΔT(1 − e^(−t/τ)) | T0 = 59 °C, ΔT = +20.4 °C, **τ = 30 s** |
+| plateau (120–500 s) | 80–82 °C, 89 W, SM 2145–2160 MHz |
+| sustained throughput over 900 s | 77 537 iterations, **94.7 TFLOP/s** (vs 101 warm-median in the roofline) |
+| unexplained event at ~560 s | power wobbles 80–90 W for a minute, clock dips to 2110 MHz, then the die runs 4 °C cooler (78 °C) at the same 89 W for the rest of the soak: a fan step is the obvious guess, and there is no fan in hwmon to confirm it |
+| cooling fit | ΔT = −17.4 °C, **τ = 44 s**; 77 → 58 °C in 10 s, 48 °C at 60 s, 43 °C at 300 s |
+| clock recovery | 2170 → 2400 MHz within one sample of the load ending |
+
+The die is a fast thermal object: half a minute to heat, three quarters of a minute to cool, and the clock follows the temperature down by ~10 % (2400 → 2150 MHz) with the driver flagging no throttle reason. The sustained 94.7 TFLOP/s is 6 % under the warm one-minute roofline figure, which is the size of the thermal penalty for this workload on this chassis.
+
 ## Gallery
 
 - `pulse_phases_{night,paper}.png`: the full recording, five strips.
