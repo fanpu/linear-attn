@@ -88,7 +88,7 @@ def closeup_plate(R, K, lr):
     kid, kv = categorize([kernel_label(s) for s in K["names"]], 256)
     kid = kid[:G, :G]
     fig = plt.figure(figsize=(15, 8.4), facecolor=PAPER)
-    ax = fig.add_axes([.04, .1, .5, .8]); ax2 = fig.add_axes([.6, .55, .36, .35]); ax3 = fig.add_axes([.6, .1, .36, .33])
+    ax = fig.add_axes([.04, .1, .5, .8]); ax2 = fig.add_axes([.6, .66, .34, .24]); ax3 = fig.add_axes([.6, .1, .3, .46])
     ax.imshow(P.render_split(r, "sd_spectral"), origin="lower", extent=[.5, G + .5, .5, G + .5], interpolation="nearest")
     ed = boundaries(kid)
     yy, xx = np.nonzero(ed)

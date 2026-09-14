@@ -138,12 +138,22 @@ def plate_mosaic(tag, T, K, scale=8):
         sub = kid[:, off::2]
         e = np.repeat(np.repeat(sub, scale, 0), 2 * scale, 1)
         e = binary_dilation(boundaries(e), iterations=1)
+        e = np.pad(e, ((0, 0), (0, max(0, big.shape[1] - e.shape[1]))))
         e = np.roll(e, off * scale, 1)[:, :big.shape[1]]
         covs.append(e.astype(float))
     save_rgb(P.overprint([covs[0] * .9, np.roll(covs[1], (2, 3), (0, 1)) * .9], ["#ff48b0", "#0078bf"], paper=PAPER),
              f"dispatch_contours_riso_{tag}")
     line = np.ones(big.shape + (3,)) * to_rgb(PAPER); line[(covs[0] + covs[1]) > 0] = to_rgb(INK)
     save_rgb(line, f"dispatch_contours_ink_{tag}")
+    # parity-split mosaic: odd-n and even-n sub-lattices as two panels (each column doubled so aspect is kept).
+    # In the interleaved mosaic, alternating complementary hues average to grey-tan at any display size < 1:1.
+    # Works on both grids: g256 columns alternate parity, and so does the stride-13 grid (13, 26, 39, ...).
+    gap = max(4, scale // 2)
+    panels = [np.repeat(np.repeat(kid[:, off::2], scale, 0), 2 * scale, 1)[:, :big.shape[1]] for off in (0, 1)]
+    img = np.ones((big.shape[0], 2 * big.shape[1] + gap, 3)) * to_rgb(PAPER)
+    img[:, :panels[0].shape[1]] = mosaic_rgb(panels[0], cols)
+    img[:, big.shape[1] + gap:big.shape[1] + gap + panels[1].shape[1]] = mosaic_rgb(panels[1], cols)
+    save_rgb(img, f"dispatch_mosaic_split_{tag}")
     fid, fv, fcols = label_fp_by_kernel(T, K)
     save_rgb(mosaic_rgb(np.repeat(np.repeat(fid, scale, 0), scale, 1), fcols), f"fingerprint_mosaic_{tag}")
     return kid, kv, cols, fid, fv

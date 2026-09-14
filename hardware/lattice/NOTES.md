@@ -42,11 +42,19 @@
   alignment_closeup_plate: retest panel is small, could be enlarged.
 - Strongest so far: lattice_spectral_fp32_g256_k4096.png, lattice_spectral_bf16_g256_k4096.png, dtype_triptych_spectral.png.
 
-## Next (successor)
-1. Large sweep (not yet run; campaign runner stopped deliberately at handoff so no background process remains):
-   `cd hardware/lattice && nohup ./run_all.sh "--dtype bf16 --grid s2048" "--dtype bf16 --grid s2048 --mode kernels" "--dtype fp16 --grid s2048" "--dtype fp16 --grid s2048 --mode kernels" "--dtype fp32 --grid s2048" "--dtype fp32 --grid s2048 --mode kernels" > logs/nohup3.txt 2>&1 &`
-   (stride-13 grid 13..2041, 157^2 shapes; est. 5-10 min per timing job). Then `python render.py` (handles s2048 tags, scale 13) and look for cliffs.
-2. View new palette mosaics (render.py FAMILY now uses interleaved positions on per-family matplotlib ramps) and the alignment close-up plate; fix weaknesses.
-3. README.md (hook, phenomenon, hero, gallery with captions "GB10 + cuBLAS 13.1.1", what was computed, verification incl. retest + fingerprint/kernel purity
-   (bf16: kernel->fp 0.79, fp->kernel 0.87), caveats: map of software not silicon; overhead-dominated small shapes; residual detrend is declared).
-4. Commit: `/home/fzeng/ml/research/art/_shared/commit.sh hardware/lattice "..."`.
+## Stride-13 [13,2041]^2 campaign (done 2026-09-13 23:12-23:30, idle GPU; smi dumps logs/smi_{before,after}_s2048.txt)
+| run | wall | kernels | fp | odd/even-n | n%8 | boundary/interior jump | >20% jumps on boundary | ref range/std | rho(resid, order) | temp |
+|---|---|---|---|---|---|---|---|---|---|---|
+| bf16 | 3.3 min | 70 | 45 | 1.85 | 0.71 | 15.1/2.1 % | 79 % | 15.8/2.6 % | 0.03 | 42->78 C |
+| fp16 | 3.3 | 77 | 52 | 1.83 | 0.72 | 14.9/2.1 % | 79 % | 19.8/3.0 % | 0.03 | 51->82 |
+| fp32 | 4.1 | 11 | 22 | 1.01 | 1.00 | 12.4/2.7 % | 58 % | 14.6/2.1 % | 0.05 | 51->82 |
+- Residual saw-tooth period ~128 (m and n; fp32 n: ~256). fp32 sgemm_256x128 only where n mod 256 >= 128 (plaid). Biggest cliff: m=26, n%8==0,
+  n>=1560 -> nvjet 192x8x64, x2.15 slower. Square s1688_128x256 islands (odd n, windows ~897-1014, 1417-1521), same speed. No memory cliff.
+- New code: render_large.py (cliffs_fire_*, lattice_spectral_split_*, profiles_plate_*, large_triptych_spectral, cache/stats_large.json);
+  render.py adds dispatch_mosaic_split_* (fix for grey mud of interleaved orange/blue parity stripes) + pad fix for odd G;
+  render_compare.py closeup plate: retest panel enlarged.
+
+## Status: COMPLETE
+README.md written (stack, findings, noise/drift, caveats, gallery), link check passed (all src paths exist), committed. No background processes.
+Strongest: gallery/lattice_spectral_split_bf16_s2048_k4096.png, gallery/lattice_spectral_fp32_s2048_k4096.png, gallery/cliffs_fire_fp32_s2048_k4096.png.
+Possible extras (not required): retest at s2048; transposed-call check of why only n carries alignment; other k.
