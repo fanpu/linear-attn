@@ -85,7 +85,15 @@ What the table says:
 
 So the mechanism is exactly the blog's: the per-step logit noise from batch-dependent kernels (0.3 to 1.0) is larger than the margin at a fragile token (0.013), and greedy decoding is a step function of the logits. Before token 69 the B ≥ 2 rows already carry different logits (the drift plate), but no margin was small enough to flip. The completion classes line up with the up_proj / decoder-layer classes of piece 1 (B = 17…30 and 31…32 form their own groups in both).
 
-Prompts “Write a short story about a lighthouse keeper.” and “Explain why the sky is blue.” are in `cache/div_story.*` and `cache/div_sky.*` (see the gallery section for their plates).
+**The other two prompts** (same protocol, L = 320):
+
+| prompt | depart from B = 1 | distinct completions | first differing token | fragile tokens |
+|---|---|---|---|---|
+| “Tell me about Richard Feynman” | 83 / 84 | 6 | 69 for every B ≥ 2 | margin 0.013 at t = 69 |
+| “Write a short story about a lighthouse keeper.” | 83 / 84 | 13 | 52 for 81 sizes; B = 2 at 13; B = 4 at 147 | margins 0.056 (t = 13), 0.017 (t = 52), 0.004 (t = 147) |
+| “Explain why the sky is blue.” | 83 / 84 | 13 | 34 for B = 8…16 and every B ≥ 96; 72 for B = 5…7 and 17…64; 61 for B = 55…58; 137 for B = 2, 3; 52 for B = 4 | margins 0.10 (t = 34), 0.03 (t = 52), 0.04 (t = 61), 0.06 (t = 72), 0.08 (t = 137) |
+
+The sky prompt is the clearest map of the mechanism (`divergence_firstdiv_paper.png`): which token flips first is a step function of the batch size, and the steps sit on the decode-kernel bands of piece 1 (B = 2…4, 5…7, 8…16, 17…64, ≥ 96). The B = 1 text survives longest at B = 2…4, the sizes whose kernels are closest to the gemv path. Every batch size decodes its own text deterministically (run-to-run identical at B = 1 and 37 for all three prompts), so this is not noise: it is a lookup table from batch size to sentence.
 
 ## Gallery
 
@@ -103,7 +111,13 @@ All plates carry the stack line. Print versions (`*_print.png`) are the native b
 
 **Overviews:** `atlas_{night,paper,spectral}.png` (all 25 ops, columns max-pooled to 512), `bands_{paper,night}.png` (fraction of differing elements vs B as a step plot, kernel bands shaded and named where wide enough), `position_<op>_night.png` (first / middle / last triptychs; the full-model one is the only triptych whose panels differ).
 
-**Piece 2:** `divergence_raster_feynman_{paper,night,riso}.png` (hero), `divergence_texts_feynman_paper.png` (the completions with the departure in colour), `divergence_drift_feynman_{night,paper}.png` (log10 max |Δlogit| vs B = 1 per step, grey once the prefix differs, with the B = 1 margin below), `divergence_firstdiv_{paper,night}.png` (first differing token vs B, per prompt).
+**Piece 2, per prompt** (`<p>` ∈ feynman, story, sky): `divergence_raster_<p>_{paper,night,riso}.png` (the hero layout), `divergence_texts_<p>_paper.png` (the completions with the departure in colour), `divergence_drift_<p>_{night,paper}.png` (log10 max |Δlogit| vs B = 1 per step, grey once the prefix differs, with the B = 1 margin below). **Across prompts:** `divergence_triptych_{paper,night}.png` (the three rasters side by side), `divergence_firstdiv_{paper,night}.png` (first differing token vs B on a log axis, decode-kernel bands shaded). **Films:** `divergence_film_{feynman,sky}_paper.{mp4,gif}`, the raster revealed token by token with the B = 1 text underneath.
+
+<table>
+<tr><td width="50%"><img src="gallery/divergence_firstdiv_paper.png"></td><td width="50%"><img src="gallery/divergence_triptych_paper.png"></td></tr>
+<tr><td><sub>First differing token vs batch size for the three prompts. Bands = decode-step kernel signature. The sky prompt flips at token 34, 52, 61, 72 or 137 depending on which band B falls in.</sub></td>
+<td><sub>The three rasters at the same scale: 6, 13 and 13 completions.</sub></td></tr>
+</table>
 
 ## What was computed
 
