@@ -31,7 +31,7 @@ def read(path):
     a = np.loadtxt(path, skiprows=2)
     return dict(hdr=hdr, bytes=a[:, 0], lines=a[:, 1], mn=a[:, 2], med=a[:, 3], mx=a[:, 4],
                 cpu=int(re.search(r"cpu=(-?\d+)", hdr).group(1)), huge=int(re.search(r"huge=(\d)", hdr).group(1)),
-                seq=int(re.search(r"seq=(\d)", hdr).group(1)))
+                seq=int(re.search(r"seq=(\d)", hdr).group(1)), node=int((re.search(r"node=(\d+)", hdr) or [0, 64])[1]))
 
 
 def runs(prefix):
@@ -54,22 +54,25 @@ def plate_staircase(rs, style="paper", which="mn", name="staircase"):
     dark = style == "night"; fg = "#e8e4d8" if dark else INK; bg = NIGHT if dark else PAPER
     fig, ax = plt.subplots(figsize=(16, 9), facecolor=bg)
     ax.set_facecolor(bg)
-    drawn = []
+    drawn = []; seen = set()
     for tag, d in rs.items():
-        if d["seq"]:
+        if d["seq"] or d["node"] != 64:
             continue
         core, cl, col = CORES.get(d["cpu"], (f"cpu{d['cpu']}", "", "#888888"))
         ls = "-" if d["huge"] == 0 else "--"
-        lab = f"{core} ({cl}), {'THP 2 MB pages' if d['huge'] else '4 KB pages'}"
+        lab = f"{core}, cpu {d['cpu']} ({cl})" if d["cpu"] not in seen else None; seen.add(d["cpu"])
         y = d[which]
         ax.step(d["bytes"], y, ls, where="mid", color=col if not dark else col, lw=1.4 if d["huge"] == 0 else 1.0, label=lab, alpha=.95)
         if which == "mn":
             ax.fill_between(d["bytes"], d["mn"], d["med"], step="mid", color=col, alpha=.12, lw=0)
         drawn.append(d)
     for tag, d in rs.items():
-        if d["seq"]:
+        if d["seq"] and d["node"] == 64:
             core, cl, col = CORES.get(d["cpu"], (f"cpu{d['cpu']}", "", "#888888"))
-            ax.step(d["bytes"], d[which], ":", where="mid", color=col, lw=.9, alpha=.7, label=f"{core} sequential chain (prefetch null)")
+            ax.step(d["bytes"], d[which], ":", where="mid", color=col, lw=.9, alpha=.7)
+    from matplotlib.lines import Line2D
+    proxies = [Line2D([], [], color=fg, ls="-", lw=1.4, label="random cycle, 4 KB pages"), Line2D([], [], color=fg, ls="--", lw=1.0, label="random cycle, THP 2 MB pages"),
+               Line2D([], [], color=fg, ls=":", lw=.9, label="sequential chain (prefetch null)")]
     ax.set_xscale("log", base=2); ax.set_yscale("log")
     ax.set_xlabel("working set (bytes, random cycle of 64-byte lines)", color=fg)
     ax.set_ylabel("ns per dependent load" + (" (min of reps; band to median)" if which == "mn" else " (median)"), color=fg)
@@ -83,7 +86,8 @@ def plate_staircase(rs, style="paper", which="mn", name="staircase"):
                       ("L3 8M (cl 0-9)", 8 << 20, CORES[0][2]), ("L3 16M (cl 10-19)", 16 << 20, CORES[10][2])]:
         ax.axvline(x, color=c, lw=.7, ls=(0, (2, 3)), alpha=.7)
         ax.text(x, ax.get_ylim()[1] * .92, " " + lab, rotation=90, va="top", ha="left", fontsize=7.5, color=c)
-    ax.legend(loc="upper left", fontsize=8, frameon=False, labelcolor=fg)
+    h, l = ax.get_legend_handles_labels()
+    ax.legend(h + proxies, l + [p.get_label() for p in proxies], loc="upper left", fontsize=8, frameon=False, labelcolor=fg)
     fig.text(0.06, 0.955, "Staircase: random-access latency versus working set, one core at a time", fontsize=15, color=fg, weight="bold")
     fig.text(0.06, 0.925, "Each step is a cache level that stopped fitting. Dashed rules are the sizes sysfs reports; where the steps actually land is the measurement.", fontsize=9.5, color=fg)
     fig.text(0.06, 0.02, STACK + " | chase.c: Sattolo cycle, unrolled dependent loads, 5 reps", fontsize=7.5, color=fg, alpha=.8)
@@ -95,6 +99,8 @@ def plate_plotter(rs, name="staircase_plotter"):
     """Single-ink plotter sheet: min latency only, one line per run, labels at the right end."""
     fig, ax = plt.subplots(figsize=(14, 9), facecolor=PAPER); ax.set_facecolor(PAPER)
     for tag, d in rs.items():
+        if d["node"] != 64:
+            continue
         core, cl, col = CORES.get(d["cpu"], (f"cpu{d['cpu']}", "", "#888"))
         ls = ":" if d["seq"] else ("--" if d["huge"] else "-")
         ax.plot(d["bytes"], d["mn"], ls, color=INK, lw=.9, drawstyle="steps-mid")
@@ -113,12 +119,38 @@ def plate_plotter(rs, name="staircase_plotter"):
     fig.savefig(f"{GAL}/{name}.png", dpi=150, facecolor=PAPER); plt.close(fig); print("wrote", name)
 
 
+def plate_nodesize(rs, style="paper", name="staircase_nodesize"):
+    """Diagnostic: 64-byte nodes (one per line) vs 8-byte nodes (eight per line) at the same working set, per core."""
+    dark = style == "night"; fg = "#e8e4d8" if dark else INK; bg = NIGHT if dark else PAPER
+    fig, ax = plt.subplots(figsize=(14, 8), facecolor=bg); ax.set_facecolor(bg)
+    for tag, d in rs.items():
+        if d["seq"] or d["huge"] or d["cpu"] not in (0, 5):
+            continue
+        core, cl, col = CORES.get(d["cpu"], (f"cpu{d['cpu']}", "", "#888"))
+        ax.step(d["bytes"], d["mn"], "-" if d["node"] == 64 else "-.", where="mid", color=col, lw=1.3 if d["node"] == 64 else 1.0,
+                label=f"{core}, {d['node']}-byte nodes ({64 // d['node']} per line)")
+    ax.set_xscale("log", base=2); ax.set_yscale("log")
+    xt = [1 << k for k in range(10, 29, 2)]; ax.set_xticks(xt); ax.set_xticklabels([fmt_bytes(x) for x in xt])
+    ax.set_xlabel("working set (bytes)", color=fg); ax.set_ylabel("ns per dependent load (min of reps)", color=fg); ax.tick_params(colors=fg)
+    for x in (64 << 10, 512 << 10, 2 << 20, 8 << 20, 16 << 20):
+        ax.axvline(x, color=fg, lw=.5, ls=(0, (1, 4)))
+    for sp in ax.spines.values(): sp.set_edgecolor(fg)
+    ax.legend(loc="upper left", fontsize=8, frameon=False, labelcolor=fg)
+    fig.text(0.06, 0.95, "Staircase, node-size diagnostic: the same bytes as 8× more, smaller nodes", fontsize=14, color=fg, weight="bold")
+    fig.text(0.06, 0.915, "Both chains touch the same set of cache lines; the 8-byte chain visits each line eight times per cycle in random order.", fontsize=9, color=fg)
+    fig.text(0.06, 0.02, STACK, fontsize=7.5, color=fg, alpha=.8)
+    fig.tight_layout(rect=[0, 0.04, 1, 0.9])
+    fig.savefig(f"{GAL}/{name}_{style}.png", dpi=150, facecolor=bg); plt.close(fig); print("wrote", name, style)
+
+
 def plate_heartbeat(path, name, style="night", row_ms=1.0):
     """Fold the back-to-back chunk timings into a raster: one row per `row_ms` of wall time, colour = ns/load."""
     a = np.fromfile(path, dtype=np.float64).reshape(-1, 2)
     t, dur = a[:, 0] / 1e6, a[:, 1]           # ms, ns
     chunk = 2000
     nsl = dur / chunk
+    if np.median(dur) > 10e3:       # DRAM-resident chunks (~240 us each): fold at 64 ms so the 64/512/1024 ms events line up
+        row_ms = 64.0
     rows = int(t[-1] // row_ms) + 1
     cols = int(np.ceil(len(t) / rows * 1.05))
     img = np.full((rows, cols), np.nan)
@@ -158,7 +190,7 @@ def main():
     if "staircase" in a.only:
         rs = runs(a.prefix)
         if rs:
-            plate_staircase(rs, "paper"); plate_staircase(rs, "night"); plate_staircase(rs, "paper", "med", "staircase_median"); plate_plotter(rs)
+            plate_staircase(rs, "paper"); plate_staircase(rs, "night"); plate_staircase(rs, "paper", "med", "staircase_median"); plate_plotter(rs); plate_nodesize(rs)
     if "heartbeat" in a.only:
         for f in sorted(glob.glob(f"{CACHE}/{a.hb}_*.bin")):
             nm = "heartbeat_" + os.path.basename(f)[len(a.hb) + 1:-4]
