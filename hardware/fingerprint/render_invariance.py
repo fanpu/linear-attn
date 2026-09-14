@@ -58,7 +58,7 @@ ORDER = list(NICE)
 def load(tag="inv"):
     z = np.load(f"{CACHE}/{tag}.npz")
     meta = json.load(open(f"{CACHE}/{tag}.json"))
-    d = {"Bs": z["Bs"], "names": [str(n) for n in z["names"]], "meta": meta, "tm": float(z["tm_snippet"])}
+    d = {"Bs": z["Bs"], "names": [str(n) for n in z["names"]], "meta": meta, "tm": float(z["tm_snippet"]), "tag": tag}
     for n in d["names"]:
         d[n] = dict(bits=z[f"{n}__bits"], ndiff=z[f"{n}__ndiff"], maxabs=z[f"{n}__maxabs"], **meta["ops"][n])
     return d
@@ -184,8 +184,8 @@ def plate_bitmap(d, name, style, pos=0, row_scale=4):
     fg = "#e8e4d8" if dark else INK
     bg = NIGHT if dark else PAPER
     fig = plt.figure(figsize=(16, 9.6), facecolor=bg)
-    axk = fig.add_axes([0.045, 0.14, 0.012, 0.74]); axm = fig.add_axes([0.062, 0.14, 0.70, 0.74])
-    axc = fig.add_axes([0.775, 0.14, 0.17, 0.74])
+    axk = fig.add_axes([0.045, 0.185, 0.012, 0.70]); axm = fig.add_axes([0.062, 0.185, 0.70, 0.70])
+    axc = fig.add_axes([0.775, 0.185, 0.17, 0.70])
     axk.imshow(cols[ids][:, None, :], aspect="auto", interpolation="nearest", extent=[0, 1, nB + .5, .5])
     axk.set_xticks([]); axk.set_ylabel("batch size B  (target row is %s in the batch)" % ["first", "middle", "last"][pos], color=fg)
     axk.tick_params(colors=fg); axk.set_yticks(np.r_[1, 64:nB + 1:64])
@@ -194,7 +194,8 @@ def plate_bitmap(d, name, style, pos=0, row_scale=4):
     axm.set_yticks([]); axm.set_xlabel("output element (of %d%s)" % (op["D"], "" if op["D"] == ncol else f", first {ncol} shown"), color=fg)
     axm.tick_params(colors=fg)
     for sp in axm.spines.values(): sp.set_edgecolor(fg)
-    for j in switches(ids):
+    sw = switches(ids); sw_draw = sw if len(sw) <= 40 else []
+    for j in sw_draw:
         axm.axhline(Bs[j] - .5, color=fg, lw=.4, alpha=.6)
     # side panel: fraction of the row that differs, per B and position
     frac = op["ndiff"] / op["D"]
@@ -205,7 +206,7 @@ def plate_bitmap(d, name, style, pos=0, row_scale=4):
     axc.legend(loc="lower right", fontsize=7, frameon=False, labelcolor=fg)
     axc.set_facecolor(bg)
     for sp in axc.spines.values(): sp.set_edgecolor(fg)
-    for j in switches(ids):
+    for j in sw_draw:
         axc.axhline(Bs[j] - .5, color=fg, lw=.4, alpha=.6)
     lab, what = NICE.get(name, (name, ""))
     fig.text(0.045, 0.945, f"Fingerprint · {lab}", fontsize=16, color=fg, weight="bold")
@@ -216,11 +217,15 @@ def plate_bitmap(d, name, style, pos=0, row_scale=4):
         cap = "Two inks: pink = element differs when the row is first in the batch, blue = when it is last; overprint = both."
     else:
         cap = f"Colour: number of differing bits (0 = ground, 1…{nbits} = ramp). Horizontal rules and the left strip: CUDA kernel signature per B (torch.profiler)."
-    fig.text(0.045, 0.082, cap, fontsize=8.5, color=fg)
-    for i, l in enumerate(labels[:6]):
-        fig.text(0.045 + i * 0.155, 0.055, "■", color=cols[i], fontsize=10)
-        fig.text(0.058 + i * 0.155, 0.055, l[:34], color=fg, fontsize=7)
-    fig.text(0.045, 0.025, stack_line(d["meta"]) + f" | checks (repeat, filler swap) all pass: {all(all(v) for v in op['checks'].values())}", fontsize=7, color=fg, alpha=.8)
+    fig.text(0.045, 0.098, cap, fontsize=8.5, color=fg)
+    if len(labels) <= 6:
+        for i, l in enumerate(labels):
+            fig.text(0.045 + i * 0.155, 0.066, "■", color=cols[i], fontsize=10)
+            fig.text(0.058 + i * 0.155, 0.066, l[:34], color=fg, fontsize=7)
+    else:
+        fig.text(0.045, 0.066, f"{len(labels)} distinct kernel signatures over B = 1…{nB}, {len(sw)} changes; the left strip indexes them "
+                 f"(rules drawn only when there are ≤ 40 changes; full names in cache/{d['tag']}.json).", color=fg, fontsize=7.5)
+    fig.text(0.045, 0.03, stack_line(d["meta"]) + f" | checks (repeat, filler swap) all pass: {all(all(v) for v in op['checks'].values())}", fontsize=7, color=fg, alpha=.8)
     fig.savefig(f"{GAL}/bitmap_{name}_{style}.png", dpi=150, facecolor=bg)
     plt.close(fig); print("wrote", f"bitmap_{name}_{style}")
 
@@ -252,12 +257,13 @@ def plate_atlas(d, style):
             img = rgb_bits(bd, nbits, style)
         ax.imshow(img, aspect="auto", interpolation="nearest")
         ids, labels = kernel_ids(op)
-        for j in switches(ids):
+        sw = switches(ids)
+        for j in (sw if len(sw) <= 40 else []):
             ax.axhline(j - .5, color=fg, lw=.35, alpha=.5)
         nb = int((op["ndiff"][0] > 0).sum())
         lab, _ = NICE.get(n, (n, ""))
-        ax.set_title(f"{lab}\n{nb}/{nB} batch sizes differ · {len(labels)} kernel signatures · max|Δ| = {op['maxabs'].max():.2g}",
-                     fontsize=8.5, color=fg, loc="left")
+        ax.set_title(f"{lab}\n{nb}/{nB} B differ · {len(labels)} kernel sigs · max|Δ| {op['maxabs'].max():.2g}",
+                     fontsize=7.8, color=fg, loc="left")
         ax.set_xticks([]); ax.set_yticks([])
         for sp in ax.spines.values(): sp.set_edgecolor(fg); sp.set_linewidth(.5)
     for ax in axs.flat[len(names):]:
@@ -271,19 +277,31 @@ def plate_atlas(d, style):
     fig.savefig(f"{GAL}/atlas_{style}.png", dpi=130, facecolor=bg); plt.close(fig); print("wrote atlas", style)
 
 
+def salient(label):
+    """The GEMM/attention kernel inside a ' + '-joined signature label (the copies and elementwise kernels are noise)."""
+    parts = label.split(" + ")
+    for pat in ("nvjet", "cutlass", "gemm", "magma", "cudnn", "flash", "fmha", "attention"):
+        hit = [q for q in parts if pat in q.lower()]
+        if hit:
+            return hit[0]
+    return parts[0]
+
+
 def plate_bands(d, names, style="paper"):
     """Step plots: fraction of differing elements vs B, with kernel bands named. Plotter idiom."""
     dark = style != "paper"; fg = "#e8e4d8" if dark else INK; bg = NIGHT if dark else PAPER
     Bs = d["Bs"]
-    fig, axs = plt.subplots(len(names), 1, figsize=(16, 2.6 * len(names) + 1), facecolor=bg, sharex=True)
+    fig, axs = plt.subplots(len(names), 1, figsize=(16, 2.8 * len(names) + 1), facecolor=bg, sharex=True)
     for ax, n in zip(np.atleast_1d(axs), names):
         op = d[n]; ids, labels = kernel_ids(op); cols = cat_colors(len(labels))
         frac = op["ndiff"] / op["D"]
         sw = np.r_[0, switches(ids), len(Bs)]
+        k = 0
         for a, b in zip(sw[:-1], sw[1:]):
             ax.axvspan(Bs[a] - .5, Bs[b - 1] + .5, color=cols[ids[a]], alpha=.22, lw=0)
-            if b - a >= 6:
-                ax.text((Bs[a] + Bs[b - 1]) / 2, 1.03, labels[ids[a]][:28], ha="center", va="bottom", fontsize=6.5, color=fg, rotation=0)
+            if b - a >= 24:
+                ax.text((Bs[a] + Bs[b - 1]) / 2, 1.03 + 0.10 * (k % 2), salient(labels[ids[a]])[:30], ha="center", va="bottom", fontsize=6.5, color=fg, rotation=0)
+                k += 1
         for pi, (lab, ls) in enumerate(zip(["first", "middle", "last"], ["-", "--", ":"])):
             ax.step(Bs, frac[pi], ls, where="mid", color=fg, lw=.9, label=f"target row {lab}")
         ax.set_ylim(-.03, 1.03); ax.set_xlim(.5, Bs[-1] + .5)
@@ -359,7 +377,7 @@ def main():
     if "bands" in a.only:
         plate_bands(d, heroes, "paper"); plate_bands(d, heroes, "night")
     if "position" in a.only:
-        for h in heroes[:3]:
+        for h in heroes:
             plate_position(d, h, "night")
 
 

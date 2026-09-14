@@ -230,7 +230,7 @@ def plate_texts(d, prompt, style="paper", ntok=120):
         grey = "#8a857b" if not dark else "#7a7788"
         body = textwrap.wrap((pre_t + "⟨|⟩" + post_t).replace("\n", " ⏎ "), 150)
         split_at = next((i for i, l in enumerate(body) if "⟨|⟩" in l), len(body))
-        yy = y - 0.35 * dy
+        yy = y - 0.19 * dy
         for i, line in enumerate(body[:4]):
             if i < split_at or f < 0:
                 fig.text(0.05, yy, line.replace("⟨|⟩", ""), fontsize=8.2, color=grey, va="top")
@@ -242,7 +242,7 @@ def plate_texts(d, prompt, style="paper", ntok=120):
                 fig.text(x2, yy, b, fontsize=8.2, color=cols[c], va="top", weight="bold")
             else:
                 fig.text(0.05, yy, line, fontsize=8.2, color=cols[c], va="top", weight="bold")
-            yy -= 0.19 * dy
+            yy -= 0.165 * dy
         y -= dy
     fig.text(0.03, 0.005, stack_line(d["meta"]), fontsize=7.5, color=fg, alpha=.8)
     fig.savefig(f"{GAL}/divergence_texts_{prompt}_{style}.png", dpi=150, facecolor=bg); plt.close(fig)

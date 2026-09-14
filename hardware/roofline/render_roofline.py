@@ -30,8 +30,8 @@ GROUPS = {  # group -> (constellation name, colour night, colour paper, marker)
 }
 
 
-def load():
-    d = json.load(open(f"{CACHE}/roofline.json"))
+def load(tag="roofline"):
+    d = json.load(open(f"{CACHE}/{tag}.json"))
     for s in d["stars"]:
         s["oi"] = s["flops"] / s["bytes"] if s["flops"] > 0 else np.nan
         s["tflops"] = s["flops"] / s["sec"] / 1e12
@@ -39,9 +39,11 @@ def load():
     return d
 
 
-def plate(d, style="night"):
+def plate(d, style="night", tag="roofline"):
     dark = style == "night"; fg = "#e8e4d8" if dark else INK; bg = NIGHT if dark else PAPER
-    m = d["meta"]; pk, bw = m["gemm_peak_tflops"], m["bw_peak_gbps"]; ridge = pk * 1e12 / (bw * 1e9)
+    m = d["meta"]; bw = m["bw_peak_gbps"]
+    best = max(d["stars"], key=lambda s: s["tflops"]); pk = best["tflops"]     # compute roof = best measured kernel of any kind
+    ridge = pk * 1e12 / (bw * 1e9)
     fig = plt.figure(figsize=(18, 11), facecolor=bg)
     ax = fig.add_axes([0.07, 0.10, 0.90, 0.80]); ax.set_facecolor(bg)
     if dark:   # a faint star field and a Milky Way haze, declared decoration
@@ -55,7 +57,7 @@ def plate(d, style="night"):
     ax.plot(oi, np.full_like(oi, pk), ":", color=fg, lw=.6, alpha=.6); ax.plot(oi, bw * oi / 1e3, ":", color=fg, lw=.6, alpha=.6)
     ax.axvline(ridge, color=fg, lw=.5, ls=(0, (2, 4)), alpha=.7)
     ax.text(ridge, 2e-3, f"  ridge {ridge:.0f} FLOP/byte", color=fg, fontsize=8, rotation=90, va="bottom", ha="left")
-    ax.text(oi[-1], pk * 1.12, f"compute roof {pk:.1f} TFLOP/s (bf16 GEMM, measured)  ", ha="right", color=fg, fontsize=8.5)
+    ax.text(ridge * 1.25, pk * 1.22, f"compute roof {pk:.1f} TFLOP/s (best measured: {best['label']})", ha="left", color=fg, fontsize=8.5)
     ax.text(0.06, bw * 0.06 / 1e3 * 1.25, f"memory roof {bw:.0f} GB/s (measured)", rotation=39, color=fg, fontsize=8.5, rotation_mode="anchor")
     for g, (name, cn, cp, mk) in GROUPS.items():
         S = [s for s in d["stars"] if s["group"] == g and np.isfinite(s["oi"])]
@@ -71,7 +73,7 @@ def plate(d, style="night"):
         ax.scatter(x, y, s=size, color=c, marker=mk, edgecolor=fg if not dark else "none", lw=.4, zorder=4, label=name)
         for s, xx, yy in zip(S, x, y):
             lab = s["label"].split()[-1]
-            ax.annotate(lab, (xx, yy), xytext=(4, 4), textcoords="offset points", fontsize=6.2, color=c, alpha=.9)
+            ax.annotate(lab, (xx, yy), xytext=(4, -9 if g == "gemm" else 4), textcoords="offset points", fontsize=6.2, color=c, alpha=.9)
     ax.set_xscale("log"); ax.set_yscale("log"); ax.set_xlim(0.05, 2e4); ax.set_ylim(1.5e-3, pk * 1.6)
     ax.set_xlabel("operational intensity (FLOP per byte of minimal traffic, analytic)", color=fg)
     ax.set_ylabel("achieved TFLOP/s (measured)", color=fg); ax.tick_params(colors=fg)
@@ -85,14 +87,14 @@ def plate(d, style="night"):
     st = m["stack"]
     fig.text(0.07, 0.03, f"GB10 sm_{st['capability'][0]}{st['capability'][1]} | driver {st['driver_name'].split(',')[0]} | CUDA {st['cuda']} | torch {st['torch']} | cuBLAS {st['cublas']} | "
              f"{st['date']} | idle GPU before: {m['smi_before']['util_temp_power']} (util %, °C, W)", fontsize=7.5, color=fg, alpha=.8)
-    fig.savefig(f"{GAL}/roofline_{style}.png", dpi=150, facecolor=bg); plt.close(fig); print("wrote roofline", style)
+    fig.savefig(f"{GAL}/{tag}_{style}.png", dpi=150, facecolor=bg); plt.close(fig); print("wrote roofline", style)
 
 
-def plate_table(d):
+def plate_table(d, tag="roofline"):
     rows = sorted(d["stars"], key=lambda s: (s["group"], s.get("n", s.get("B", s.get("T", 0)))))
-    with open(f"{CACHE}/stars.md", "w") as f:
+    with open(f"{CACHE}/{tag}_stars.md", "w") as f:
         f.write("| group | kernel | FLOPs | bytes | OI (F/B) | ms | TFLOP/s | GB/s | of roof |\n|---|---|---|---|---|---|---|---|---|\n")
-        m = d["meta"]; pk, bw = m["gemm_peak_tflops"], m["bw_peak_gbps"]
+        m = d["meta"]; bw = m["bw_peak_gbps"]; pk = max(x["tflops"] for x in d["stars"])
         for s in rows:
             roof = min(pk, bw * s["oi"] / 1e3) if np.isfinite(s["oi"]) else np.nan
             frac = s["tflops"] / roof if np.isfinite(roof) and roof > 0 else s["gbps"] / bw
@@ -101,5 +103,6 @@ def plate_table(d):
 
 
 if __name__ == "__main__":
+    tag = sys.argv[sys.argv.index("--tag") + 1] if "--tag" in sys.argv else "roofline"
     os.makedirs(GAL, exist_ok=True)
-    d = load(); plate(d, "night"); plate(d, "paper"); plate_table(d)
+    d = load(tag); plate(d, "night", tag); plate(d, "paper", tag); plate_table(d, tag)
