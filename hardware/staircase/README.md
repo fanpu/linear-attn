@@ -42,7 +42,7 @@ A dependent load (`p = *(void **)p`) cannot be issued until the previous one ret
 
 | | A725 cpu 0 | X925 cpu 5 |
 |---|---|---|
-| L1 chunk, median / p99 / p99.9 / max | 1.416 / 1.43 / 2.35 / 77 ns per load | 1.024 / … ns per load |
+| L1 chunk, median / p99 / p99.9 / max | 1.416 / 1.43 / 2.35 / 77 ns per load | 1.024 / 1.05 / 1.56 / 72 ns per load |
 | slow L1 chunks (> 1.3 × median) | 2846 of 1 000 000, **spaced 1.000 ms** (p10–p90: 0.999–1.002) | 2063, spaced 1.000 ms |
 | excess time per slow chunk | 1.6 µs | 1.06 µs |
 | 64 MB chunk median | 119 ns per load | 61 ns (the 64 MB set is still partly in the X925's reach) |
