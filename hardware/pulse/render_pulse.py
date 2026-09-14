@@ -5,7 +5,7 @@
 Measured: power (instant and NVML average), temperature, SM clock, utilisation, throttle reasons, host
 sensors, per phase. Declared: the stacked-strip composition, colours, the phase shading, the folded raster.
 """
-import argparse, csv, glob, json, os, sys
+import argparse, csv, glob, json, os, re, sys
 import numpy as np
 import matplotlib; matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -25,7 +25,8 @@ PHASE_COL = {"idle": None, "matmul_burst": "#cb1b45", "matmul_soak": "#cb1b45", 
 
 def load_sensors(tag):
     rows = list(csv.reader(open(f"{CACHE}/{tag}_sensors.csv")))
-    hdr = [h.strip() for h in rows[0]]
+    hdr = [re.sub(r"\s*\[.*?\]$", "", h.strip()) for h in rows[0]]
+    hdr = [h.replace("clocks.current.sm", "clocks.sm").replace("clocks.current.memory", "clocks.mem") for h in hdr]
     t, data = [], {h: [] for h in hdr[1:]}
     for r in rows[1:]:
         if len(r) != len(hdr):
