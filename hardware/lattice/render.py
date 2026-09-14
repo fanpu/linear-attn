@@ -53,25 +53,25 @@ def save_rgb(img, name, scale=1):
     print("wrote", name, a.shape)
 
 
-FAMILY = [  # (substring, base hue colours light->dark) : declared categorical scheme by kernel family
-    ("s1688gemm", ["#f6c28b", "#e8914f", "#c5602b", "#8f3b1b"]),            # cutlass_75 tensorop, align1
-    ("s16816gemm", ["#a9cfe8", "#5e9fd0", "#2f6aa8", "#1b3f73"]),           # cutlass_80 tensorop, align2/8
-    ("wmma", ["#bfe3b0", "#7fbf73", "#43904a", "#23602f", "#d9ef8b"]),      # cutlass wmma
-    ("simt_sgemm", ["#f2b6c6", "#d9738f", "#a8425f", "#6e2340"]),           # fp32 cutlass simt
-    ("nvjet", ["#d7c3ef", "#b08fdb", "#8a60c4", "#6440a0", "#e7b0e6", "#c070b9", "#91408f", "#4b2a78",
-               "#cfb0ff", "#7a5bd6", "#a36bd8", "#5a3190"]),                   # nvjet (cublasLt JIT-ish)
-    ("gemmSN", ["#f7e08a", "#d6b23c"]),                                     # small-n gemm
-    ("gemvx", ["#d9d9d9", "#b0b0b0", "#8a8a8a", "#666666", "#c8c0b0"]),     # vector cases
-    ("dot_kernel", ["#fafafa"]), ("", ["#555555", "#777777", "#999999"]),
+FAMILY = [  # (substring in kernel label, matplotlib sequential map): declared categorical scheme = hue by kernel family,
+    # members of a family take interleaved positions along that ramp (so neighbours by area rank contrast in lightness)
+    ("s1688gemm", "YlOrBr"),       # cutlass_75 tensorop s1688 (align1)
+    ("s16816gemm", "Blues"),       # cutlass_80 tensorop s16816 (align2/8)
+    ("wmma", "YlGn"),              # cutlass wmma
+    ("simt_sgemm", "RdPu"),        # fp32 cutlass simt sgemm
+    ("nvjet", "BuPu"),             # cublasLt nvjet
+    ("gemmSN", "Wistia"),          # small-matrix gemm
+    ("gemvx", "Greys"), ("dot_kernel", "Greys"), ("", "Greys"),
 ]
+POS = [.45, .85, .25, .65, .95, .35, .75, .15, .55, .9, .3, .7, .5, .8, .2, .6, .4]
 
 
 def kernel_colors(vocab):
     used = collections.defaultdict(int); cols = []
     for lab, _ in vocab:
-        for key, pal in FAMILY:
+        for key, cm in FAMILY:
             if key in lab:
-                cols.append(pal[used[key] % len(pal)]); used[key] += 1; break
+                cols.append(plt.get_cmap(cm)(POS[used[key] % len(POS)])); used[key] += 1; break
     return cols
 
 
@@ -119,8 +119,10 @@ def plate_spectral(tag, T, scale=8):
 def plate_dark(tag, T, scale=8):
     g = np.log10(gflops(T))
     u = P.rank_normalize(g)
-    save_rgb(plt.get_cmap("cmc.lajolla_r" if "cmc.lajolla_r" in plt.colormaps() else "magma")(u)[..., :3],
-             f"throughput_dark_{tag}", scale)
+    save_rgb(plt.get_cmap("cmc.lajolla")(u)[..., :3], f"throughput_dark_{tag}", scale)
+    r, _ = trend_residual(T)
+    import colorcet  # noqa: F401  (registers cet_ maps)
+    save_rgb(plt.get_cmap("cet_fire")(1 - P.rank_normalize(r))[..., :3], f"lattice_fire_{tag}", scale)
 
 
 def plate_mosaic(tag, T, K, scale=8):
@@ -129,9 +131,19 @@ def plate_mosaic(tag, T, K, scale=8):
     cols = kernel_colors(kv)
     big = np.repeat(np.repeat(kid, scale, 0), scale, 1)
     save_rgb(mosaic_rgb(big, cols), f"dispatch_mosaic_{tag}")
-    ed = boundaries(big)
-    line = np.ones(big.shape + (3,)) * to_rgb(PAPER); line[ed] = to_rgb(INK)
-    save_rgb(line, f"dispatch_lines_{tag}")
+    # parity-split contours: n odd and n even are two interleaved dispatch lattices; draw each one's region
+    # boundaries (computed within its own sub-lattice, so the parity stripes themselves don't become lines)
+    covs = []
+    for off in (0, 1):                      # column index 0 -> n = 1 (odd), 1 -> n = 2 (even)
+        sub = kid[:, off::2]
+        e = np.repeat(np.repeat(sub, scale, 0), 2 * scale, 1)
+        e = binary_dilation(boundaries(e), iterations=1)
+        e = np.roll(e, off * scale, 1)[:, :big.shape[1]]
+        covs.append(e.astype(float))
+    save_rgb(P.overprint([covs[0] * .9, np.roll(covs[1], (2, 3), (0, 1)) * .9], ["#ff48b0", "#0078bf"], paper=PAPER),
+             f"dispatch_contours_riso_{tag}")
+    line = np.ones(big.shape + (3,)) * to_rgb(PAPER); line[(covs[0] + covs[1]) > 0] = to_rgb(INK)
+    save_rgb(line, f"dispatch_contours_ink_{tag}")
     fid, fv, fcols = label_fp_by_kernel(T, K)
     save_rgb(mosaic_rgb(np.repeat(np.repeat(fid, scale, 0), scale, 1), fcols), f"fingerprint_mosaic_{tag}")
     return kid, kv, cols, fid, fv
