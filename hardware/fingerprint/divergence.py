@@ -9,6 +9,7 @@ Kernel signatures (torch.profiler) of one prefill and one decode step are stored
   python divergence.py --prompt feynman --L 320 --out cache/div_feynman.npz
 """
 import argparse
+import json
 import os
 import sys
 import time
@@ -77,8 +78,19 @@ def main():
         return tk, torch.stack(lgs)
 
     t00 = time.time()
+    done, part = 0, out + ".partial.npz"        # per-B checkpoint; resume continues from it
     with torch.inference_mode():
+        if os.path.exists(part):
+            z = np.load(part)
+            if int(z["L"]) == L and np.array_equal(z["Bs"], np.array(Bs)):
+                toks[:], margin[:], dmax[:], dmed[:], rows_disagree[:], wall[:] = z["toks"], z["margin"], z["dmax"], z["dmed"], z["rows_disagree"], z["wall"]
+                pj = json.load(open(out + ".partial.json")); kern_pre, kern_dec = pj["kern_prefill"], pj["kern_decode"]
+                done = int(z["done"])
+                _, ref_lgs = decode(1); ref_logits = ref_lgs.clone()      # deterministic run-to-run (checked below)
+                print(f"resumed at {done}/{NB}", flush=True)
         for j, B in enumerate(Bs):
+            if j < done:
+                continue
             torch.cuda.synchronize()
             t0 = time.time()
             tk, lgs = decode(B)
@@ -105,6 +117,9 @@ def main():
                   f"{wall[j]:.1f}s", flush=True)
             del tk, lgs, d
             torch.cuda.empty_cache()   # every B allocates a different KV-cache size; don't let the allocator keep them all
+            np.savez_compressed(part, Bs=np.array(Bs), L=L, toks=toks, margin=margin, dmax=dmax, dmed=dmed,
+                                rows_disagree=rows_disagree, wall=wall, done=j + 1)
+            C.save_json(out + ".partial.json", dict(kern_prefill=kern_pre, kern_decode=kern_dec))
         # run-to-run repeats
         rep = {}
         for B in (1, 37):
@@ -119,6 +134,9 @@ def main():
         prompt=PROMPTS[a.prompt], P=P, L=L, stack=C.stack(), smi_before=before, smi_after=after,
         run_to_run=rep, wall_s=time.time() - t00, kern_prefill=kern_pre, kern_decode=kern_dec,
         texts={str(B): tok.decode(toks[j]) for j, B in enumerate(Bs)}))
+    for f in (part, out + ".partial.json"):
+        if os.path.exists(f):
+            os.remove(f)
     print("saved", out, f"{time.time()-t00:.0f}s")
 
 

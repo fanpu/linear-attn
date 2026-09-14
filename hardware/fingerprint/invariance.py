@@ -10,6 +10,7 @@ filler rows at fixed B. Piece 3: torch.profiler CUDA kernel-name signature for e
   python invariance.py --bmax 32 --ops lin_up_bf16 --out cache/toy.npz
 """
 import argparse
+import json
 import os
 import sys
 import time
@@ -203,10 +204,18 @@ def main():
         Bs = list(range(1, a.bmax + 1))
         res = {}
         t0 = time.time()
+        parts = f"cache/{tag}_parts"; os.makedirs(parts, exist_ok=True)     # per-op checkpoints (resume skips them)
         for n in names:
             t1 = time.time()
+            pf = f"{parts}/{n}.npz"
+            if os.path.exists(pf):
+                z = np.load(pf); r = dict(bits=z["bits"], ndiff=z["ndiff"], maxabs=z["maxabs"], **json.load(open(pf[:-4] + ".json")))
+                r["checks"] = {int(k): tuple(v) for k, v in r["checks"].items()}
+                res[n] = r; print("loaded", n, flush=True); continue
             r = run_op(n, *ops[n], Bs, not a.noprof)
             res[n] = r
+            np.savez_compressed(pf, bits=r["bits"], ndiff=r["ndiff"], maxabs=r["maxabs"])
+            C.save_json(pf[:-4] + ".json", dict(D=r["D"], dtype=r["dtype"], checks={str(k): v for k, v in r["checks"].items()}, kernels=r["kernels"]))
             nb = int((r["ndiff"] > 0).sum(1)[0])
             print(f"{n:28s} D={r['D']:6d} B-with-diff(pos0)={nb:4d}/{len(Bs)} max|d|={r['maxabs'].max():.3g} "
                   f"checks={r['checks']} kernsets={len(set(map(tuple, r['kernels'])))} {time.time()-t1:.0f}s",
