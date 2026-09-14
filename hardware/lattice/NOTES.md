@@ -30,7 +30,7 @@
 - Structure: bf16/fp16 = vertical stripes by n parity (cutlass_75 s1688 align1 for odd n, cutlass_80 s16816 align2 for even n, align8/wmma
   on multiples of 8), horizontal bands at m = 16/32/64/128/192/224, hyperbolic (m*n = const) boundaries at small sizes, nvjet islands.
   fp32 = no alignment stripes, large polygonal cells of cutlass simt sgemm tilings (128x32, 64x64, 128x64...) with smooth internal gradients.
-  Rows of C (m) never alternate; only n (columns of C = rows of cuBLAS's column-major output... columns in torch) carries alignment.
+  Only n (the number of columns of C in torch) carries the parity/multiple-of-8 alignment; m shows only band boundaries, no alternation.
 
 ## Gallery (gallery/)
 - Per run TAG (bf16/fp16/fp32/fp32_tf32 _g256_k4096): lattice_spectral_TAG (hero, SD Spectral split of residual), lattice_aurora_ember/
