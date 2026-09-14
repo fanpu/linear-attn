@@ -165,6 +165,8 @@ def run_op(name, inputs, fn, Bs, do_prof):
                   != ref.view(torch.int16 if y.element_size() == 2 else torch.int32))
             ndiff[pi, j] = int(ne.sum())
             maxabs[pi, j] = float((y.double() - ref.double()).abs().max())
+        del y, ne
+        torch.cuda.empty_cache()   # each B needs a slightly larger block; without this the cache holds every size
     # run-to-run: 3 repeats; filler swap: reversed pool, at a few B
     checks = {}
     for B in [b for b in (1, 7, 64, 333, 512) if b <= Bs[-1]]:
@@ -178,6 +180,8 @@ def run_op(name, inputs, fn, Bs, do_prof):
             ix = batch_idx(B, 0)
             z = {k: v.index_select(0, ix) for k, v in inputs.items()}
             kern.append(C.cuda_kernels(lambda: fn(z)))
+            del z
+            torch.cuda.empty_cache()
     return dict(bits=bits, ndiff=ndiff, maxabs=maxabs, D=D, dtype=str(dtype), checks=checks, kernels=kern)
 
 

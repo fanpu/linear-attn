@@ -103,6 +103,8 @@ def main():
                 kern_dec.append(C.cuda_kernels(lambda: m.forward(nx, P)))
             print(f"B={B:4d} first_div={first:4d} max|dlogit|@t0={dmax[j,0]:.4f} rows_disagree={rows_disagree[j].max()} "
                   f"{wall[j]:.1f}s", flush=True)
+            del tk, lgs, d
+            torch.cuda.empty_cache()   # every B allocates a different KV-cache size; don't let the allocator keep them all
         # run-to-run repeats
         rep = {}
         for B in (1, 37):
