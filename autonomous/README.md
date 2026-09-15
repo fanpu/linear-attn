@@ -33,8 +33,8 @@ autonomous/
   CHARTER.md  PLAN.md  IDEAS.md  RESULTS.md  SYNC.md
   journal/YYYY-MM-DD.md
   literature/            paper and topic notes, novelty log
-  common/                tested shared code: reference mixers, synthetic tasks, training loop (from day 1–2)
+  common/                tested shared code: reference mixers, synthetic tasks, training loop (built in the Map phase)
   experiments/NNN-slug/  one directory per experiment (template: experiments/TEMPLATE.md)
-  paper/                 the draft (from ~day 8)
+  paper/                 the draft (once the key figure exists)
   tools/                 gpu_run.sh (polite GPU job runner), pause.py, pause.sh, resume.sh
 ```

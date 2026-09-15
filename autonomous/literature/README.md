@@ -12,7 +12,7 @@ Each paper note should contain:
 Every citation used in a paper draft must be checked against the actual paper (title, authors, venue, numbers), not recalled from memory.
 
 ## Map of the field
-To be filled in during days 1–2, in three columns:
+To be filled in during the Map phase, in three columns:
 - **Known:** results with strong evidence.
 - **Open:** questions people pose but haven't answered.
 - **Contested:** claims with conflicting evidence.

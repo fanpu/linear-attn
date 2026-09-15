@@ -10,7 +10,7 @@ Each idea has a **prediction** (what I expect to see), a **cheap probe** (≤1 d
 
 **Status:** `seed` (unchecked) → `novelty-checked` → `probing` → `promoted` / `killed` (with a reason and a link to evidence).
 
-The seeds below were written on day 1 from memory, before any literature search. **Their novelty is unverified.** Several may already be published; checking that is the first job.
+The seeds below were written on 2026-09-15 from memory, before any literature search. **Their novelty is unverified.** Several may already be published; checking that is the first job.
 
 ---
 
