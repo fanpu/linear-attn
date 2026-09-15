@@ -76,3 +76,20 @@ OMP_NUM_THREADS=4 $P verify_b.py
 setsid nohup ../_shared/gpu1.sh env OMP_NUM_THREADS=4 $P stage_c.py > logs/stage_c.log 2>&1 < /dev/null &  # resumes per slab
 OMP_NUM_THREADS=4 $P preview_c.py
 ```
+
+## M2 (renders) — log
+- Controller rulings: hero = local window + fixed u_ref + local canyon; context = full EoS in piecewise frames + tightened global canyon; strands (splat_spheres) + chords (splat_additive); colour λ₁η/2 diverging at 1; honesty panel; canyon volume with cutaway; captions cite Stage B only.
+- `prep_m2.py` -> cache/m2/{hero.npz, context.npz, boxes.json, prep_info.json}.
+  hero window 3050–3449: u_ref captures 36 % of the detrended top-3 (bank 3250) oscillation energy; λ₁η/2 1.011–1.116 (all above the edge); u₁(t) swaps (overlap < 0.95) on 34 % of its steps.
+  piecewise frames (context): principal oscillation direction per bank frame captures median 41 % of top-3 energy; |⟨v_i, v_{i−1}⟩| median 0.39, min 0.006.
+- `canyon_box.py` (CPU, 4 threads; the gpu1 queue was 4 jobs deep, so the queued GPU job was cancelled and the grid ran on CPU): hero32 144 s (loss 0.162–0.279), context32 149 s (0.102–0.434), hero64 (2× check). fused-vs-plain ≤ 1.4e-8.
+- `render_ribbon.py` plates: hero, honesty, stereo, context (GPU job `run_m2_renders.sh`, log logs/m2_renders.log), plotter + check64 (CPU).
+- Decision: hero window 3050–3449 — centred on t_ref, three clear bursts, highest u_ref capture (0.36) among 400-step windows centred near t_ref.
+- Decision: canyon boxes = trajectory range ± 30 % margin each side (hero), ± 10 % in pc1/pc2 and ±1.3 × max |axis 1| (context).
+- Decision: exaggeration hero u_ref ×4, pc2 ×4 relative to pc1; context axis 1 ×20, pc2 ×2. pc2 ×4 in the hero so the slow pc2 drift reads as depth (×2 looked planar).
+- Decision: colour Spectral_r with TwoSlopeNorm 0.90 | 1.00 | 1.12, same for every plate.
+- Decision: canyon TF = upper 65 % of cmc.oslo over the grid's loss range; opacity = 6 Gaussian shells (σ 0.018 in normalised loss) at 0.08…0.88; density 6/box-extent (hero), 1.2 (context); trilinear, 64³ check plate.
+- Decision: half cutaway removes pc2 < median pc2 of the window; chords are split at the cut plane so chords behind it are fogged and chords in front are added after the volume (correct ordering without a chord depth buffer).
+- Decision: honesty panel replaces only the oscillation part of axis 1 with the stored moving-frame x_t = ⟨θ − θ̄, u₁(t)⟩ (Stage B log); slow part, pc axes, canyon and camera are identical.
+- Decision: stereo = rotation stereo (az ± 2.5°), because parallel-shift stereo gives no parallax with orthographic cameras.
+- Decision: plotter = hidden-line GD path (visible_runs vs a thin tube depth), loss contours of the far face pc2 = hi at the six TF levels, box wireframe; three Inkscape layers.
