@@ -32,12 +32,8 @@ def palette(n):
     return matplotlib.colormaps['viridis'](np.linspace(0.0, 0.9, n))[:, :3]
 
 
-def scene(polys):
-    """Core centre c and family axis a (smallest-variance direction of the innermost torus: the doughnut axis)."""
-    P = polys[0][::10]; c = P.mean(0)
-    w, v = np.linalg.eigh(np.cov((P - c).T)); a = v[:, 0]
-    b = np.cross(a, [0.0, 0.0, 1.0]); b /= np.linalg.norm(b)
-    return c, a, b
+def scene(polys=None):
+    return L.tori_frame()
 
 
 def camera(polys, keep_masks, size, tilt=52.0, spin=0.0, margin=1.08):
@@ -89,7 +85,7 @@ def plaster(size, tw, R):
         tint = 0.55 * torch.ones(3, device=L.dev()) + 0.45 * pal[hit['attr'][m][:, 0].long()]
         img = torch.ones(size, size, 3, device=L.dev()) * L.T(L.PAPER * 0.9)
         img[m] = (tint * lum[:, None]).clamp(0, 1) * 1.08
-    r3d.save_png(os.path.join(L.GAL, f'tori_plaster_cutaway{"_" + str(size) if size < 2000 else ""}.png'), L.to_img(img))
+    r3d.save_png(os.path.join(L.GAL, f'tori_plaster{"_" + str(size) if size < 2000 else ""}.png'), L.to_img(img))
 
 
 def glow(size, tw, R):
@@ -132,6 +128,30 @@ def plotter(size, tw, R):
     return name
 
 
+def slice_plate(size):
+    """Exact meridional slice (compute_slice.py): every crossing of the plane spanned by the doughnut axis a and b,
+    t <= 1e5, as ink dots coloured by torus index (same viridis as the plaster tint). Declared ink coverage."""
+    d = np.load(os.path.join(L.CACHE, 'slice_eps0.npz'))
+    u, v, k = d['u'], d['v'], d['torus']
+    pal = palette(12)
+    lo = np.array([u.min(), v.min()]); hi = np.array([u.max(), v.max()])
+    ctr = 0.5 * (lo + hi); w = 1.06 * (hi - lo).max(); lo, hi = ctr - w / 2, ctr + w / 2
+    with L.Timer(f'tori slice {size}'):
+        ij = np.floor((np.stack([u, v], 1) - lo) / (hi - lo) * size).astype(int).clip(0, size - 1)
+        flat = (size - 1 - ij[:, 1]) * size + ij[:, 0]
+        W = np.bincount(flat, minlength=size * size).astype(np.float32)
+        CW = np.stack([np.bincount(flat, pal[k][:, j] * 0.8, minlength=size * size) for j in range(3)], 1)
+        from scipy.ndimage import gaussian_filter
+        sig = max(0.7, size / 2400 * 1.4)                                   # declared dot footprint (pixels)
+        W = gaussian_filter(W.reshape(size, size), sig).ravel() * 2 * np.pi * sig ** 2
+        CW = np.stack([gaussian_filter(CW[:, j].reshape(size, size), sig).ravel() * 2 * np.pi * sig ** 2 for j in range(3)], 1)
+        cov = (1 - np.exp(-0.9 * W))[:, None]
+        col = CW / np.maximum(W, 1e-9)[:, None]
+        img = (L.PAPER[None] * (1 - cov) + col * cov).reshape(size, size, 3)
+    r3d.save_png(os.path.join(L.GAL, f'tori_slice{"_" + str(size) if size < 2000 else ""}.png'), torch.tensor(img))
+    print('slice extent (chart units)', w, 'crossings', len(u))
+
+
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
     ap.add_argument('what', nargs='*', default=['all'])
@@ -147,3 +167,5 @@ if __name__ == '__main__':
         glow(a.size, a.tw, a.R)
     if 'plotter' in a.what or 'all' in a.what:
         plotter(a.size, a.tw, a.R)
+    if 'slice' in a.what or 'all' in a.what:
+        slice_plate(a.size)

@@ -133,6 +133,22 @@ def do_fine(T=2000.0):
     print(f'fine: {time.time() - t:.0f}s', flush=True)
 
 
+def do_sweep_fine(T=1000.0):
+    """Film copies of the eps sweep: same 12 starts, every RK4 step (dt = 0.01) over t <= T, stored as float32 chart
+    coordinates only (cache/stereo_sweep_fine.npz); the float64 sweep (dt = 0.2, T = 1e4) stays the record."""
+    import json
+    import chart as C
+    t = time.time()
+    s0 = np.load(os.path.join(CACHE, 'orbits_eps0.npz'))['s0']
+    ch = C.Chart(np.array(json.load(open(os.path.join(CACHE, 'pole.json')))['pole']), H0)
+    X = np.zeros((len(SWEEP_EPS), len(s0), int(round(T / 0.01)) + 1, 3), np.float32)
+    for i, eps in enumerate(SWEEP_EPS):
+        r = run(s0, float(eps), T=T, dt=0.01, maxsec=10)
+        X[i] = ch.forward_logits(r['L']).astype(np.float32)
+    np.savez(os.path.join(CACHE, 'stereo_sweep_fine.npz'), X=X, eps=SWEEP_EPS, dt=0.01)
+    print(f'sweep_fine: {time.time() - t:.0f}s', flush=True)
+
+
 if __name__ == '__main__':
     what = sys.argv[1] if len(sys.argv) > 1 else 'all'
     os.makedirs(CACHE, exist_ok=True)
@@ -144,3 +160,5 @@ if __name__ == '__main__':
         do_sweep()
     if what in ('fine', 'all'):
         do_fine()
+    if what in ('sweep_fine', 'all'):
+        do_sweep_fine()

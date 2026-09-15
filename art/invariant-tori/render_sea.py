@@ -10,6 +10,7 @@ Fog and sheet are one multi-channel volume marched once, composited over the opa
 python render_sea.py [hero|cutaway|stereo|all] [--size N] [--fog raw256|blur128] [--step S]
 """
 import argparse
+import functools
 import os
 
 import matplotlib
@@ -26,6 +27,7 @@ CHAOS_DOT = np.array([0.86, 0.18, 0.16])     # declared: chaotic crossings red (
 FOG_CMAP = 'cmc.oslo'
 
 
+@functools.lru_cache(maxsize=2)
 def load_volume(fog):
     import cmcrameri  # noqa: F401  (registers cmc.* colormaps)
     dz = np.load(os.path.join(L.CACHE, 'density_eps05.npz'))
@@ -41,6 +43,9 @@ def load_volume(fog):
     wv = 1.5                                                                # declared sheet half-width, in voxels
     hh = ((hi - lo) / R).max()
     sheet = np.exp(-(sd / (wv * hh)) ** 2) * up                             # 0 outside the box (zero padding is exact)
+    # M3 fix 1 (declared): the sheet is shown only on the fog's support, with a soft edge: weight = clip(G_2vox * [count>0], 0, 1)*2
+    support = np.clip(2.0 * gaussian_filter((C > 0).astype(np.float32), 2.0), 0, 1)
+    sheet = sheet * support
     v = np.log1p(C); vmax = np.quantile(v[C > 0], 0.999)
     fogv = np.clip(v / vmax, 0, 1)
     h = (hi - lo) / R
@@ -77,8 +82,19 @@ def box_camera(lo, hi, size, az=AZ, el=EL, eye_shift=None):
     return cam, c
 
 
+@functools.lru_cache(maxsize=1)
+def _fine_regular():
+    return np.load(os.path.join(L.CACHE, 'stereo_eps05_fine.npz'))['X']
+
+
+@functools.lru_cache(maxsize=1)
+def _dots():
+    e = np.load(os.path.join(L.CACHE, 'stereo_eps05.npz'))
+    return np.concatenate([e['chaotic_sec_X'], e['regular_sec_X']]), np.r_[np.zeros(len(e['chaotic_sec_X'])), np.ones(len(e['regular_sec_X']))]
+
+
 def opaque_layer(cam, lo, hi, size, clip, tw, R, dotR):
-    s = np.load(os.path.join(L.CACHE, 'stereo_eps05_fine.npz'))['X']
+    s = _fine_regular()
     n = int(round(tw / 0.01)) + 1
     lo_, hi_ = np.asarray(lo), np.asarray(hi)
     pts = []
@@ -90,9 +106,7 @@ def opaque_layer(cam, lo, hi, size, clip, tw, R, dotR):
     if clip:
         keep &= r3d.clip_keep(pts, clip)
     pts = pts[keep]
-    e = np.load(os.path.join(L.CACHE, 'stereo_eps05.npz'))
-    dots = np.concatenate([e['chaotic_sec_X'], e['regular_sec_X']])
-    kind = np.r_[np.zeros(len(e['chaotic_sec_X'])), np.ones(len(e['regular_sec_X']))]
+    dots, kind = _dots()
     dk = np.all((dots >= lo_) & (dots <= hi_), 1)
     dots, kind = L.T(dots[dk]), L.T(kind[dk])
     if clip:
@@ -151,13 +165,13 @@ if __name__ == '__main__':
     if 'cutaway' in a.what or 'all' in a.what:
         render(a.size, a.fog, a.step, True, name='sea_islands_cutaway', **CUT)
     if 'stereo' in a.what or 'all' in a.what:
-        # Declared: rotation stereo (orthographic cameras have no translation parallax), eyes at az -/+ 2.5 deg,
+        # Declared: rotation stereo (orthographic cameras have no translation parallax), eyes at az -/+ 1.5 deg,
         # identical clip plane for both eyes.
-        Lh = render(a.size, a.fog, a.step, True, az=AZ - 2.5, clip_az=AZ, save=False, **CUT)
-        Rh = render(a.size, a.fog, a.step, True, az=AZ + 2.5, clip_az=AZ, save=False, **CUT)
+        Lh = render(a.size, a.fog, a.step, True, az=AZ - 1.5, clip_az=AZ, save=False, **CUT)
+        Rh = render(a.size, a.fog, a.step, True, az=AZ + 1.5, clip_az=AZ, save=False, **CUT)
         sfx = "_" + str(a.size) if a.size < 2000 else ""
-        gap = torch.zeros(a.size, a.size // 24, 3) + L.T(L.NIGHT)
-        r3d.save_png(os.path.join(L.GAL, f'sea_stereo_crosseye{sfx}.png'), torch.cat([Rh, gap, Lh], 1))   # cross-eye: right eye left
-        lum = torch.tensor([0.299, 0.587, 0.114])
+        gap = torch.zeros(a.size, a.size // 24, 3, device=Lh.device) + L.T(L.NIGHT).to(Lh.device)
+        r3d.save_png(os.path.join(L.GAL, f'sea_stereo_crosseye{sfx}.png'), L.to_img(torch.cat([Rh, gap, Lh], 1)))   # cross-eye: right eye left
+        lum = torch.tensor([0.299, 0.587, 0.114], device=Lh.device)
         ana = torch.stack([(Lh * lum).sum(-1), (Rh * lum).sum(-1), (Rh * lum).sum(-1)], -1)          # red = left eye
-        r3d.save_png(os.path.join(L.GAL, f'sea_anaglyph_redcyan{sfx}.png'), ana)
+        r3d.save_png(os.path.join(L.GAL, f'sea_anaglyph_redcyan{sfx}.png'), L.to_img(ana))

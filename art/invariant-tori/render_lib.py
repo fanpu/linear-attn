@@ -27,9 +27,8 @@ DT = torch.float32
 
 
 def dev():
-    """Device for splatting and everything except volume marching: CPU (r3d splats crash on CUDA until the
-    Camera.project fix lands, controller note 2026-09-15)."""
-    return 'cpu'
+    """Device for splatting and shading (R3D_DEVICE, default cpu; CUDA splats work since r3d eb1d691)."""
+    return os.environ.get('R3D_DEVICE', 'cpu')
 
 
 def vdev():
@@ -123,3 +122,14 @@ def write_svg_multi(path, groups, width, height, background=None):
 def hexcol(rgb):
     r, g, b = (int(round(255 * float(c))) for c in rgb[:3])
     return f'#{r:02x}{g:02x}{b:02x}'
+
+
+def tori_frame(X0=None):
+    """Declared frame of the nested-tori scene, from the innermost eps=0 torus (t <= 1000, every 4th dt=0.01 sample):
+    c = its centroid, a = its smallest-variance direction (the doughnut axis), b = unit(a x z)."""
+    if X0 is None:
+        X0 = np.load(os.path.join(CACHE, 'stereo_eps0_fine.npz'))['X'][0, :100001:4]
+    c = X0.mean(0)
+    w, v = np.linalg.eigh(np.cov((X0 - c).T)); a = v[:, 0]
+    b = np.cross(a, [0.0, 0.0, 1.0]); b /= np.linalg.norm(b)
+    return c, a, b

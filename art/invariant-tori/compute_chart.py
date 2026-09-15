@@ -143,8 +143,12 @@ def do_stereo():
     print(f'stereo: {time.time() - t0:.0f}s', flush=True)
 
 
-def box_of(X, lo_q=0.5, hi_q=99.5):
-    return np.percentile(X, lo_q, axis=0), np.percentile(X, hi_q, axis=0)
+def box_of(X, pad=0.02):
+    """M3 (controller fix 2): the full support of the stored T = 2e5 chaotic segment plus 2% padding per side.
+    (M1/M2 used the 0.5-99.5 percentile box, which cut the fog flat at the box faces.)"""
+    lo, hi = X.min(0), X.max(0)
+    w = hi - lo
+    return lo - pad * w, hi + pad * w
 
 
 def do_density(R=256, n_extra=29):
@@ -176,7 +180,7 @@ def do_density(R=256, n_extra=29):
                         T_total=200000.0 * (1 + n_extra), frac_inside=inside, dt=0.05,
                         lyap_chunks=np.array(lam_chunks), split_half_corr=split_corr,
                         note='counts of time-uniform samples (dt=0.05) of the chaotic eps=0.5 orbit per voxel; '
-                             'axis order (X0, X1, X2); box = per-axis 0.5-99.5 percentile of the stored T=2e5 '
+                             'axis order (X0, X1, X2); box = full support (+2% pad) of the stored T=2e5 '
                              'segment; counts include bit-identical continuations to T_total')
     print(f'density: box lo {lo.round(3)} hi {hi.round(3)}, T_total {200000.0 * (1 + n_extra):.0f}, '
           f'{inside:.3f} of samples inside, {(tot > 0).mean():.3f} voxels occupied, mean occupied count '
