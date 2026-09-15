@@ -3,9 +3,11 @@
     C = A @ B,   A in R^{m x k},  B in R^{k x n},   C in R^{m x n}
 
 The fingerprint method is lattice's (hardware/lattice/sweep.py), reused exactly:
-  * masters(): cancellation probes, copied verbatim for k >= 64 (so the k = 4096 plane reproduces
-    lattice's cached g256 fingerprints bit for bit). For k < 64 the original construction cannot place
-    64 big terms, so it uses 2*(k//4) big terms instead (declared adaptation, see NOTES.md).
+  * masters(): cancellation probes, copied verbatim with one declared change: nbig = min(64, 2*(k//4))
+    cancelling big terms instead of 64. Identical to lattice for k >= 128 (so the k = 4096 plane reproduces
+    lattice's cached g256 fingerprints bit for bit); for k < 128 it keeps at least half the terms small
+    (lattice's 64 big terms make every term big at k = 64, where the sum is exactly 0 in any order).
+    M1 (cache/m1_*.npz) used 64 for k >= 64 and 2*(k//4) below.
   * mats(): all rows of A identical, all columns of B identical, fresh contiguous tensors, out=C.
   * fingerprint = raw bits of C[0,0], C[m//2,n//2], C[-1,-1] for two probes (E from PROBE_E).
 Kernel names: lattice's --mode kernels profiler pass (correlation id -> launch ts -> record_function).
@@ -21,7 +23,13 @@ LATTICE = os.path.normpath(f"{HERE}/../lattice")
 import importlib.util  # noqa: E402
 _spec = importlib.util.spec_from_file_location("lattice_common", f"{LATTICE}/common.py")
 lattice_common = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(lattice_common)
-kernel_label, short_kernel = lattice_common.kernel_label, lattice_common.short_kernel  # hardware/lattice/common.py
+short_kernel = lattice_common.short_kernel  # hardware/lattice/common.py
+
+
+def kernel_label(names):
+    """hardware/lattice/common.py:kernel_label, after stripping 'std::enable_if<true, void>::type ' (lattice's
+    short_kernel only strips the '!(false)' form, which turned one gemvx variant into 'enable_if<T>')."""
+    return lattice_common.kernel_label(names.replace("std::enable_if<true, void>::type ", ""))
 
 DT = dict(fp32=torch.float32, fp16=torch.float16, bf16=torch.bfloat16)
 IT = {torch.float32: torch.int32, torch.float16: torch.int16, torch.bfloat16: torch.int16}
@@ -29,12 +37,12 @@ PROBE_E = dict(fp32=(20, 12), fp16=(10, 8), bf16=(20, 12))   # hardware/lattice/
 
 
 def masters(k, dtype, E, seed=0):
-    """hardware/lattice/sweep.py:masters, verbatim for k >= 64. For k < 64: nbig = 2*(k//4)."""
+    """hardware/lattice/sweep.py:masters, verbatim except nbig = min(64, 2*(k//4)) (M2 onward)."""
     g = torch.Generator().manual_seed(seed)
     a = 2.0 ** (torch.rand(k, generator=g, dtype=torch.float64) * 4 - 6)
     b = 2.0 ** (torch.rand(k, generator=g, dtype=torch.float64) * 4 - 6)
     a *= torch.sign(torch.rand(k, generator=g, dtype=torch.float64) - .5)
-    nbig = 64 if k >= 64 else 2 * (k // 4)
+    nbig = min(64, 2 * (k // 4))
     idx = torch.randperm(k, generator=g)[:nbig]; sg = torch.ones(nbig, dtype=torch.float64); sg[nbig // 2:] = -1
     a[idx] = sg * 2.0 ** (E // 2); b[idx] = 2.0 ** (E - E // 2)
     return a.to(dtype).cuda(), b.to(dtype).cuda()

@@ -50,3 +50,27 @@ cd /home/fzeng/ml/research/hardware/crystal
 setsid nohup /home/fzeng/ml/research/art/_shared/gpu1.sh env OMP_NUM_THREADS=4 /home/fzeng/ml/research/art/.venv/bin/python -u m1_calib.py > logs/m1_calib.log 2>&1 < /dev/null &
 OMP_NUM_THREADS=4 /home/fzeng/ml/research/art/.venv/bin/python m1_analyze.py
 ```
+
+## M2 (started 2026-09-15 04:53)
+Rulings from the controller: colour by profiler kernel names; dense bf16 cube with names + fingerprint per shape; fp32 cube
+only if projected <= 1 h; load check at every slab; timing 64³ with GPU1_EXCLUSIVE=1 queued right after the cube.
+- Files: `cube.py` (per k-slab checkpoints in `cache/cube_<dtype>/k<kkk>.npz`; slabs 32, 96, 160, 256 first, then 1..256;
+  every slab re-profiles the first 200 M1 sample shapes and compares labels with `cache/m1_kern.npz`, and records nvidia-smi
+  compute apps before/after), `timing.py` (lattice hygiene, checkpoint every 16 384 shapes), `chain_m2.sh` (waits for the
+  cube job to exit, queues timing with GPU1_EXCLUSIVE=1, and once timing has started queues `cube.py --dtype fp32 --max-hours 1`),
+  `m2_analyze.py` (label cube `cache/cube_bf16_labels.npz`, stats `cache/m2_stats_bf16.json`, `cache/m2_timing_stats.json`,
+  previews `cache/preview/m2_*.png`).
+- Decision: probe nbig = min(64, 2*(k//4)) from M2 on — identical to lattice for k >= 128, fixes k in [64, 127] (M1 note above).
+- Decision: timing grid on each axis is v_j = 1 + 4j + (j mod 4) (64 values, spacing ~4) rather than {4, 8, ..., 256} — a pure multiple-of-4 grid has only even sizes and would sample none of the odd-n / odd-k lamellae; this grid holds every residue mod 4 and is the M1 slice sub-grid.
+- Decision: timing reference shape (m, k, n) = (200, 200, 200) and overhead probe (1, 1, 1), re-timed every 256 shapes with GPU temperature and util; nvidia-smi compute apps every 4096 shapes.
+- Decision: fp32 cube runs after the timing job, not before — the timing window is the scarce resource; the fp32 job measures slabs 32/96/160/256 first and writes `cache/cube_fp32/SKIPPED.json` if the projection exceeds 1 h.
+- Decision: region counts use 6-connectivity over the full cube and, separately, inside each of the four (k mod 2, n mod 2) parity sub-lattices — in the full cube an even-k/even-n kernel is interleaved with odd-k/odd-n kernels, so its voxels are isolated lines and full-cube 6-connected counts mostly measure the interleave.
+
+Resume M2:
+```bash
+cd /home/fzeng/ml/research/hardware/crystal
+# cube (resumes per slab)
+setsid nohup /home/fzeng/ml/research/art/_shared/gpu1.sh env OMP_NUM_THREADS=4 /home/fzeng/ml/research/art/.venv/bin/python -u cube.py --dtype bf16 > logs/cube_bf16.log 2>&1 < /dev/null &
+setsid nohup ./chain_m2.sh > logs/chain_m2.out 2>&1 < /dev/null &      # needs logs/cube_bf16.log to end with gpu1 "exit"
+OMP_NUM_THREADS=4 /home/fzeng/ml/research/art/.venv/bin/python m2_analyze.py
+```
