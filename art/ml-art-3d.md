@@ -194,7 +194,7 @@ Kantamneni & Tegmark ("Language Models Use Trigonometry to Do Addition", arXiv:2
 - **Qwen3-0.6B splits every number into single digits**, so it cannot host a per-number helix at all.
 - **OLMo-2-0425-1B** (in the local HF cache) tokenises every integer 0–999 as a single token without a leading space (0 of 1000 multi-token, checked 2026-09-15). The number pieces use OLMo-2.
 - Qwen3-0.6B does have single tokens for " Monday" and " January", so it hosts the days and months.
-- Štefánik et al. (arXiv:2510.26285) report sinusoidal number embeddings in OLMo 2. That is encouraging but not a residual-stream helix.
+- Štefánik et al. (arXiv:2510.26285) was reported by our literature check to find sinusoidal number embeddings including OLMo 2; the arXiv abstract does not mention OLMo 2 (checked in number-knot M3), so treat that detail as unverified.
 
 ### The piece
 - **Helix:** for the strongest period found, the 1000 numbers are measured activations projected onto that fitted (cos, sin) plane, plus the fitted linear direction. Beads are coloured by last digit. The fit chooses only the basis; every bead position is measured.
@@ -369,7 +369,7 @@ This extends fractals doc §11, all of which still applies.
 - Engels, Michaud, Liao, Gurnee & Tegmark, *Not All Language Model Features Are One-Dimensionally Linear*, ICLR 2025 — arXiv:2405.14860
 - Zhou, Fu, Sharan & Jia, *Pre-trained Large Language Models Use Fourier Features to Compute Addition*, NeurIPS 2024 — arXiv:2406.03445
 - Levy & Geva, *Language Models Encode Numbers Using Digit Representations in Base 10*, 2024 — arXiv:2410.11781 (a template for digit-tokenised models like Qwen3)
-- Štefánik et al., 2025 — arXiv:2510.26285 (sinusoidal number embeddings incl. OLMo 2)
+- Štefánik et al., 2025 — arXiv:2510.26285 (sinusoidal number embeddings; OLMo 2 coverage unverified from the abstract)
 - Di Lillo, Marinucci, Salvi & Vigogna, *Fractal and Regular Geometry of Deep Neural Networks*, 2025 — arXiv:2504.06250
 - Bertrand, Gagneux, Massias & Emonet, *On the Closed-Form of Flow Matching: Generalization Does Not Arise from Target Stochasticity*, 2025 — arXiv:2506.03719
 - Kadkhodaie, Guth, Simoncelli & Mallat, *Generalization in diffusion models arises from geometry-adaptive harmonic representations*, ICLR 2024 — arXiv:2310.02557
