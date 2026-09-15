@@ -28,12 +28,34 @@ def _env(tmp, others_flag=None, ignore=False, exclusive=False, meminfo=None, min
 
 
 def test_exit_status_passthrough(tmp_path):
+    # Default share mode. _env's default meminfo has ample MemAvailable so this
+    # never depends on the real machine's memory state.
+    env = _env(tmp_path)
+    r = subprocess.run([SCRIPT, "bash", "-c", "exit 7"], env=env, capture_output=True, text=True)
+    assert r.returncode == 7
+
+
+def test_exit_status_passthrough_exclusive_mode(tmp_path):
     env = _env(tmp_path, ignore=True, exclusive=True)
     r = subprocess.run([SCRIPT, "bash", "-c", "exit 7"], env=env, capture_output=True, text=True)
     assert r.returncode == 7
 
 
 def test_two_jobs_are_serialised(tmp_path):
+    # Default share mode. _env's default meminfo has ample MemAvailable so this
+    # never depends on the real machine's memory state.
+    env = _env(tmp_path)
+    log = tmp_path / "log"
+    cmd = f"echo start $(date +%s.%N) >> {log}; sleep 1; echo end $(date +%s.%N) >> {log}"
+    a = subprocess.Popen([SCRIPT, "bash", "-c", cmd], env=env)
+    time.sleep(0.2)
+    b = subprocess.Popen([SCRIPT, "bash", "-c", cmd], env=env)
+    assert a.wait(20) == 0 and b.wait(20) == 0
+    ev = [l.split() for l in log.read_text().splitlines()]
+    assert [e[0] for e in ev] == ["start", "end", "start", "end"]
+
+
+def test_two_jobs_are_serialised_exclusive_mode(tmp_path):
     env = _env(tmp_path, ignore=True, exclusive=True)
     log = tmp_path / "log"
     cmd = f"echo start $(date +%s.%N) >> {log}; sleep 1; echo end $(date +%s.%N) >> {log}"
