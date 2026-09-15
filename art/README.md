@@ -32,6 +32,7 @@ Pieces from [ml-art-3d.md](ml-art-3d.md), rendered with the shared torch rendere
 
 | Project | What it is | Highlights |
 |---|---|---|
+| [Invariant Tori: two learners on the energy 3-sphere](invariant-tori/README.md) | Two players learning rock–paper–scissors conserve an energy, so each orbit lives on a 3-sphere mapped exactly into ℝ³: nested tori when the game is fair, a chaotic fog with surviving islands when ties are perturbed. | [tori_glow.png](invariant-tori/gallery/tori_glow.png)<br>[sea_islands_cutaway.png](invariant-tori/gallery/sea_islands_cutaway.png)<br>[film_eps_sweep.mp4](invariant-tori/gallery/film_eps_sweep.mp4) |
 | [Number Knot: circles inside a language model](number-knot/README.md) | The seven days of the week sit on a ring in every layer of Qwen3-0.6B, stacked here into a twisting depth tower; OLMo-2-1B winds the numbers 0–999 around a measured circle of period 100, drawn beside its shuffled-label null. | [hero_tower_months_glow.png](number-knot/gallery/hero_tower_months_glow.png)<br>[helix_glow.png](number-knot/gallery/helix_glow.png)<br>[film_turntable_months.mp4](number-knot/gallery/film_turntable_months.mp4) |
 
 ## Hardware and number formats
