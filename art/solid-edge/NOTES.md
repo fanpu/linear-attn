@@ -63,7 +63,14 @@ OMP_NUM_THREADS=4 ../.venv/bin/python analyze_toys.py
   unsegmented output checked bit-for-bit on a CPU smoke run. Resume: `setsid nohup bash run_m2_loop.sh >> logs/m2.log 2>&1 < /dev/null &`.
 - Controller ruling for M3 (noted): render the space-time solid with a declared log10(T) vertical axis (above T ~ 200 it is a pure extrusion).
 - 1-ulp floor on probe shells (float64, 400 shell voxels each, `ulp_check.py`): c1 3.75 %, c2 5.75 %, c3 10 %, null 0 % flips.
-  c1 kept as B (highest D - null and the lowest ulp sensitivity of the three).
+  (see next decision for the B choice).
+- Decision: B window = c2 (small-sigma intrusion; centre log10 (eta0, eta1, sigma) = (-0.18, 3.19, -1.36), +-1 decade), overriding the
+  letter of the ruling (max D - D_null picked c1). Probe D3(1-16): c1 2.54, c2 2.45, c3 2.33, null 2.03. c1's excess comes from a
+  largely 2D (eta0, sigma) stripe/dust pattern extruded along eta1 (eta1 = 10^-3.4..10^-1.4, where the output layer barely moves):
+  only 12 % of its label changes cross eta1 (isotropic = 33 %); c2 is isotropic (33/33/34 %), shows nested diagonal bands and
+  filaments in every axis plane (cache/preview/m2_probes.png), and joins the main eta1 ~ 10^2-10^4 seam. A mostly-extruded skin is
+  what the spec warns against. Cost: 93/512 f32 chunks of c1 (~34 GPU min) kept in cache/vol/B256_c1_partial/;
+  cache/vol/B_window_c1_rule.json holds the rule's pick.
 - M1 toy (a) recompute with the measure fix: 0 label flips vs the M1 volume (M1 numbers stand).
 
 ## M1 results (2026-09-15)

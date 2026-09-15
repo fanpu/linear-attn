@@ -248,3 +248,25 @@ for name in cols:
               'audit', S[name]['audit'] and {k: S[name]['audit'][k] for k in ('voxels', 'flips', 'flip_rate')})
 if 'A128' in S and 'sigma1_vs_overview' in S['A128']:
     print('A sigma1', S['A128']['sigma1_vs_overview'])
+
+# --- probe preview: the sigma plane with most edge cells of each 64^3 f32 probe ---
+if 'probes' in S:
+    names = [n for n in S['probes']]
+    fig, axs = plt.subplots(2, len(names), figsize=(4.2 * len(names), 8.4), dpi=100)
+    for col, nm in enumerate(names):
+        d = os.path.join(V, f'probe_{nm}')
+        M = np.load(os.path.join(d, 'f32.npy')); g = json.load(open(os.path.join(d, 'grid.json')))
+        L = M < 0; E = edges3d(L)
+        le0, le1, ls = np.log10(g['eta0']), np.log10(g['eta1']), np.log10(g['sigma'])
+        k = int(np.argmax(E.sum(axis=(1, 2)))); j = int(np.argmax(E.sum(axis=(0, 1))))
+        r = S['probes'][nm]
+        axs[0, col].imshow(L[k], origin='lower', cmap=CM, vmin=0, vmax=1, interpolation='nearest', aspect='auto',
+                           extent=[le0[0], le0[-1], le1[0], le1[-1]])
+        axs[0, col].set_title(f'probe {nm}: D3(1-16) {r["D3_b1_16"]:.2f}\nlog10 sigma = {ls[k]:.2f}', fontsize=9)
+        axs[0, col].set_xlabel('log10 eta0'); axs[0, col].set_ylabel('log10 eta1')
+        axs[1, col].imshow(L[:, :, j], origin='lower', cmap=CM, vmin=0, vmax=1, interpolation='nearest', aspect='auto',
+                           extent=[le1[0], le1[-1], ls[0], ls[-1]])
+        axs[1, col].set_title(f'log10 eta0 = {le0[j]:.2f}', fontsize=9)
+        axs[1, col].set_xlabel('log10 eta1'); axs[1, col].set_ylabel('log10 sigma')
+    fig.suptitle('64^3 float32 probes (no float64 shell): planes with the most edge cells', fontsize=10)
+    fig.tight_layout(); fig.savefig(os.path.join(PV, 'm2_probes.png')); plt.close(fig)
