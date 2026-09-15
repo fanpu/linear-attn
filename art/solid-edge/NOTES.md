@@ -57,6 +57,15 @@ OMP_NUM_THREADS=4 ../.venv/bin/python analyze_toys.py
 - Decision: "within one voxel of a label change" = the 3x3x3 neighbourhood holds both labels; the f64 shell is iterated
   (up to 6 rounds) on voxels that become adjacent to a change after f64 labels land.
 
+- Controller rule (06:40): no queued GPU job may run > ~20 min. `vol_run.py --max_seconds 1080` stops at a chunk checkpoint and exits 3;
+  `run_m2_loop.sh` (setsid nohup, CPU-side) requeues gpu1.sh segments until each volume's stages finish (B256, then B256_sub64).
+  The single-job chain was stopped right after chunk 92/512 of B256 f32 (93 chunk files + times verified intact). Segmented ==
+  unsegmented output checked bit-for-bit on a CPU smoke run. Resume: `setsid nohup bash run_m2_loop.sh >> logs/m2.log 2>&1 < /dev/null &`.
+- Controller ruling for M3 (noted): render the space-time solid with a declared log10(T) vertical axis (above T ~ 200 it is a pure extrusion).
+- 1-ulp floor on probe shells (float64, 400 shell voxels each, `ulp_check.py`): c1 3.75 %, c2 5.75 %, c3 10 %, null 0 % flips.
+  c1 kept as B (highest D - null and the lowest ulp sensitivity of the three).
+- M1 toy (a) recompute with the measure fix: 0 label flips vs the M1 volume (M1 numbers stand).
+
 ## M1 results (2026-09-15)
 - Space-time: trainable 64.80 / 49.29 / 48.94 % at T = 10/100/1000; per-T D (b=2-32) 1.046/1.270/1.367/1.420/1.414/1.412 at T = 10/30/100/250/500/1000 (README 1.05/1.27/1.37/1.42/1.41/1.41). 6-neighbour boundary voxels 300 990. Body stops changing above T ~ 250 (top 75 % of the linear T axis is nearly an extrusion: M3 risk).
 - Toy a (net2, f32): conv 58.22 %, boundary voxels 11 543, edge cells 8420, D3(1-16) 2.122 +- 0.013; 175 s, 1494 px/s (1553 excl. compile chunk).

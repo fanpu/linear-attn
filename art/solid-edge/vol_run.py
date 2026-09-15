@@ -19,6 +19,8 @@ import math
 import os
 import time
 
+import sys
+
 import numpy as np
 import torch
 from scipy.ndimage import maximum_filter, minimum_filter
@@ -28,6 +30,9 @@ from se_analysis import edges3d, edges
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CH = 32768
+T_START = time.time()
+MAX_SECONDS = None       # segment limit: stop cleanly (exit 3) before a chunk would overrun it
+EXIT_MORE = 3
 STEPS = 500
 BLOCK = 32
 
@@ -87,6 +92,10 @@ def build_grid(args, vdir):
     return g
 
 
+class SegmentDone(Exception):
+    pass
+
+
 class Runner:
     def __init__(self, kind, grid, device):
         self.kind = kind
@@ -128,6 +137,10 @@ def run_list(runner, idx, dt, cdir, tag, log):
         if os.path.exists(fn):
             out[s:e] = np.load(fn)
             continue
+        if MAX_SECONDS is not None and times:
+            last = max(v[0] for v in times.values())
+            if time.time() - T_START + 1.2 * last > MAX_SECONDS:
+                raise SegmentDone(f'{tag} chunk {c}/{nch}')
         if runner.dev == 'cuda':
             torch.cuda.synchronize()
         t0 = time.time()
@@ -137,7 +150,8 @@ def run_list(runner, idx, dt, cdir, tag, log):
         os.replace(fn + '.tmp.npy', fn)
         out[s:e] = m
         times[str(c)] = [dtm, e - s]
-        json.dump(times, open(tfn, 'w'))
+        json.dump(times, open(tfn + '.tmp', 'w'))
+        os.replace(tfn + '.tmp', tfn)
         if c % 8 == 0 or c == nch - 1:
             log(f'  {tag} chunk {c+1}/{nch}  {dtm:.1f}s  {(e-s)/dtm:.0f} px/s  conv={np.mean(m<0):.3f}  [{ts()}]')
     t_run = float(sum(v[0] for v in times.values()))
@@ -168,9 +182,10 @@ def main():
     p.add_argument('--steps', type=int, default=500)
     p.add_argument('--block', type=int, default=32, help='sub-block side for --grid sub')
     p.add_argument('--root', default=None, help='cache root override (tests)')
+    p.add_argument('--max_seconds', type=float, default=None, help='segment wall limit; exit 3 if work remains')
     args = p.parse_args()
-    global CH, HERE, STEPS, BLOCK
-    CH = args.chunk; STEPS = args.steps; BLOCK = args.block
+    global CH, HERE, STEPS, BLOCK, MAX_SECONDS
+    CH = args.chunk; STEPS = args.steps; BLOCK = args.block; MAX_SECONDS = args.max_seconds
     if args.root:
         HERE = args.root
     vdir = os.path.join(HERE, 'cache', 'vol', args.name)
@@ -194,6 +209,15 @@ def main():
         json.dump(meta, open(metaf, 'w'), indent=1)
 
     f32fn = os.path.join(vdir, 'f32.npy')
+    try:
+        run_stages(args, vdir, grid, R, runner, meta, save_meta, f32fn, log)
+    except SegmentDone as ex:
+        log(f'[{ts()}] {args.name} segment limit reached at {ex}; exit {EXIT_MORE} (rerun to continue)')
+        sys.exit(EXIT_MORE)
+    log(f'[{ts()}] {args.name} done')
+
+
+def run_stages(args, vdir, grid, R, runner, meta, save_meta, f32fn, log):
     for stage in args.stages.split(','):
         log(f'[{ts()}] {args.name} stage {stage}')
         if stage == 'f32':
@@ -290,7 +314,6 @@ def main():
             log('  plane ' + json.dumps(res))
         else:
             raise ValueError(stage)
-    log(f'[{ts()}] {args.name} done')
 
 
 if __name__ == '__main__':
