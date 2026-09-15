@@ -42,6 +42,40 @@ def test_additive_conserves_mass_and_respects_depth():
     assert col.shape == (64, 64, 3) and col[..., 1].sum() == 0
 
 
+def test_splat_spheres_is_chunk_invariant():
+    g = torch.Generator().manual_seed(1)
+    M = 300
+    x = torch.rand(M, generator=g, dtype=torch.float64) * 3.0 - 1.0    # distinct depths = 5 - x
+    y = (torch.rand(M, generator=g, dtype=torch.float64) - 0.5) * 3.0
+    z = (torch.rand(M, generator=g, dtype=torch.float64) - 0.5) * 3.0
+    centers = torch.stack([x, y, z], dim=1)
+    radius = 0.1 + torch.rand(M, generator=g, dtype=torch.float64) * 0.2   # 0.1 - 0.3, overlapping on screen
+    attrs = torch.arange(M, dtype=torch.float64)[:, None]
+    big = splat_spheres(centers, radius, CAM, attrs=attrs, chunk=2 ** 22)
+    small = splat_spheres(centers, radius, CAM, attrs=attrs, chunk=200)    # forces per=1 sphere per chunk
+    assert torch.equal(big["mask"], small["mask"])
+    assert torch.allclose(big["depth"], small["depth"], atol=1e-12)
+    assert torch.allclose(big["normal"], small["normal"], atol=1e-12)
+    assert torch.allclose(big["attr"], small["attr"], atol=1e-12)
+
+
+def test_splat_additive_is_chunk_invariant():
+    g = torch.Generator().manual_seed(2)
+    M = 500
+    pts = (torch.rand(M, 3, generator=g, dtype=torch.float64) - 0.5) * 2.0   # within CAM view
+    color = torch.rand(M, 3, generator=g, dtype=torch.float64)
+    depth_buf = torch.full((64, 64), 5.0, dtype=torch.float64)
+    depth_buf[:32, :] = 3.0                                                 # occludes points on that half
+
+    acc_big = splat_additive(pts, CAM, sigma_px=1.0, depth=depth_buf, chunk=2 ** 22)
+    acc_small = splat_additive(pts, CAM, sigma_px=1.0, depth=depth_buf, chunk=50)
+    assert torch.allclose(acc_big, acc_small, atol=1e-10)
+
+    col_big = splat_additive(pts, CAM, sigma_px=1.0, color=color, chunk=2 ** 22)
+    col_small = splat_additive(pts, CAM, sigma_px=1.0, color=color, chunk=50)
+    assert torch.allclose(col_big, col_small, atol=1e-10)
+
+
 def test_visible_runs_and_svg(tmp_path):
     hit = splat_spheres(torch.zeros(1, 3, dtype=torch.float64), 0.5, CAM)
     line, _ = sample_polyline(torch.tensor([[-1.0, -1.5, 0], [-1.0, 1.5, 0]], dtype=torch.float64), 0.01)
