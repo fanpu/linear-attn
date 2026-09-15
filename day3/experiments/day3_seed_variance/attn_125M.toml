@@ -1,0 +1,43 @@
+# Attention baseline, 125M body (d=768, L=18), 1.2B tokens
+# One file per run, after torchtitan's train_configs/*.toml. Every run of the
+# seed-variance study uses the same values; only the size and the budget differ
+# between the three files, and the seed is the only command-line argument.
+
+[job]
+description = "Attention baseline, 125M body (d=768, L=18), 1.2B tokens"
+dump_folder = "runs"          # runs land in runs/<mixer>_<size>_s<seed>/
+
+[model]
+mixer = "attn"                # fla TransformerForCausalLM through the SDPA shim (testbed/model.py)
+size = "125M"                 # shape preset in testbed/model.py: d and L
+vocab_size = 50304            # GPT-2's 50,257 padded to a multiple of 64
+
+[optimizer]
+name = "AdamW"
+lr = 6e-4                     # peak learning rate, nanoGPT's value for 124M, kept at every size
+betas = [0.9, 0.95]
+weight_decay = 0.1            # on every parameter with >= 2 dims; 0 on norm gains
+
+[lr_scheduler]
+warmup_frac = 0.03            # linear warmup over 3% of the steps
+decay_type = "cosine"
+min_lr_factor = 0.1           # cosine decays to 0.1 x peak
+
+[training]
+local_batch_size = 32         # windows per step
+seq_len = 1024                # tokens per window; 32,768 tokens per step
+budget_tokens = 1200000000   # D; steps = budget_tokens // (local_batch_size * seq_len)
+steps = 0                     # 0 = the full budget; > 0 stops early (smoke run) while the schedule still spans the full budget
+max_norm = 1.0                # global gradient-norm clip
+dataset_path = "data/fineweb_edu"
+
+[validation]
+every_frac = 0.05             # evaluate every 5% of the run
+windows = 4096                # on the first 4096 aligned windows of shard 0
+final_windows = 16384         # final evaluation on the first 16,384
+
+[checkpoint]
+every_frac = 0.10             # bf16 weights every 10%; full state at the same points for resuming
+
+[metrics]
+log_freq = 20                 # one metrics.jsonl row per 20 steps
