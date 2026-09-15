@@ -26,6 +26,14 @@ Every piece renders a measured or exactly computed quantity; aesthetic choices a
 | [Trainability: the fractal edge of gradient descent](trainability-fractal/README.md) | Every pixel is a separate neural network trained for 500 steps. Colour says whether it learned, and how quickly. The line between learning and blowing up is jagged at every… | [hero_deep_swirl_spectral_print.png](trainability-fractal/gallery/hero_deep_swirl_spectral_print.png)<br>[zoom_zoomAB_spectral.mp4](trainability-fractal/gallery/zoom_zoomAB_spectral.mp4) |
 | [Weight Spectrum: a matrix learning to be less random](weight-spectrum/README.md) | Every eigenvalue of a weight matrix, printed while it trains: it starts as textbook random-matrix noise and grows a tail. | [ridgeline_mlp_bs16_s1_FC1_sv_joy_logtime.png](weight-spectrum/gallery/ridgeline_mlp_bs16_s1_FC1_sv_joy_logtime.png)<br>[ridge_film_mlp_bs16_s1_FC1_joy.mp4](weight-spectrum/gallery/ridge_film_mlp_bs16_s1_FC1_joy.mp4) |
 
+## Three dimensions
+
+Pieces from [ml-art-3d.md](ml-art-3d.md), rendered with the shared torch renderer [`_shared/r3d`](_shared/r3d/README.md).
+
+| Project | What it is | Highlights |
+|---|---|---|
+| [Number Knot: circles inside a language model](number-knot/README.md) | The seven days of the week sit on a ring in every layer of Qwen3-0.6B, stacked here into a twisting depth tower; OLMo-2-1B winds the numbers 0–999 around a measured circle of period 100, drawn beside its shuffled-label null. | [hero_tower_months_glow.png](number-knot/gallery/hero_tower_months_glow.png)<br>[helix_glow.png](number-knot/gallery/helix_glow.png)<br>[film_turntable_months.mp4](number-knot/gallery/film_turntable_months.mp4) |
+
 ## Hardware and number formats
 
 | Project | What it is | Highlights |
