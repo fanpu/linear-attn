@@ -2,8 +2,8 @@
 
 ## State
 - M1 DONE (2026-09-15, CPU): all 10 fields sampled, order checks, t->1 limit, null, previews in `cache/preview/`. Report: `docs/superpowers/plans/reports/combed-M1.md`.
-- M2 (renders) in progress 2026-09-15: dense trajectories + basin volumes computed (GPU), SVGs + box counting done (CPU);
-  GPU render chain `logs/gpu_m2_render.sh` (log `logs/gpu_m2_render.log`) renders hair diptychs, stereo, tubes, basin at 2048-2400 px.
+- M2 DONE 2026-09-15: dense trajectories + basin volumes (GPU via gpu1.sh), SVGs + box counting + all heroes (CPU, 4 threads,
+  controller-approved; chain `logs/cpu_m2_heroes.sh`, 689 s total). Report: docs/superpowers/plans/reports/combed-M2.md.
 - M3 (film, README) not started.
 
 ## M2 files and commands (from art/combed/)
@@ -82,3 +82,6 @@ Every stage skips outputs that already exist.
 ## M2 numbers
 - Basin N=16 (t = 1-1e-6): 16 labels; agreement with Voronoi-of-x0 null 76.6%. Box counting eps 1-16 vox at 256^3: D = 2.13 (null 2.10); at 128^3 eps 1-8: 2.16 (null 2.13). Boundary voxels 256^3/128^3 = 4.11.
 - Dense stop 1-1e-6 memorised fractions (raw endpoint): closed 1.000/1.000/1.000/0.998/0.998, MLP 0.704/0.434/0.183/0.049/0.005.
+- Decision: heroes (>= 2000 px) rendered on CPU with 4 threads, not through gpu1.sh — the queued GPU render job waited 05:02-06:35 behind ~9 art jobs (solid-edge m2 alone ~3 h left); controller approved; own queued job (gpu1 pid 662025 + its flock) killed before it took the lock. CPU timings: tubes 8 s per (N, kind) at 2400 px (4 images each), basin 9 s (128^3) / 17 s (256^3) at 2400 px, 20k-hair diptych 68-107 s at 2048 px/panel, whole chain 689 s.
+- Decision: stereo uses rotation stereo (azimuth -60 -/+ 2.5 deg): r3d.stereo_pair shifts an orthographic camera sideways, which gives zero parallax.
+- Decision: plaster ground darkened to grey 0.36 (tubes at 0.95 x (0.62..1) were indistinguishable from a 0.8 ground).
