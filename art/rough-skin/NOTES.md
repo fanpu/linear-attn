@@ -12,7 +12,11 @@ Source piece (read-only): `art/depth-roughness/` (net definition from `nets.py`,
   L ≥ 3 exceed the calibrated range (estimator saturates near 2.97 at 256³). ReLU raw 2.01–2.06 vs smooth null 2.03–2.06.
   float32 vs float64 output sign-flip rate ≤ 1.8e-4 (Heaviside L = 4), 0 at L = 1. Rate 6.3e4 voxels/s at width 4096 (shared GPU).
 - Previews (viewed): `cache/preview/slices_w1024_r128.png`, `cache/preview/slices_w4096_r256.png`.
-- M2 (renders, needs r3d) and M3 (film, STL, README) not started.
+- **M2 (renders): DONE**, report `docs/superpowers/plans/reports/rough-skin-M2.md`. Three width-4096 draws (seeds 7, 8, 9):
+  Heaviside L = 1 3D calibrated 2.426 ± 0.031, slices 2.448 ± 0.067; L = 2 3D 2.774 ± 0.076, slices 2.769 ± 0.040 (theory 2.5, 2.75).
+  Plate reproduction vs depth-roughness nets_patch (n = 4096): 3 and 27 of 1,048,576 pixels differ in sign (L = 1, 2).
+- M3 (film, STL, README) not started. README D table must use the 3-draw statistics, state the calibration systematics
+  (window vs periodic −0.07, k = 0 vs 1 +0.04) and the 1.5-decade fit range, and make no D claim for L ≥ 3.
 
 ## Files
 
@@ -88,3 +92,4 @@ OMP_NUM_THREADS=4 $PY measure_dims.py                                           
 - Decision: Spectral fog on paper ground only; a dark ground made low-opacity emission read muddy. TF declared in render_fog.py: per-side rank normalisation over the slab, seam colours #5e4fa2 | #9e0142, opacity 0.10 + 0.90(1 − |q|)^24, density 25, nearest-voxel sampling; slab z-voxels 116–139.
 - Decision: slice atlas cuts are z = const planes of the chart (z-voxels round(linspace(8, 247, 12))), coastline along voxel edges at the whole-volume median, 4 px per voxel, depth-roughness paper/ink/C059 helpers imported from its render_common.py.
 - Decision: plate reproduction (§0.7): the great S² {x4 = 0} ⊂ S³; `verify_plate.py` feeds depth-roughness's own n = 4096, seed 11 weights through this piece's forward code and compares with `depth-roughness/cache/nets_patch.npz`.
+- Decision: the casts and fog were rendered on CPU (4 threads, 50–140 s per 2048² cast, 6 s per fog) rather than through gpu1 — the art GPU queue was held by solid-edge's multi-hour B256 volume with four other waiters, and r3d on CPU at this size is minutes. The GPU chain `run_m2.sh` still ran (plate reproduction; the cast/fog stages skipped the existing outputs).
