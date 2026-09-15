@@ -3,10 +3,49 @@
 Spec: `art/ml-art-3d.md` §5 (+§0). Plan: `docs/superpowers/plans/2026-09-15-3d-pieces.md` §5.
 Source piece: `art/game-chaos/` (read only; code copied with source comments).
 
-## State (M1 done, 2026-09-15)
+## State (M2 in progress / done, 2026-09-15)
 
-M1 = chart + orbits + voxels + membrane + previews, CPU only. M2 (renders with `art/_shared/r3d/`)
-not started. Report: `docs/superpowers/plans/reports/invariant-tori-M1.md`.
+M1 = chart + orbits + voxels + membrane + previews (report `docs/superpowers/plans/reports/invariant-tori-M1.md`).
+M2 = renders with `art/_shared/r3d/` into `gallery/` (report `.../invariant-tori-M2.md`). M3 (films, STL, README) next.
+
+**M1 numbers below the M2 section are for the FIRST pole; the current pole is the M2 one.**
+
+
+## M2 (controller rulings applied)
+
+- **Pole re-chosen** (`repole.py`): excluding kam 38, the pole is p = (0.67218, -0.25691, -0.66643, -0.19506),
+  min angle **23.64 deg** (23.63 deg to sample chords), set by regular orbits kam 59 and 347; eps=0 tori >= 28.98,
+  chaotic >= 31.50. Chart scale over stored points **0.50-11.9** (p99 4.18), max |X| 4.78.
+  Pole strategies x = (0.123, 0.712, 0.165), y = (0.693, 0.121, 0.186).
+- kam 38 replaced by **kam 32** (period chain in the central sea + rim chain), 25.79 deg from the new pole,
+  lambda 4.2e-4. Rule: candidates with lambda <= 2.5e-3, section area in (0.003, 0.05), min angle >= the pole's
+  own min angle (so adding it leaves the pole optimal: re-run gave the identical pole), farthest in 1-IoU from
+  the 7 kept orbits. Old pole kept in `cache/pole_first.json` (for the M3 second-pole plate); `cache/pole_no38.json`.
+- Tests re-run with the new pole: see M2 report.
+- Density extended to **T_total = 6e6** (30 segments of 2e5): 52% voxels occupied, mean 13.0 per occupied
+  voxel, max 2492; split-half r = 0.53 (the orbit sticks near an island for ~4e5 time units in segments 17-18,
+  lambda 0.004 / 0.006 there, so the halves differ by a real sticky episode, not only Poisson noise).
+- `fields256.npz`: g, dg/dt(eps=0.5), sdist on the density grid itself (|H-2.8| <= 8.9e-16).
+- Render copies `orbits_*_fine.npz` at dt = 0.01, t <= 2000 (identical trajectories; dt=0.1 chords reached
+  0.7 chart units).
+- **Break-up order (ruling 2):** innermost seed chaotic first (eps = 0.04); captions must say so.
+
+Decisions (M2):
+- Decision: raw 256^3 fog (T = 6e6), no blur — at 2400 px the cut face shows island holes crisply; blur128
+  also rendered in tests and softened the hole rims. Declared in captions.
+- Decision: nested tori view along 52 deg from the doughnut axis (smallest-variance PCA direction of torus 0),
+  wedge cutaway of half-angle 50 deg about that axis, identical for all tori; t <= 1000 of each orbit.
+- Decision: plaster tint = 0.55 white + 0.45 viridis(torus index); AO/shadow from a 400^3 voxel occupancy of the
+  tube centres (form only); one raking light.
+- Decision: glow colour = plasma(0.15 + 0.8 i/11); additive Gaussian hairlines, exposure 0.22, wedge applied.
+- Decision: sea fog TF = cmc.oslo(0.15 + 0.85 x), x = log1p(count)/q99.9, extinction 12 x^2 (exterior) or 80 x^2
+  (cutaway); sheet = ivory, extinction 3 * exp(-(sdist/1.5 voxel)^2) * [dg/dt > 0]; tubes copper, t <= 150,
+  radius 0.009, cropped to the density box; dots: chaotic crossings red, regular crossings dark copper.
+- Decision: stereo = rotation stereo az -/+ 2.5 deg (orthographic cameras have no translation parallax), same clip.
+- Decision: slice plate = game-chaos ink plate | same 1.77 M crossings in plate axes coloured by rank of x_R + y_P
+  (cmc.batlow) | the same coloured crossings in the chart, framed on the density box; ink coverage 1-exp(-g hits),
+  gain 3x on the chart panel.
+- Decision: splatting on CPU (r3d CUDA splat bug, controller note); volumes on CUDA inside gpu1.sh.
 
 ## Files
 
@@ -18,6 +57,8 @@ not started. Report: `docs/superpowers/plans/reports/invariant-tori-M1.md`.
 | `compute_orbits.py` | eps=0 tori, eps=0.5 chaotic + regular, eps sweep -> `cache/orbits_*.npz`, `cache/sweep/` |
 | `compute_chart.py` | pole, stereo coords, 256^3 density, 128^3 membrane -> `cache/` |
 | `preview.py` | matplotlib previews -> `cache/preview/` |
+| `repole.py` | M2 ruling 1: pole without kam 38, replacement choice |
+| `render_lib.py`, `render_tori.py`, `render_sea.py`, `render_plates.py`, `render_m2.sh` | M2 renders -> `gallery/` |
 | `test_chart.py` | pytest: convexity along rays, round trip, H drift, basis/stereo exactness |
 
 ## Resume commands (from this directory; ~3 min total, 4 threads)
@@ -28,6 +69,9 @@ $P compute_orbits.py all          # ~20 s
 $P compute_chart.py all           # ~2 min (pole search 40 s, membrane 33 s)
 $P -m pytest -q -p no:cacheprovider test_chart.py   # 5 tests, ~11 s
 $P preview.py all
+$P repole.py                      # M2: needs cache/pole_first.json copy of the M1 pole
+$P compute_orbits.py fine && $P compute_chart.py stereo fields256
+./render_m2.sh                     # tori + plate on CPU, sea through gpu1.sh
 ```
 
 ## Key numbers (M1)

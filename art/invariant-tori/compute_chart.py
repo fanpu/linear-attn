@@ -29,12 +29,14 @@ CACHE = os.path.join(HERE, 'cache')
 H0 = 2.8
 
 
-def load_all_logits():
-    """Every stored orbit (list of (name, L (n, m, 4)))."""
+def load_all_logits(exclude_kam=()):
+    """Every stored orbit (list of (name, L (n, m, 4))), optionally without some regular eps=0.5 orbits
+    (identified by their game-chaos kam_eps0.50 index)."""
     out = []
     d = np.load(os.path.join(CACHE, 'orbits_eps0.npz')); out.append(('eps0', d['L']))
     d = np.load(os.path.join(CACHE, 'orbits_eps05.npz'))
-    out.append(('eps05_chaotic', d['chaotic_L'])); out.append(('eps05_regular', d['regular_L']))
+    keep = [i for i, k in enumerate(d['kam_index'][1:]) if int(k) not in set(exclude_kam)]
+    out.append(('eps05_chaotic', d['chaotic_L'])); out.append(('eps05_regular', d['regular_L'][keep]))
     for f in sorted(glob.glob(os.path.join(CACHE, 'sweep', 'eps_*.npz'))):
         out.append(('sweep_' + os.path.basename(f)[4:6], np.load(f)['L']))
     return out
@@ -44,9 +46,9 @@ def chord_to_angle(c):
     return 2.0 * np.arcsin(np.clip(c / 2.0, 0, 1))
 
 
-def do_pole(n_cand=400000, n_refine=24, seed=0):
+def do_pole(n_cand=400000, n_refine=24, seed=0, exclude_kam=(), out_name='pole.json'):
     t0 = time.time()
-    groups = load_all_logits()
+    groups = load_all_logits(exclude_kam)
     Q = []; step = 0.0
     for name, L in groups:
         q = C.to_sphere(C.logits_to_u(L))
@@ -102,7 +104,7 @@ def do_pole(n_cand=400000, n_refine=24, seed=0):
                                angle_to_best_deg=float(np.degrees(np.arccos(np.clip(q_ @ p, -1, 1)))))
                           for c_, q_ in res[1:6]],
                seconds=time.time() - t0)
-    json.dump(out, open(os.path.join(CACHE, 'pole.json'), 'w'), indent=1)
+    json.dump(out, open(os.path.join(CACHE, out_name), 'w'), indent=1)
     print(json.dumps({k: v for k, v in out.items() if k != 'runner_up'}, indent=1), flush=True)
 
 
@@ -134,6 +136,10 @@ def do_stereo():
     X = np.stack([ch.forward_logits(np.load(f)['L']).astype(np.float32) for f in files])
     lam = np.stack([np.load(f)['lyap'] for f in files]); eps = np.array([float(np.load(f)['eps']) for f in files])
     np.savez(os.path.join(CACHE, 'stereo_sweep.npz'), X=X, lyap=lam, eps=eps, dt=0.2)
+    for tag in ('eps0', 'eps05'):
+        f = os.path.join(CACHE, f'orbits_{tag}_fine.npz')
+        if os.path.exists(f):
+            np.savez(os.path.join(CACHE, f'stereo_{tag}_fine.npz'), X=ch.forward_logits(np.load(f)['L']), dt=0.01)
     print(f'stereo: {time.time() - t0:.0f}s', flush=True)
 
 
@@ -141,9 +147,9 @@ def box_of(X, lo_q=0.5, hi_q=99.5):
     return np.percentile(X, lo_q, axis=0), np.percentile(X, hi_q, axis=0)
 
 
-def do_density(R=256, n_extra=5):
+def do_density(R=256, n_extra=29):
     """Box from the stored T = 2e5 orbit.  Counts from that orbit plus n_extra bit-identical continuations
-    of 2e5 each (the integrator restarts from the exact float64 logits), T_total = 1.2e6 by default.
+    of 2e5 each (the integrator restarts from the exact float64 logits), T_total = 6e6 by default (M2 ruling 3: 1.2e6 left the 256^3 fog Poisson-noisy).
     counts_first = the stored segment only; split-half agreement is reported as a convergence check."""
     import replicator_c as rc
     t0 = time.time(); ch = get_chart()
@@ -217,8 +223,32 @@ def do_membrane(R=128):
     print('membrane:', json.dumps(stats), flush=True)
 
 
+def do_fields256(R=256, chunk=1 << 21):
+    """g, dg/dt (eps=0.5) and first-order distance to g=0 on the density grid itself (256^3, cell-centred), so the
+    renderer can put fog and membrane in one multi-channel volume without resampling. float32."""
+    t0 = time.time(); ch = get_chart()
+    dz = np.load(os.path.join(CACHE, 'density_eps05.npz')); lo, hi = dz['lo'], dz['hi']
+    ax = [lo[i] + (np.arange(R) + 0.5) * (hi[i] - lo[i]) / R for i in range(3)]
+    g = np.empty(R ** 3); gd = np.empty(R ** 3); Herr = 0.0
+    I, J, K = np.meshgrid(np.arange(R), np.arange(R), np.arange(R), indexing='ij')
+    I, J, K = I.ravel(), J.ravel(), K.ravel()
+    for s0 in range(0, R ** 3, chunk):
+        sl = slice(s0, s0 + chunk)
+        G = np.stack([ax[0][I[sl]], ax[1][J[sl]], ax[2][K[sl]]], -1)
+        u = ch.inverse_u(G); x, y = C.u_to_strategies(u)
+        Herr = max(Herr, float(np.abs(C.energy_u(u) - H0).max()))
+        g[sl] = C.section_g(x, y); gd[sl] = C.section_gdot(x, y, 0.5)
+    g = g.reshape(R, R, R); gd = gd.reshape(R, R, R)
+    spacing = (hi - lo) / R
+    gn = np.sqrt(sum(gi ** 2 for gi in np.gradient(g, *spacing)))
+    np.savez(os.path.join(CACHE, 'fields256.npz'), g=g.astype(np.float32), gdot_eps05=gd.astype(np.float32),
+             sdist=(g / gn).astype(np.float32), lo=lo, hi=hi, R=R, H_err_max=Herr,
+             note='cell-centred on the density grid, axis order (X0,X1,X2); sdist = g/|grad g| (chart units)')
+    print(f'fields256: H err {Herr:.1e}, {time.time() - t0:.0f}s', flush=True)
+
+
 if __name__ == '__main__':
     what = sys.argv[1:] or ['all']
-    for w, fn in (('pole', do_pole), ('stereo', do_stereo), ('density', do_density), ('membrane', do_membrane)):
+    for w, fn in (('pole', do_pole), ('stereo', do_stereo), ('density', do_density), ('membrane', do_membrane), ('fields256', do_fields256)):
         if w in what or 'all' in what:
             fn()

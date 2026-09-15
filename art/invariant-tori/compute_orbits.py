@@ -9,7 +9,9 @@ Each file stores float64 logits L (n, m, 4) sampled every dt (the start point in
 largest finite-time Lyapunov exponent `lyap` (Benettin, renormalised every 100 steps), its running
 history, section crossings `sec` (probabilities, SAF section g = x_P - x_R + y_P - y_R = 0 upward).
 
-python compute_orbits.py [eps0|eps05|sweep|all]
+  cache/orbits_*_fine.npz  render copies at dt = 0.01, t <= 2000
+
+python compute_orbits.py [eps0|eps05|sweep|fine|all]
 """
 import json
 import os
@@ -32,7 +34,7 @@ GC_KAM05 = os.path.join(HERE, '..', 'game-chaos', 'cache', 'kam_eps0.50.npz')
 # Regular eps = 0.5 orbits: indices into game-chaos kam_eps0.50.npz, chosen by farthest-point sampling
 # (1 - IoU of filled section masks) among orbits with lambda <= 2.5e-3 at T = 4e4 and filled
 # section area in (0.003, 0.05) of the (x_R, y_P) square [0, 0.8]^2.  See NOTES.md Decision.
-REGULAR_KAM05 = [38, 2, 59, 84, 121, 201, 243, 347]
+REGULAR_KAM05 = [32, 2, 59, 84, 121, 201, 243, 347]  # M2: kam 38 replaced by 32 (repole.py)
 CHAOTIC_KAM05 = 190  # largest lambda (0.0287) of the 395 game-chaos orbits at eps = 0.5, H = 2.8
 
 
@@ -117,6 +119,20 @@ def do_sweep():
               f'max lambda {r["lyap"].max():.4f}, {time.time() - t:.0f}s', flush=True)
 
 
+def do_fine(T=2000.0):
+    """Render copies sampled at every RK4 step (dt = 0.01) over t <= T: the same trajectories as the eps0 and
+    regular eps05 sets (same starts, same steps), fine enough that tube chords do not show (the dt = 0.1 samples
+    jump up to 0.7 chart units where the chart scale is large)."""
+    t = time.time()
+    d = np.load(os.path.join(CACHE, 'orbits_eps0.npz'))
+    r = run(d['s0'], 0.0, T=T, dt=0.01, maxsec=400)
+    np.savez(os.path.join(CACHE, 'orbits_eps0_fine.npz'), **r)
+    d = np.load(os.path.join(CACHE, 'orbits_eps05.npz'))
+    r = run(d['regular_L'][:, 0], 0.5, T=T, dt=0.01, maxsec=400)
+    np.savez(os.path.join(CACHE, 'orbits_eps05_fine.npz'), kam_index=d['kam_index'][1:], **r)
+    print(f'fine: {time.time() - t:.0f}s', flush=True)
+
+
 if __name__ == '__main__':
     what = sys.argv[1] if len(sys.argv) > 1 else 'all'
     os.makedirs(CACHE, exist_ok=True)
@@ -126,3 +142,5 @@ if __name__ == '__main__':
         do_eps05()
     if what in ('sweep', 'all'):
         do_sweep()
+    if what in ('fine', 'all'):
+        do_fine()
