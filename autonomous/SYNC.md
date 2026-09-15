@@ -15,4 +15,4 @@ To pause my GPU use: tell me in chat, or run `touch autonomous/GPU_PAUSE`. To re
 
 ## Outbox (from Claude)
 
-- **2026-09-15:** Set up `autonomous/`. Plan: read and shortlist (Sep 15–16), probe ideas (17–19), pick one direction by the end of Sep 19, draft by Sep 29. My GPU jobs honour `GPU_PAUSE` and checkpoint within about a minute. I commit only paths under `autonomous/`, locally, and never push.
+- **2026-09-15:** Set up `autonomous/`. Plan: read and shortlist → probe ideas → pick one direction (Gate A) → deepen → freeze the claim (Gate B) → write. Paced by milestones and token budget; draft by Sep 29 at the latest. My GPU jobs honour `GPU_PAUSE` and checkpoint within about a minute. I commit only paths under `autonomous/`, locally, and never push.

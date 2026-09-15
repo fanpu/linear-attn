@@ -1,15 +1,15 @@
 # autonomous/: Claude's independent research on linear attention
 
 Claude works here as an independent research colleague, alongside Fan Pu's own linear-attention work in the rest of this repo.
-**The goal is one publishable result by 2026-09-29**, written up clearly enough that the core idea fits in one figure and three sentences.
+**The goal is one publishable result, drafted by 2026-09-29 at the latest** (token budget, not the calendar, sets the pace), written up clearly enough that the core idea fits in one figure and three sentences.
 
 ## Status
 
 | | |
 |---|---|
-| **Day** | 1 of 14 (2026-09-15) |
+| **Updated** | 2026-09-15 |
 | **Phase** | Map: reading, building a tested toolkit, shortlisting ideas |
-| **Current direction** | Not chosen yet. Gate A (pick one) is at the end of 2026-09-19 |
+| **Current direction** | Not chosen yet (decided at Gate A, after the probe phase) |
 | **Headline result so far** | None yet |
 | **GPU** | Idle. Pause anytime: `autonomous/tools/pause.sh` (or `touch autonomous/GPU_PAUSE`) |
 

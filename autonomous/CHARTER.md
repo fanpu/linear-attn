@@ -8,7 +8,7 @@ and this file gets updated to match.
 
 ## 1. The mission
 
-**Find one result in linear attention that is publishable, and write it up, by 2026-09-29** (two weeks from 2026-09-15).
+**Find one result in linear attention that is publishable, and write it up, by 2026-09-29 at the latest.** Tokens, not days, are the binding constraint (§3), so the plan advances by milestones, not by the calendar.
 
 "Publishable" means a workshop paper at minimum, aiming for a main-conference short paper. Concretely, the result must be:
 
@@ -50,11 +50,21 @@ The machine is a single NVIDIA GB10 (~120 GB unified CPU+GPU memory, 20 cores). 
 - **Every training script calls `tools/pause.py`** (`should_pause()` every N steps → save checkpoint → `sys.exit(PAUSE_EXIT)`), so a paused job resumes from its checkpoint.
 - **Never run two GPU jobs at once.** The driver runs out of memory, and both jobs die silently. Check `journalctl -k | grep NVRM` when a job vanishes.
 - **Launch long jobs detached:** `setsid nohup tools/gpu_run.sh <cmd> > <log> 2>&1 < /dev/null &`. A session restart kills ordinary child processes.
-- **Budget.** Assume roughly **half the GPU hours** in the two weeks are mine.
+- **Budget.** Assume roughly **half the GPU hours** until the deadline are mine.
   - The GB10 sustains ≈95 TFLOP/s (see `hardware/pulse`), i.e. ~3×10^17 FLOPs per hour.
   - A 125M-parameter model on 1B tokens is ≈7.5×10^17 FLOPs, or ~3–6 wall-clock hours at realistic utilisation.
   - So: a handful of small LM runs in total. Most science must come from **synthetic tasks, small models, and theory**.
 - If the GPU is paused, work on something that doesn't need it: theory, reading, CPU experiments, analysis, writing. A pause should never mean idle.
+
+### Tokens: the real bottleneck
+Tokens run out long before calendar days or GPU hours do, so progress is measured per token, not per day.
+
+- **Let the GPU wait, not me.** Launch a job, then do token-cheap work or end the turn. Don't poll logs in a loop. Use a single blocking wait (e.g. Monitor with an until-condition), or a long `ScheduleWakeup` fallback.
+- **Read narrowly.** Use `grep`, `tail`, and specific line ranges rather than whole files. Compute scripts print a short summary (a few lines of key numbers); full data goes to `cache/`.
+- **Look once, carefully.** Analyse results with a script that prints the numbers that matter, instead of dumping tables into context.
+- **Write things down once.** Journal entries and READMEs are concise; don't restate the same finding in five places. `RESULTS.md` is the canonical copy; others link to it.
+- **Subagents cost tokens too.** Use one only when it saves more context than it costs (§3, Subagents).
+- **Cheap before expensive:** a derivation or a CPU toy before a GPU sweep; a GPU sweep before a paper section that depends on it.
 
 ### Environment
 - Python: the repo-root `.venv` (`/home/fzeng/ml/research/.venv/bin/python`: torch 2.14+cu130, triton 3.8, flash-linear-attention 0.5.2).
@@ -68,12 +78,12 @@ Commit **only paths under `autonomous/`**, locally, whenever a logical segment o
 
 The loop, roughly in order of how much time it should take:
 
-1. **Read before building (days 1–2, then continuously).** Map the field: what's known, what's claimed, what's contested. Notes go in `literature/`. Every idea in `IDEAS.md` gets a novelty check before real compute.
+1. **Read before building (Map phase, then continuously).** Map the field: what's known, what's claimed, what's contested. Notes go in `literature/`. Every idea in `IDEAS.md` gets a novelty check before real compute.
 2. **Ask sharp questions.** A good question has a *prediction* and a *cheap test*. Write both down **before** running anything.
-3. **Kill ideas fast.** Each idea first gets a ≤1-day probe (tiny model, synthetic task, or a pencil derivation).
+3. **Kill ideas fast.** Each idea first gets one cheap probe (tiny model, synthetic task, or a pencil derivation).
    - Decide in advance what result would kill it.
    - Most ideas should die. That's the point of probing.
-4. **Commit hard to the winner.** By the gate in `PLAN.md` (end of day 5), pick **one** direction and put ~80% of effort into it.
+4. **Commit hard to the winner.** At Gate A in `PLAN.md`, pick **one** direction and put ~80% of effort into it.
 5. **Explain, then scale.** Make sure I understand *why* the effect happens, on the smallest possible model, before spending GPU hours on showing it at scale.
 6. **Write early.** Start the paper draft when the core result exists, not at the end. Writing reveals missing experiments.
 
@@ -106,14 +116,14 @@ Clear, instructional writing matters more than anything else here. Every artefac
 
 | File | What it is | When to update |
 |---|---|---|
-| `README.md` | Front door: one-paragraph status, current direction, links | End of each day |
+| `README.md` | Front door: one-paragraph status, current direction, links | At each phase change or new headline result |
 | `PLAN.md` | Two-week timeline, milestones, go/no-go gates | When plans change (log why in journal) |
 | `IDEAS.md` | Backlog of ideas with a score and novelty status | Whenever an idea appears, dies, or is promoted |
 | `RESULTS.md` | Ledger of findings: claim, evidence, confidence, takeaway | Whenever an experiment concludes, positive or negative |
-| `journal/YYYY-MM-DD.md` | Daily lab notebook (template below) | During and at the end of each working day |
+| `journal/YYYY-MM-DD.md` | Lab notebook, one file per calendar day (template below) | During each working session |
 | `literature/` | One note per paper or topic; `literature/README.md` indexes them | While reading |
 | `experiments/NNN-slug/` | One directory per experiment (template in `experiments/TEMPLATE.md`) | Created before the experiment runs |
-| `paper/` | The draft (created once a direction is chosen) | From ~day 8 |
+| `paper/` | The draft (created once a direction is chosen) | As soon as the key figure exists |
 | `SYNC.md` | Notes to and from Fan Pu | Whenever there's something worth their time |
 
 **Confidence labels** (used in `RESULTS.md` and the journal):
@@ -125,9 +135,9 @@ Clear, instructional writing matters more than anything else here. Every artefac
 ### Daily journal template
 
 ```markdown
-# YYYY-MM-DD — day N of 14
+# YYYY-MM-DD — phase: <Map | Probe | Deepen | Write>
 
-## Plan for today
+## Plan for this session
 - ...
 
 ## What I did
@@ -140,7 +150,7 @@ Clear, instructional writing matters more than anything else here. Every artefac
 - What I chose and *why*, including what I decided *not* to do.
 
 ## Compute and agents
-- GPU hours used today / cumulative. Pauses requested. Subagents spawned (why, outcome).
+- GPU hours used today / cumulative. Rough token budget used so far. Pauses requested. Subagents spawned (why, outcome).
 
 ## Questions / blockers
 - Things I don't understand yet; things I need from Fan Pu (also copy to SYNC.md).
