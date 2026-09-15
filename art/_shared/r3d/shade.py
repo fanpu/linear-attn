@@ -3,6 +3,8 @@ import math
 
 import torch
 
+from ._hash import hash01
+
 
 def _unit(v, like):
     v = torch.as_tensor(v, dtype=like.dtype, device=like.device)
@@ -25,23 +27,34 @@ def hemisphere_dirs(n_rays, seed=0, dtype=torch.float64, device="cpu"):
 
 
 def _frame(n):
-    ex = torch.tensor([1.0, 0, 0], dtype=n.dtype, device=n.device)
-    ey = torch.tensor([0, 1.0, 0], dtype=n.dtype, device=n.device)
-    a = torch.where((n[:, :1].abs() < 0.9), ex, ey)
-    t = torch.linalg.cross(n, a)
-    t = t / t.norm(dim=-1, keepdim=True)
-    return t, torch.linalg.cross(n, t)
+    """Branchless orthonormal basis (Duff et al. 2017): continuous except across n_z = 0 (hairy ball)."""
+    sgn = torch.where(n[:, 2] >= 0, 1.0, -1.0).to(n.dtype)
+    a = -1.0 / (sgn + n[:, 2])
+    b = n[:, 0] * n[:, 1] * a
+    t = torch.stack([1 + sgn * n[:, 0] ** 2 * a, sgn * b, -sgn * n[:, 0]], 1)
+    return t, torch.stack([b, sgn + n[:, 1] ** 2 * a, -n[:, 1]], 1)
 
 
 def ambient_occlusion(pos, normal, occluded, n_rays=16, radius=1.0, seed=0, bias=1e-4):
-    N = pos.shape[0]
-    loc = hemisphere_dirs(n_rays, seed, pos.dtype, pos.device)
+    """Fraction of cosine-weighted hemisphere rays that escape within `radius` (1 = open).
+
+    Each point gets its own Cranley-Patterson shift of the stratified pattern and its own rotation about the normal,
+    keyed on (point index, seed), so the error is per-point noise rather than bands shared by neighbours."""
+    N, dt, dev = pos.shape[0], pos.dtype, pos.device
+    idx = torch.arange(N, device=dev)
+    shift = hash01(idx, seed, 0, dt)[:, None]                                   # (N,1) radial stratum shift
+    spin = hash01(idx, seed, 1, dt)[:, None]                                    # (N,1) rotation about the normal
+    i = torch.arange(n_rays, dtype=dt, device=dev)[None]
+    u = torch.frac((i + 0.5) / n_rays + shift)
+    r = torch.sqrt(u)
+    phi = 2 * math.pi * torch.frac(i * (math.sqrt(5) - 1) / 2 + spin)
+    lx, ly, lz = r * torch.cos(phi), r * torch.sin(phi), torch.sqrt((1 - u).clamp_min(0))
     t, b = _frame(normal)
-    w = loc[None, :, 0:1] * t[:, None] + loc[None, :, 1:2] * b[:, None] + loc[None, :, 2:3] * normal[:, None]
+    w = lx[..., None] * t[:, None] + ly[..., None] * b[:, None] + lz[..., None] * normal[:, None]
     o = (pos + bias * normal)[:, None, :].expand(N, n_rays, 3).reshape(-1, 3)
-    tmax = torch.full((N * n_rays,), float(radius), dtype=pos.dtype, device=pos.device)
+    tmax = torch.full((N * n_rays,), float(radius), dtype=dt, device=dev)
     hit = occluded(o, w.reshape(-1, 3), tmax).reshape(N, n_rays)
-    return 1 - hit.to(pos.dtype).mean(1)
+    return 1 - hit.to(dt).mean(1)
 
 
 def hard_shadow(pos, normal, light_dir, occluded, bias=1e-4, tmax=1e9):

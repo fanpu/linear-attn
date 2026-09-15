@@ -8,9 +8,9 @@ LO, HI = (-1.0, -1.0, -1.0), (1.0, 1.0, 1.0)
 
 
 def _linear_grid(D=7, H=6, W=5):
-    z = torch.linspace(-1, 1, D); y = torch.linspace(-1, 1, H); x = torch.linspace(-1, 1, W)
+    z, y, x = (torch.linspace(-1, 1, n, dtype=torch.float64) for n in (D, H, W))   # float64: float32 nodes flaked at atol 1e-10
     Z, Y, X = torch.meshgrid(z, y, x, indexing="ij")
-    return (2 * X + 3 * Y - Z).double()
+    return 2 * X + 3 * Y - Z
 
 
 def test_sample_grid_is_exact_for_linear_fields():
@@ -49,8 +49,12 @@ def test_constant_cube_matches_beer_lambert():
 def test_clip_plane_and_depth_limit_shorten_the_path():
     data = torch.ones(8, 8, 8, dtype=torch.float64)
     o = torch.tensor([[5.0, 0, 0]], dtype=torch.float64); d = torch.tensor([[-1.0, 0, 0]], dtype=torch.float64)
-    _, a = march_volume(data, LO, HI, o, d, _const_tf(1.0), step=0.01, clip=[((0, 0, 0), (1, 0, 0))])
+    _, a = march_volume(data, LO, HI, o, d, _const_tf(1.0), step=0.01, clip=[((0, 0, 0), (1, 0, 0))], jitter=False)
     assert math.isclose(a.item(), 1 - math.exp(-1.0), rel_tol=1e-3)
+    # jittered boundaries no longer land on the plane: the clip is decided per sample, so the kept path is off by
+    # at most step/2 and |d alpha / d path| <= sigma = 1
+    _, a = march_volume(data, LO, HI, o, d, _const_tf(1.0), step=0.01, clip=[((0, 0, 0), (1, 0, 0))])
+    assert abs(a.item() - (1 - math.exp(-1.0))) <= 0.5 * 0.01 + 1e-12
     _, a = march_volume(data, LO, HI, o, d, _const_tf(1.0), step=0.01, tmax=torch.tensor([4.5], dtype=torch.float64))
     assert math.isclose(a.item(), 1 - math.exp(-0.5), rel_tol=1e-3)
 
@@ -72,3 +76,29 @@ def test_render_volume_image_and_over():
     assert a[16, 16] > 0.999 and a[0, 0] == 0          # centre hits the cube, corner misses it
     img = over(rgb, a, torch.tensor([0.0, 0.0, 1.0]))
     assert torch.allclose(img[0, 0], torch.tensor([0.0, 0.0, 1.0]))
+
+
+def test_jitter_is_exact_for_constant_media_and_chunk_invariant():
+    data = torch.ones(8, 8, 8, dtype=torch.float64)
+    g = torch.Generator().manual_seed(1)
+    o = torch.cat([torch.full((64, 1), 5.0, dtype=torch.float64), torch.rand(64, 2, generator=g, dtype=torch.float64) * 1.6 - 0.8], 1)
+    d = torch.tensor([[-1.0, 0.1, -0.05]], dtype=torch.float64).expand(64, 3)
+    d = d / d.norm(dim=1, keepdim=True)
+    _, a_off = march_volume(data, LO, HI, o, d, _const_tf(0.7), step=0.013, jitter=False)
+    _, a_on = march_volume(data, LO, HI, o, d, _const_tf(0.7), step=0.013)
+    assert torch.allclose(a_on, a_off, rtol=1e-9, atol=0)
+    _, a_small = march_volume(data, LO, HI, o, d, _const_tf(0.7), step=0.013, chunk_samples=500)
+    assert torch.equal(a_on, a_small)
+
+
+def test_jitter_moves_samples_deterministically():
+    g = _linear_grid()
+    tf = lambda v: (torch.ones(*v.shape, 3, dtype=v.dtype), 0.05 * v ** 2)   # non-linear: the midpoint rule is exact for linear sigma
+    o = torch.tensor([[5.0, 0.1, -0.2], [5.0, -0.3, 0.4]], dtype=torch.float64)
+    d = torch.tensor([[-1.0, 0, 0]] * 2, dtype=torch.float64)
+    _, a0 = march_volume(g, LO, HI, o, d, tf, step=0.1, jitter=False)
+    _, a1 = march_volume(g, LO, HI, o, d, tf, step=0.1)
+    _, a2 = march_volume(g, LO, HI, o, d, tf, step=0.1)
+    _, a3 = march_volume(g, LO, HI, o, d, tf, step=0.1, seed=7)
+    assert torch.equal(a1, a2)
+    assert (a0 - a1).abs().max() > 1e-6 and (a1 - a3).abs().max() > 1e-6

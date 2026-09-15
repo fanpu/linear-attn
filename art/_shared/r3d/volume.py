@@ -4,6 +4,7 @@ import math
 import numpy as np
 import torch
 
+from ._hash import hash01
 from .camera import ray_box
 from .grid import clip_keep, sample_grid
 
@@ -31,7 +32,11 @@ def lut_tf(rgb, sigma):
     return tf
 
 
-def march_volume(data, lo, hi, o, d, tf, step, *, tmax=None, clip=(), mode="linear", chunk_samples=2 ** 22):
+def march_volume(data, lo, hi, o, d, tf, step, *, tmax=None, clip=(), mode="linear", jitter=True, seed=0,
+                 chunk_samples=2 ** 22):
+    """Emission-absorption along rays. Segment boundaries sit at tn + (k - u) * step clamped to [tn, tfar], so the
+    segment lengths sum exactly to the path. With `jitter` each ray gets its own deterministic u in [0, 1) keyed on
+    (ray index, seed), which turns step-aligned wood-grain rings into fine noise; jitter=False uses u = 0."""
     N = o.shape[0]
     rgb = torch.zeros(N, 3, dtype=o.dtype, device=o.device)
     alpha = torch.zeros(N, dtype=o.dtype, device=o.device)
@@ -41,15 +46,18 @@ def march_volume(data, lo, hi, o, d, tf, step, *, tmax=None, clip=(), mode="line
     idx = (tfar > tn).nonzero().squeeze(1)
     if idx.numel() == 0:
         return rgb, alpha
-    nmax = max(1, int(math.ceil(((tfar - tn)[idx].max().item()) / step)))
+    nmax = max(1, int(math.ceil(((tfar - tn)[idx].max().item()) / step))) + (1 if jitter else 0)
     per = max(1, chunk_samples // nmax)
     k = torch.arange(nmax, dtype=o.dtype, device=o.device)
     for s in range(0, idx.numel(), per):
         ii = idx[s:s + per]
         t0, t1 = tn[ii, None], tfar[ii, None]
-        seg0 = t0 + k * step                                   # segment starts (R, S)
-        ds = (t1 - seg0).clamp(0, step)                        # exact segment lengths; 0 past the exit
-        ts = torch.minimum(seg0 + 0.5 * ds, t1)
+        seg0 = t0 + k * step                                   # unjittered segment starts (R, S)
+        if jitter:
+            seg0 = seg0 - hash01(ii, seed, 0, o.dtype)[:, None] * step
+        start = torch.maximum(seg0, t0)
+        ds = torch.minimum(t1 - start, step - (start - seg0)).clamp_min(0)   # exact lengths; 0 past the exit
+        ts = torch.minimum(start + 0.5 * ds, t1)
         pts = o[ii, None, :] + ts[..., None] * d[ii, None, :]
         c, sig = tf(sample_grid(data, lo, hi, pts, mode))
         if clip:
@@ -61,11 +69,12 @@ def march_volume(data, lo, hi, o, d, tf, step, *, tmax=None, clip=(), mode="line
     return rgb, alpha
 
 
-def render_volume(data, lo, hi, cam, tf, step, *, depth=None, clip=(), mode="linear", device="cpu"):
+def render_volume(data, lo, hi, cam, tf, step, *, depth=None, clip=(), mode="linear", jitter=True, seed=0, device="cpu"):
     o, d = cam.rays(device=device, dtype=data.dtype if data.is_floating_point() else torch.float32)
     H, W = o.shape[:2]
     tmax = None if depth is None else cam.depth_to_t(depth.to(d), d).reshape(-1)
-    rgb, a = march_volume(data, lo, hi, o.reshape(-1, 3), d.reshape(-1, 3), tf, step, tmax=tmax, clip=clip, mode=mode)
+    rgb, a = march_volume(data, lo, hi, o.reshape(-1, 3), d.reshape(-1, 3), tf, step, tmax=tmax, clip=clip, mode=mode,
+                          jitter=jitter, seed=seed)
     return rgb.reshape(H, W, 3), a.reshape(H, W)
 
 

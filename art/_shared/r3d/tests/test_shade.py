@@ -47,3 +47,17 @@ def test_hard_shadow():
     n = torch.tensor([[0.0, 0, 1], [0, 0, -1.0]], dtype=torch.float64)
     assert hard_shadow(p, n, (-1, 0, 1), wall_at_x0).tolist() == [0.0, 0.0]   # blocked, and facing away
     assert hard_shadow(p, n, (1, 0, 1), wall_at_x0).tolist() == [1.0, 0.0]
+
+
+def test_ao_is_noise_not_bands():
+    x = torch.linspace(0, 1, 400, dtype=torch.float64)
+    pos = torch.stack([x, torch.zeros_like(x), torch.zeros_like(x)], 1)
+    nrm = UP.expand(400, 3)
+    ao = ambient_occlusion(pos, nrm, wall_at_x0, n_rays=16, radius=1.0)
+    # a boolean occluder with 16 rays allows only 17 values, so banding is measured as value changes along x:
+    # a shared direction set gives a monotone staircase with <= 16 changes
+    assert int((ao[1:] != ao[:-1]).sum()) > 32
+    ma = torch.nn.functional.avg_pool1d(ao[None, None], 15, stride=1)[0, 0]
+    assert (ma[1:] - ma[:-1]).min().item() >= -0.03
+    assert torch.equal(ao, ambient_occlusion(pos, nrm, wall_at_x0, n_rays=16, radius=1.0))
+    assert not torch.equal(ao, ambient_occlusion(pos, nrm, wall_at_x0, n_rays=16, radius=1.0, seed=1))

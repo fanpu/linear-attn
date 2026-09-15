@@ -64,3 +64,25 @@ def test_occluder():
     d = torch.tensor([[-1.0, 0, 0], [1.0, 0, 0]], dtype=torch.float64)
     assert occ(o, d, torch.tensor([10.0, 10.0], dtype=torch.float64)).tolist() == [True, False]
     assert occ(o, d, torch.tensor([1.0, 10.0], dtype=torch.float64)).tolist() == [False, False]
+
+
+def test_box_edge_point_takes_the_nearest_box_face():
+    f = torch.ones(9, 9, 9, dtype=torch.float64)             # everything solid; h = 3/8
+    h = 3 / 8
+    p = torch.tensor([[1.5 - h / 8, 0, 1.5],                   # on the top face, h/8 from the +x face
+                      [1.5, 0, 1.5 - h / 8],                   # on the +x face, h/8 below the top face
+                      [0.0, -1.5 + h / 8, -1.5]], dtype=torch.float64)
+    n = iso_normals(f, LO, HI, p, 0.5)
+    assert torch.equal(n, torch.tensor([[0.0, 0, 1], [1.0, 0, 0], [0, 0, -1.0]], dtype=torch.float64))
+
+
+def test_iso_surface_near_a_box_face_keeps_its_own_normal():
+    a = torch.linspace(-1.5, 1.5, 9, dtype=torch.float64)
+    Z, Y, X = torch.meshgrid(a, a, a, indexing="ij")
+    f = -0.35 - Z                                              # solid slab below z = -0.35, touching the side faces
+    h = 3 / 8
+    p = torch.tensor([[1.5 - h / 8, 0.2, -0.35], [-1.5 + h / 16, 0.0, -0.35]], dtype=torch.float64)
+    n = iso_normals(f, LO, HI, p, 0.0)
+    assert torch.allclose(n, torch.tensor([[0.0, 0, 1]] * 2, dtype=torch.float64))
+    q = torch.tensor([[1.5, 0.2, -1.0]], dtype=torch.float64)  # on the +x face, deep inside the slab
+    assert torch.equal(iso_normals(f, LO, HI, q, 0.0), torch.tensor([[1.0, 0, 0]], dtype=torch.float64))

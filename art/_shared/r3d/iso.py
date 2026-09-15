@@ -45,6 +45,8 @@ def march_iso(field, lo, hi, o, d, level, step, *, refine=12, clip=(), tmax=None
 
 
 def iso_normals(field, lo, hi, pts, level, *, clip=(), tol=None):
+    """Outward normals at surface points. A point lies on the iso surface, a box face or a clip plane; when several
+    are within `tol`, the nearest wins (iso distance estimated as |f - level| / |grad f|; clip wins ties)."""
     lo_t = torch.as_tensor(lo, dtype=pts.dtype, device=pts.device)
     hi_t = torch.as_tensor(hi, dtype=pts.dtype, device=pts.device)
     shape = torch.tensor(field.shape[::-1], dtype=pts.dtype, device=pts.device)   # (W, H, D) = x, y, z counts
@@ -55,18 +57,25 @@ def iso_normals(field, lo, hi, pts, level, *, clip=(), tol=None):
         e = torch.zeros(3, dtype=pts.dtype, device=pts.device); e[ax] = h[ax]
         g[:, ax] = (sample_grid(field, lo, hi, pts + e, padding="border") -
                     sample_grid(field, lo, hi, pts - e, padding="border")) / (2 * h[ax])
-    n = -g / g.norm(dim=-1, keepdim=True).clamp_min(1e-12)
+    gn = g.norm(dim=-1, keepdim=True).clamp_min(1e-12)
+    n = -g / gn
+    f = sample_grid(field, lo, hi, pts, padding="border")
+    best = (f - level).abs() / gn[:, 0]                          # distance to the iso surface
     for ax in range(3):                                          # box faces
         for side, bound in ((-1.0, lo_t[ax]), (1.0, hi_t[ax])):
-            on = (pts[:, ax] - bound).abs() < tol
+            dist = (pts[:, ax] - bound).abs()
+            on = (dist < tol) & (dist < best)
             face = torch.zeros(3, dtype=pts.dtype, device=pts.device); face[ax] = side
             n = torch.where(on[:, None], face, n)
-    for point, normal in clip:                                   # clip faces win over box faces
+            best = torch.where(on, dist, best)
+    for point, normal in clip:                                   # clip faces win ties
         p = torch.as_tensor(point, dtype=pts.dtype, device=pts.device)
         c = torch.as_tensor(normal, dtype=pts.dtype, device=pts.device)
         c = c / c.norm()
-        on = ((pts - p) * c).sum(-1).abs() < tol
+        dist = ((pts - p) * c).sum(-1).abs()
+        on = (dist < tol) & (dist <= best)
         n = torch.where(on[:, None], c, n)
+        best = torch.where(on, dist, best)
     return n
 
 
