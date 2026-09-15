@@ -1,7 +1,17 @@
 # NOTES: shells (§2 of art/ml-art-3d.md) — living handoff
 
 ## State
-- M1 DONE (2026-09-15 07:05); report docs/superpowers/plans/reports/shells-M1.md. Next: M2 (ResNet-56 pair, epoch film volumes) after the gate. Code: `lib.py` (imports loss-landscape/common.py; SeqEvaluator, VmapEvaluator),
+- M1 DONE, gate PASSED (27-point grid accepted). Report docs/superpowers/plans/reports/shells-M1.md.
+- M2 IN PROGRESS (started 06:55):
+  - `jobs/m2_gpu_loop.sh` (log logs/m2_gpu_loop.log, per-model logs/m2_resnet56*.log): ResNet-56 and ResNet-56-noshort 27^3
+    random volumes, 4 slab shards each, one gpu1.sh job per shard, then CPU assemble + analyze + preview.
+  - `jobs/m2_film_cpu.sh` (log logs/m2_film_cpu.log, logs/film_ep*_k.log): ResNet-20 17^3 film volumes on CPU.
+  - Both loops resume: rerun the same `setsid nohup bash jobs/<loop>.sh > logs/<loop>.log 2>&1 < /dev/null &`.
+
+## M3 caption rules
+- The PCA-direction volume moves the *final* weights w* along the PCA directions (final BN statistics). The checkpoint
+  path drawn through it crosses a loss ~10 plateau of *that* field; this is not the loss of those checkpoints and not
+  a level set of them. Captions must say so, and must caption the thread plate and the random onion as different objects. Code: `lib.py` (imports loss-landscape/common.py; SeqEvaluator, VmapEvaluator),
   `pca3.py` (CPU), `check.py` (equivalence + slice points + K sweep), `volume.py` (27^3, per-slab checkpoints),
   `analyze.py` (slice reproduction, anisotropy, ellipsoid null), `preview.py` (matplotlib previews to cache/preview/).
 - GPU chain `jobs/m1.sh` (check -> choose K -> random 27^3 -> PCA 27^3), log `logs/m1.log`: DONE 04:38.
@@ -42,7 +52,20 @@ $PY analyze.py cache/vol/resnet20_final_pca_g27_ext.npz && $PY preview.py cache/
 - PCA base volume: all three shells touch the +a face (and the 2.3 shell the +c face): the basin extends past
   w* away from the trajectory, beyond the 8% margin. -> extension job.
 
-## Decisions
+## Decisions (M2)
+- Decision: M2 final-checkpoint volumes use the M1 27^3 grid (h = 0.08, [-1.04, 1.04]) and seeds 1, 2, 3 normalised to
+  each model; slice reproduction against both g51 and g101 (25x25 coincident points each).
+- Decision: epoch-film grid 17^3 at h = 0.16 on [-1.28, 1.28] — odd so w_epoch is a vertex; 0.16 is 2x the 27^3
+  spacing and 4x g51's, so the ep040 volume shares 13^3 points with the final 27^3 volume (an internal check of the
+  per-epoch loading path) and 13x13 points with g51; the wider box leaves room for the broader early-epoch basins.
+- Decision: epochs {0, 1, 2, 4, 8, 16, 40} as planned; ep040 first (the check), then chronological.
+- Decision: film volumes on CPU (3 slab-shard workers x 4 threads) — the GPU queue had ~9 jobs waiting; the M1
+  toy showed CPU reproduces the GPU plate to 3e-7.
+- Decision: ResNet-56 volumes in 4 GPU shards (~7 slabs, ~5,100 points each, expected ~7-10 min at ~12 pts/s).
+- Decision: film anisotropy uses the absolute levels 0.5, 1, ln 10 plus levels relative to each checkpoint's centre
+  loss (x2, x4, x8), because early checkpoints have centre loss near ln 10 and the absolute shells are empty.
+
+## Decisions (M1)
 - Decision: grid is 27 points per axis at spacing 0.08 on [-1.04, 1.04], not the plan's 26 on [-1, 1] — 26 points
   on [-1, 1] are the even g51 indices and do not contain 0, so neither w* nor the c = 0 plane would lie on the grid.
   27 points keep spacing 0.08, put w* on a vertex and all three coordinate planes on grid slabs, and 25x25 points of

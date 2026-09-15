@@ -21,6 +21,7 @@ p.add_argument("--extend", type=int, nargs=6, default=None, metavar=("ALO", "AHI
                help="append this many grid points (same spacing) below/above each axis; output tag _ext")
 p.add_argument("--slab-shard", type=int, nargs=2, default=[0, 1], metavar=("K", "N"),
                help="only the slabs whose position in the centre-first order is K mod N (parallel CPU runs)")
+p.add_argument("--assemble-only", action="store_true", help="never evaluate; assemble if every slab exists")
 p.add_argument("--reuse", default=None, help="npz volume whose coincident grid points prefill this run")
 p.add_argument("--memfrac", type=float, default=0.10)
 p.add_argument("--margin", type=float, default=0.08, help="pca: fractional margin around the trajectory")
@@ -70,8 +71,13 @@ if args.reuse:
         for jj, bb in enumerate(r["b"]):
             for ii, aa in enumerate(r["a"]):
                 pre[(round(float(aa), 5), round(float(bb), 5), round(float(cc), 5))] = (r["loss"][kk, jj, ii], r["acc"][kk, jj, ii])
-x, y = load_subset(dev)
-if args.K == 1:  # the sequential loss-landscape path (faster than vmap on the GB10, see NOTES.md)
+if args.assemble_only:
+    x = y = None
+else:
+    x, y = load_subset(dev)
+if args.assemble_only:
+    ev = None; evaluator = "assembled from slabs"
+elif args.K == 1:  # the sequential loss-landscape path (faster than vmap on the GB10, see NOTES.md)
     _seq = SeqEvaluator(net, x, y, dirs, batch=args.img_batch)
     def ev(chunk):
         l, a_ = _seq(*chunk[0])
@@ -91,7 +97,7 @@ print(json.dumps(meta), flush=True)
 t_all = time.time(); done_pts = 0
 for pos, k in enumerate(order):
     f = os.path.join(sdir, f"slab{k:02d}.npz")
-    if os.path.exists(f) or pos % args.slab_shard[1] != args.slab_shard[0]:
+    if os.path.exists(f) or pos % args.slab_shard[1] != args.slab_shard[0] or args.assemble_only:
         continue
     t0 = time.time()
     P = np.array([(a, b, C[k]) for b in B for a in A])  # row b, col a
@@ -128,6 +134,7 @@ walls = [float(np.load(os.path.join(sdir, f"slab{k:02d}.npz"))["wall_s"]) for k 
 meta["wall_s_sum_slabs"] = sum(walls)
 n_eval = [int(np.load(os.path.join(sdir, f"slab{k:02d}.npz")).get("n_eval", na * nb)) for k in range(n)]
 meta["points_evaluated"] = sum(n_eval)
+meta["slab_evaluators"] = sorted(set(str(np.load(os.path.join(sdir, f"slab{k:02d}.npz")).get("evaluator", "vmap K=1")) for k in range(n)))
 meta["pts_per_s"] = sum(n_eval) / sum(walls)
 np.savez(out, loss=loss, acc=acc, a=A, b=B, c=C, meta=json.dumps(meta))
 print(f"done {out}  pts/s {meta['pts_per_s']:.2f}  wall {sum(walls)/60:.1f} min  min {loss.min():.4f} max {loss.max():.2f}", flush=True)

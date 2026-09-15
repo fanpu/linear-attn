@@ -71,47 +71,83 @@ def null_test(axes, s=4):
                 ratio_true=float(r_true[0] / r_true[2]), ratio_est=st["ratio_r1_r3"])
 
 
+def plate_repro(loss, A, B, C, plate):
+    """c = 0 slab vs a loss-landscape 2D plate at coincident (a, b)."""
+    g = np.load(plate)
+    gx = np.round(g["xs"], 6); gy = np.round(g["ys"], 6)
+    kc = int(np.where(np.round(C, 6) == 0)[0][0])
+    ia = [i for i, a in enumerate(np.round(A, 6)) if a in gx]
+    jb = [j for j, b in enumerate(np.round(B, 6)) if b in gy]
+    ref = np.array([[g["loss"][np.where(gy == round(B[j], 6))[0][0], np.where(gx == round(A[i], 6))[0][0]]
+                     for i in ia] for j in jb])
+    rel = np.abs(loss[kc][np.ix_(jb, ia)] - ref) / ref
+    return dict(plate=os.path.basename(plate), n_points=int(rel.size), max_rel=float(rel.max()),
+                median_rel=float(np.median(rel)), p99_rel=float(np.quantile(rel, 0.99)),
+                ref_range=[float(ref.min()), float(ref.max())])
+
+
+def vol_repro(loss, A, B, C, other):
+    """coincident grid points of two volumes (e.g. the ep040 17^3 film volume vs the final 27^3 volume)."""
+    o = np.load(other)
+    def idx(u, w):
+        u6, w6 = np.round(u, 6), np.round(w, 6)
+        return [i for i in range(len(u)) if u6[i] in w6], [int(np.where(w6 == u6[i])[0][0]) for i in range(len(u)) if u6[i] in w6]
+    (ia, oa), (jb, ob), (kc, oc) = idx(A, o["a"]), idx(B, o["b"]), idx(C, o["c"])
+    x = loss[np.ix_(kc, jb, ia)]; y = o["loss"][np.ix_(oc, ob, oa)]
+    rel = np.abs(x - y) / y
+    return dict(other=os.path.basename(other), n_points=int(rel.size), max_rel=float(rel.max()), median_rel=float(np.median(rel)))
+
+
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("vol")
     p.add_argument("--levels", type=float, nargs="*", default=LEVELS)
+    p.add_argument("--rel-levels", type=float, nargs="*", default=[2.0, 4.0, 8.0],
+                   help="also levels = centre loss x these factors (declared, for the epoch film)")
+    p.add_argument("--plates", nargs="*", default=None, help="2D plates for slice reproduction (default: g51 and g101 of the model if present)")
+    p.add_argument("--compare-vol", default=None)
     p.add_argument("--s", type=int, default=4)
     args = p.parse_args()
     v = np.load(args.vol); meta = json.loads(str(v["meta"]))
     loss, A, B, C = v["loss"], v["a"], v["b"], v["c"]
     axes = [C, B, A]
-    res = dict(vol=args.vol, meta=meta, center_loss=float(loss[len(C)//2, len(B)//2, len(A)//2]) if meta["dirs"] == "random" else None,
+    ka, kb, kc = [int(np.argmin(np.abs(x))) for x in (A, B, C)]
+    res = dict(vol=args.vol, meta=meta, center_loss=float(loss[kc, kb, ka]),
                loss_min=float(np.nanmin(loss)), loss_max=float(np.nanmax(loss)),
                nonfinite=int((~np.isfinite(loss)).sum()),
                argmin_abc=[float(A[np.unravel_index(np.nanargmin(loss), loss.shape)[2]]),
                            float(B[np.unravel_index(np.nanargmin(loss), loss.shape)[1]]),
                            float(C[np.unravel_index(np.nanargmin(loss), loss.shape)[0]])])
-    if meta["dirs"] == "random":
-        g = np.load(os.path.join(LL_ROOT, "cache", "surf", f"{meta['model']}_final_g51.npz"))
-        gx = np.round(g["xs"], 6)
-        kc = int(np.where(np.round(C, 6) == 0)[0][0])
-        ia = [i for i, a in enumerate(np.round(A, 6)) if a in gx]
-        ref = np.array([[g["loss"][np.where(gx == round(B[j], 6))[0][0], np.where(gx == round(A[i], 6))[0][0]]
-                         for i in ia] for j in ia])
-        ours = loss[kc][np.ix_(ia, ia)]
-        rel = np.abs(ours - ref) / ref
-        res["slice_repro_g51"] = dict(n_points=int(rel.size), max_rel=float(rel.max()), median_rel=float(np.median(rel)),
-                                      p99_rel=float(np.quantile(rel, 0.99)),
-                                      argmax_ab=[float(A[ia[np.unravel_index(rel.argmax(), rel.shape)[1]]]),
-                                                 float(B[ia[np.unravel_index(rel.argmax(), rel.shape)[0]]])],
-                                      ref_range=[float(ref.min()), float(ref.max())])
-        ln = np.load(os.path.join(LL_ROOT, "cache", "surf", f"{meta['model']}_final_line.npz"))
-        lx = np.round(ln["xs"], 6); jb = int(np.where(np.round(B, 6) == 0)[0][0])
-        pairs = [(i, int(np.where(lx == round(a, 6))[0][0])) for i, a in enumerate(A) if round(a, 6) in lx]
-        rl = np.array([abs(loss[kc, jb, i] - ln["loss"][k]) / ln["loss"][k] for i, k in pairs])
-        res["line_repro"] = dict(n_points=len(pairs), max_rel=float(rl.max()), median_rel=float(np.median(rl)))
-    res["anisotropy"] = [shell_stats(loss, axes, L, args.s) for L in args.levels]
-    res["anisotropy_native_grid"] = [shell_stats(loss, axes, L, 1) for L in args.levels]
+    if meta["dirs"] == "random" and meta.get("epoch") in (None, 40):
+        plates = args.plates
+        if plates is None:
+            plates = [os.path.join(LL_ROOT, "cache", "surf", f"{meta['model']}_final_{t}.npz") for t in ("g51", "g101")]
+            plates = [q for q in plates if os.path.exists(q)]
+        res["slice_repro"] = [plate_repro(loss, A, B, C, q) for q in plates]
+        if res["slice_repro"]:
+            res["slice_repro_g51"] = res["slice_repro"][0]
+        lnf = os.path.join(LL_ROOT, "cache", "surf", f"{meta['model']}_final_line.npz")
+        if os.path.exists(lnf):
+            ln = np.load(lnf)
+            lx = np.round(ln["xs"], 6)
+            pairs = [(i, int(np.where(lx == round(a, 6))[0][0])) for i, a in enumerate(A) if round(a, 6) in lx]
+            rl = np.array([abs(loss[kc, kb, i] - ln["loss"][k]) / ln["loss"][k] for i, k in pairs])
+            res["line_repro"] = dict(n_points=len(pairs), max_rel=float(rl.max()), median_rel=float(np.median(rl)))
+    if args.compare_vol:
+        res["vol_repro"] = vol_repro(loss, A, B, C, args.compare_vol)
+    levels = list(args.levels) + [res["center_loss"] * f for f in args.rel_levels]
+    res["level_kind"] = ["absolute"] * len(args.levels) + [f"centre x {f:g}" for f in args.rel_levels]
+    res["anisotropy"] = [shell_stats(loss, axes, L, args.s) for L in levels]
+    res["anisotropy_native_grid"] = [shell_stats(loss, axes, L, 1) for L in levels]
     res["null_ellipsoid"] = null_test(axes, args.s)
     json.dump(res, open(args.vol.replace(".npz", ".analysis.json"), "w"), indent=1)
-    out = {k: v for k, v in res.items() if k not in ("meta",)}
-    for key in ("anisotropy", "anisotropy_native_grid"):
-        out[key] = [{k: (np.round(v, 3).tolist() if isinstance(v, (list, float)) else v) for k, v in d.items()
-                     if k in ("level", "semi_axes", "ratio_r1_r3", "ratio_r2_r3", "fill", "touches_box", "voxels_native", "empty")}
-                    for d in res[key]]
-    print(json.dumps(out, indent=1))
+    print(json.dumps({k: res[k] for k in ("center_loss", "loss_min", "loss_max", "nonfinite", "argmin_abc") }))
+    for k in ("slice_repro", "line_repro", "vol_repro"):
+        if k in res:
+            print(k, res[k])
+    for kind, d in zip(res["level_kind"], res["anisotropy"]):
+        if d.get("empty"):
+            print(f"  L={d['level']:.4g} ({kind}): empty"); continue
+        print(f"  L={d['level']:.4g} ({kind}): r={np.round(d['semi_axes'], 3).tolist()} r1/r3={d['ratio_r1_r3']:.3f} "
+              f"r2/r3={d['ratio_r2_r3']:.3f} fill={d['fill']:.3f} touches={d['touches_box']} vox={d['voxels_native']}")
+    print("null", round(res["null_ellipsoid"]["ratio_est"], 3), "of", res["null_ellipsoid"]["ratio_true"])
