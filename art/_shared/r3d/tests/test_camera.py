@@ -54,3 +54,25 @@ def test_ray_box_hits_and_misses():
     assert torch.allclose(tn[0], torch.tensor(4.0)) and torch.allclose(tf[0], torch.tensor(6.0))
     assert tf[1] <= tn[1]
     assert tn[2] == 0 and torch.allclose(tf[2], torch.tensor(1.0))
+
+
+def test_pixel_scale_perspective_needs_depth():
+    cam = Camera(eye=(0, -6, 2), target=(0, 0, 0), width=40, height=30, fov_deg=35.0)
+    try:
+        cam.pixel_scale()
+    except ValueError as e:
+        assert "depth" in str(e)
+    else:
+        raise AssertionError("perspective pixel_scale() without depth must raise ValueError")
+    assert math.isclose(cam.pixel_scale(2.0), 2 * 2.0 * math.tan(math.radians(17.5)) / 30)
+    assert Camera(eye=(5, 0, 0), target=(0, 0, 0), height=50, ortho_height=4.0).pixel_scale() == 4.0 / 50
+
+
+def test_project_builds_its_tensors_on_the_points_device():
+    for cam in (Camera(eye=(5, 0, 0), target=(0, 0, 0)), Camera(eye=(5, 0, 0), target=(0, 0, 0), fov_deg=40.0)):
+        pix, z = cam.project(torch.zeros(4, 3, device="meta"))          # meta: any CPU-built tensor would raise
+        assert pix.device.type == "meta" and z.device.type == "meta" and pix.shape == (4, 2)
+        pix, z = cam.project(torch.zeros(4, 3), device="meta")
+        assert pix.device.type == "meta" and z.device.type == "meta"
+        pix, z = cam.project([[0.0, 0.0, 0.0]])
+        assert pix.device.type == "cpu" and pix.dtype == torch.float64

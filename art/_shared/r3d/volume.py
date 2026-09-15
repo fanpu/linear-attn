@@ -26,17 +26,28 @@ class TransferFunction:
 
 
 def lut_tf(rgb, sigma):
+    """Transfer function for integer labels: label i gets rgb[i] and sigma[i]. It is marked `categorical`, so
+    march_volume/render_volume refuse mode="linear" (interpolating labels 1|3 would invent a label-2 shell)."""
     def tf(v):
         i = v.round().long().clamp(0, rgb.shape[0] - 1)
         return rgb.to(v.device, v.dtype)[i], sigma.to(v.device, v.dtype)[i]
+    tf.categorical = True
     return tf
+
+
+def _check_mode(tf, mode):
+    if getattr(tf, "categorical", False) and mode != "nearest":
+        raise ValueError(f"categorical transfer function (lut_tf) with mode={mode!r}: interpolating labels invents "
+                         f"intermediate labels at boundaries; use mode=\"nearest\"")
 
 
 def march_volume(data, lo, hi, o, d, tf, step, *, tmax=None, clip=(), mode="linear", jitter=True, seed=0,
                  chunk_samples=2 ** 22):
     """Emission-absorption along rays. Segment boundaries sit at tn + (k - u) * step clamped to [tn, tfar], so the
     segment lengths sum exactly to the path. With `jitter` each ray gets its own deterministic u in [0, 1) keyed on
-    (ray index, seed), which turns step-aligned wood-grain rings into fine noise; jitter=False uses u = 0."""
+    (ray index, seed), which turns step-aligned wood-grain rings into fine noise; jitter=False uses u = 0.
+    A categorical tf (from lut_tf) requires mode="nearest" and raises ValueError otherwise."""
+    _check_mode(tf, mode)
     N = o.shape[0]
     rgb = torch.zeros(N, 3, dtype=o.dtype, device=o.device)
     alpha = torch.zeros(N, dtype=o.dtype, device=o.device)
@@ -70,6 +81,7 @@ def march_volume(data, lo, hi, o, d, tf, step, *, tmax=None, clip=(), mode="line
 
 
 def render_volume(data, lo, hi, cam, tf, step, *, depth=None, clip=(), mode="linear", jitter=True, seed=0, device="cpu"):
+    _check_mode(tf, mode)
     o, d = cam.rays(device=device, dtype=data.dtype if data.is_floating_point() else torch.float32)
     H, W = o.shape[:2]
     tmax = None if depth is None else cam.depth_to_t(depth.to(d), d).reshape(-1)

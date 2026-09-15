@@ -87,3 +87,109 @@ def test_visible_runs_and_svg(tmp_path):
     write_svg(p, runs, 64, 64, background="#ffffff")
     root = ET.parse(p).getroot()
     assert len([e for e in root.iter() if e.tag.endswith("polyline")]) == 2
+
+
+def test_tube_functions_project_on_the_points_device(monkeypatch):
+    seen = []
+    orig = Camera.project
+
+    def spy(self, pts, *args, **kw):
+        seen.append(kw.get("device", args[0] if args else None))
+        return orig(self, pts, *args, **kw)
+
+    monkeypatch.setattr(Camera, "project", spy)
+    pts = torch.zeros(3, 3, dtype=torch.float64)
+    splat_spheres(pts, 0.2, CAM)
+    splat_additive(pts, CAM)
+    visible_runs(pts, CAM, torch.full((64, 64), math.inf, dtype=torch.float64), eps=0.0)
+    assert len(seen) == 3 and all(dv == pts.device for dv in seen)
+
+
+def _splat_spheres_single_kernel(centers, radius, cam, attrs):
+    """The pre-bucketing implementation (one global kernel), kept as the reference output."""
+    from r3d.tubes import _offsets
+    dt, dev = centers.dtype, centers.device
+    H, W = cam.height, cam.width
+    M = centers.shape[0]
+    R = torch.as_tensor(radius, dtype=dt, device=dev).expand(M)
+    pix, z = orig_project(cam, centers)
+    pix, z = pix.to(dev, dt), z.to(dev, dt)
+    ps = torch.full_like(z, cam.pixel_scale()) if cam.fov_deg is None else cam.pixel_scale(z)
+    Rpx = R / ps
+    f, r, u = (torch.tensor(v, dtype=dt, device=dev) for v in cam.basis())
+    K = int(math.ceil(Rpx.max().item()))
+    ox, oy = _offsets(K, dev)
+    zbuf = torch.full((H * W,), math.inf, dtype=dt, device=dev)
+    nbuf = torch.zeros(H * W, 3, dtype=dt, device=dev)
+    abuf = torch.zeros(H * W, attrs.shape[1], dtype=dt, device=dev)
+    col, row = pix[:, 0:1], pix[:, 1:2]
+    pc, pr = torch.floor(col) + ox + 0.5, torch.floor(row) + oy + 0.5
+    rp = Rpx[:, None]
+    dx, dy = (pc - col) / rp, (pr - row) / rp
+    rho2 = dx * dx + dy * dy
+    inside = (rho2 <= 1) & (pc >= 0) & (pc < W) & (pr >= 0) & (pr < H) & (z[:, None] > 0)
+    nz = torch.sqrt((1 - rho2).clamp_min(0))
+    depth = (z[:, None] - R[:, None] * nz)[inside]
+    flat = (pr.long() * W + pc.long())[inside]
+    nrm = (dx[..., None] * r - dy[..., None] * u - nz[..., None] * f)[inside]
+    cmin = torch.full((H * W,), math.inf, dtype=dt, device=dev).scatter_reduce(0, flat, depth, "amin")
+    win = depth == cmin[flat]
+    fw = flat[win]
+    zbuf[fw], nbuf[fw] = depth[win], nrm[win]
+    sid = torch.arange(M, device=dev)[:, None].expand_as(inside)[inside]
+    abuf[fw] = attrs[sid[win]].to(dt)
+    return dict(depth=zbuf.reshape(H, W), normal=nbuf.reshape(H, W, 3), attr=abuf.reshape(H, W, -1),
+                mask=torch.isfinite(zbuf).reshape(H, W))
+
+
+orig_project = Camera.project
+
+
+def _mixed_radius_scene(seed):
+    g = torch.Generator().manual_seed(seed)
+    M = 200
+    x = torch.rand(M, generator=g, dtype=torch.float64) * 3.0 - 1.5      # distinct depths: no z-buffer ties
+    yz = (torch.rand(M, 2, generator=g, dtype=torch.float64) - 0.5) * 3.2
+    centers = torch.cat([x[:, None], yz], 1)
+    radius = 0.01 * 150.0 ** torch.rand(M, generator=g, dtype=torch.float64)   # 0.01 - 1.5: sub-pixel to ~24 px
+    return centers, radius, torch.arange(M, dtype=torch.float64)[:, None]
+
+
+def test_bucketed_kernels_match_single_kernel_output(monkeypatch):
+    import r3d.tubes as tubes
+    Ks = []
+    orig_offsets = tubes._offsets
+    monkeypatch.setattr(tubes, "_offsets", lambda K, device: (Ks.append(K), orig_offsets(K, device))[1])
+    persp = Camera(eye=(6, 0.3, 0.2), target=(0, 0, 0), width=64, height=64, fov_deg=40.0)
+    for cam, seed in ((CAM, 3), (persp, 4)):
+        centers, radius, attrs = _mixed_radius_scene(seed)
+        ref = _splat_spheres_single_kernel(centers, radius, cam, attrs)
+        Ks.clear()
+        for chunk in (2 ** 22, 3000):
+            got = splat_spheres(centers, radius, cam, attrs=attrs, chunk=chunk)
+            assert torch.equal(got["mask"], ref["mask"])
+            assert torch.equal(got["depth"], ref["depth"])
+            assert torch.equal(got["normal"], ref["normal"])
+            assert torch.equal(got["attr"], ref["attr"])
+        assert len(set(Ks)) >= 3 and min(Ks) <= 2                  # several kernel sizes, small ones for small splats
+        assert all(K & (K - 1) == 0 for K in Ks)                    # powers of two
+
+
+def test_huge_splat_radius_raises():
+    persp = Camera(eye=(5, 0, 0), target=(0, 0, 0), width=64, height=64, fov_deg=40.0)
+    centers = torch.tensor([[0.0, 0, 0], [0.5, 0.1, 0], [4.999, 0, 0]], dtype=torch.float64)  # last: 1 mm from the eye
+    try:
+        splat_spheres(centers, 0.05, persp)
+    except ValueError as e:
+        msg = str(e)
+        assert "1 sample" in msg and "max_radius_px=256" in msg and "camera" in msg and "radius" in msg
+    else:
+        raise AssertionError("a near perspective point must raise instead of allocating a huge kernel")
+    behind = torch.tensor([[0.0, 0, 0], [5.0, 0, 0], [7.0, 0, 0]], dtype=torch.float64)   # at and behind the eye
+    assert splat_spheres(behind, 0.05, persp)["mask"].any()                                # culled, no error
+    try:
+        splat_spheres(centers[:2], 0.05, persp, max_radius_px=0.5)                          # both are ~0.9 px
+    except ValueError as e:
+        assert "2 sample" in str(e)
+    else:
+        raise AssertionError("max_radius_px must be honoured")

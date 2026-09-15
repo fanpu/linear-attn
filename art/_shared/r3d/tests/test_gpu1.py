@@ -1,6 +1,6 @@
-import os, subprocess, time, pathlib, stat
+import os, signal, subprocess, time, pathlib, stat
 
-SCRIPT = "/home/fzeng/ml/research/art/_shared/gpu1.sh"
+SCRIPT = os.environ.get("GPU1_SCRIPT", "/home/fzeng/ml/research/art/_shared/gpu1.sh")   # override to test a candidate
 
 
 def _env(tmp, others_flag=None, ignore=False, exclusive=False, meminfo=None, min_free_gb=None):
@@ -17,6 +17,7 @@ def _env(tmp, others_flag=None, ignore=False, exclusive=False, meminfo=None, min
                GPU1_ART_LOCK=str(tmp / "gpu1.lock"),
                GPU1_MEMINFO=str(meminfo),
                GPU1_POLL_S="0.2")
+    env.pop("GPU1_HELD", None)          # the suite may itself run inside a gpu1 job
     (tmp / "autonomous" / "tools").mkdir(parents=True, exist_ok=True)
     if ignore:
         env["GPU1_IGNORE_OTHERS"] = "1"
@@ -122,3 +123,44 @@ def test_sets_allocator_conf(tmp_path):
     r = subprocess.run([SCRIPT, "bash", "-c", "echo $PYTORCH_CUDA_ALLOC_CONF"],
                         env=env, capture_output=True, text=True)
     assert "expandable_segments:True" in r.stdout
+
+
+def _run_killable(argv, env, timeout):
+    p = subprocess.Popen(argv, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                         start_new_session=True)
+    try:
+        out, err = p.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        os.killpg(p.pid, signal.SIGKILL)
+        p.communicate()
+        raise AssertionError(f"timed out after {timeout} s (deadlock?): {argv}")
+    return p.returncode, out, err
+
+
+def test_nested_call_inside_a_gpu1_job_completes(tmp_path):
+    env = _env(tmp_path)
+    out = tmp_path / "ran"
+    inner = f"{SCRIPT} bash -c 'touch {out}; exit 5'"
+    rc, _, err = _run_killable([SCRIPT, "bash", "-c", inner], env, timeout=10)
+    assert rc == 5 and out.exists(), err
+    # the outer job still holds the art lock while it runs: a sibling job queues behind it
+    log = tmp_path / "log"
+    a = subprocess.Popen([SCRIPT, "bash", "-c", f"{SCRIPT} bash -c 'echo start >> {log}; sleep 1; echo end >> {log}'"],
+                         env=env)
+    time.sleep(0.3)
+    b = subprocess.Popen([SCRIPT, "bash", "-c", f"echo start >> {log}; echo end >> {log}"], env=env)
+    assert a.wait(20) == 0 and b.wait(20) == 0
+    assert log.read_text().split() == ["start", "end", "start", "end"]
+
+
+def test_failed_blocking_flock_does_not_run_the_job(tmp_path):
+    env = _env(tmp_path)
+    badbin = tmp_path / "badbin"; badbin.mkdir()
+    fl = badbin / "flock"
+    fl.write_text("#!/usr/bin/env bash\nexit 1\n")                 # both the -n try and the blocking wait fail
+    fl.chmod(fl.stat().st_mode | stat.S_IEXEC)
+    env["PATH"] = f"{badbin}:{env['PATH']}"
+    out = tmp_path / "ran"
+    rc, _, err = _run_killable([SCRIPT, "bash", "-c", f"touch {out}"], env, timeout=10)
+    assert rc != 0 and not out.exists()
+    assert "lock" in err

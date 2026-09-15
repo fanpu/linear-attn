@@ -50,10 +50,12 @@ class Camera:
             o = e.expand(H, W, 3).clone()
         return o.to(device, dtype), d.to(device, dtype)
 
-    def project(self, pts):
-        pts = torch.as_tensor(pts, dtype=torch.float64)
-        f, r, u = (torch.tensor(v, dtype=torch.float64) for v in self.basis())
-        rel = pts - torch.tensor(self.eye, dtype=torch.float64)
+    def project(self, pts, device=None):
+        """World points (N, 3) -> pixel (col, row) (N, 2) and view-axis depth (N,), in float64. The result lives on
+        `device`, which defaults to the device of `pts` (CPU for lists and arrays)."""
+        pts = torch.as_tensor(pts, dtype=torch.float64, device=device)
+        f, r, u = (torch.tensor(v, dtype=torch.float64, device=pts.device) for v in self.basis())
+        rel = pts - torch.tensor(self.eye, dtype=torch.float64, device=pts.device)
         z, x, y = rel @ f, rel @ r, rel @ u
         if self.fov_deg is None:
             s = self.ortho_height / 2
@@ -76,8 +78,13 @@ class Camera:
         return depth / self._fdot(d)
 
     def pixel_scale(self, depth=None):
+        """World units per pixel. Orthographic: a constant, and `depth` is ignored. Perspective: it grows with depth,
+        so `depth` (a float or a tensor of view-axis depths, e.g. from `project`) is required."""
         if self.fov_deg is None:
             return self.ortho_height / self.height
+        if depth is None:
+            raise ValueError("pixel_scale() of a perspective camera needs a view-axis depth: pass pixel_scale(z), "
+                             "with z from cam.project(points)")
         return 2 * depth * math.tan(math.radians(self.fov_deg) / 2) / self.height
 
 

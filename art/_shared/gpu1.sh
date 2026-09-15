@@ -23,6 +23,10 @@
 # 5. Exports PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True unless the caller already set it.
 # 6. Runs the command and exits with its status. Jobs must checkpoint so a rerun resumes.
 #
+# Re-entrant: after step 1 the script exports GPU1_HELD=1, so a gpu1.sh call made inside a gpu1 job (e.g. a
+# chain script that wraps each stage in gpu1.sh) skips steps 1-5 and just runs its command under the
+# parent's lock. Do not set GPU1_HELD yourself, and do not detach a nested call past the parent's exit.
+#
 # Env:
 #   GPU1_EXCLUSIVE=1            use exclusive mode (steps 2-3) instead of the default share mode
 #   GPU1_ART_LOCK=<path>        overrides the step-1 art lock path (default art/_shared/.gpu1.lock)
@@ -36,12 +40,22 @@ ROOT=/home/fzeng/ml/research
 POLL=${GPU1_POLL_S:-15}
 ts() { date '+%F %T'; }
 
+if [ "${GPU1_HELD:-0}" = 1 ]; then
+  echo "[gpu1 $(ts)] nested call inside a gpu1 job: already holding the queue, running directly: $*" >&2
+  [ "$#" -gt 0 ] || exit 0              # bare `exec` with no command would fall through to the lock
+  exec "$@"
+fi
+
 ARTLOCK=${GPU1_ART_LOCK:-$ROOT/art/_shared/.gpu1.lock}
 exec {artfd}>>"$ARTLOCK"
 if ! flock -n "$artfd"; then
   echo "[gpu1 $(ts)] queued behind another art GPU job" >&2
-  flock "$artfd"
+  if ! flock "$artfd"; then
+    echo "[gpu1 $(ts)] could not take the art lock $ARTLOCK; not running: $*" >&2
+    exit 1
+  fi
 fi
+export GPU1_HELD=1
 
 if [ "${GPU1_EXCLUSIVE:-0}" = 1 ]; then
   ALOCK=${GPU1_AUTONOMOUS_LOCK:-$ROOT/autonomous/tools/.gpu.lock}

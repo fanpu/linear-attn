@@ -102,3 +102,35 @@ def test_jitter_moves_samples_deterministically():
     _, a3 = march_volume(g, LO, HI, o, d, tf, step=0.1, seed=7)
     assert torch.equal(a1, a2)
     assert (a0 - a1).abs().max() > 1e-6 and (a1 - a3).abs().max() > 1e-6
+
+
+def _label_volume_1_3():
+    lab = torch.ones(16, 16, 16)
+    lab[..., 8:] = 3.0                                   # x < 0 is label 1, x > 0 is label 3; no label 2 anywhere
+    rgb = torch.tensor([[0.0, 0, 0], [1.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0]])   # 1 red, 2 green, 3 blue
+    sigma = torch.tensor([0.0, 40.0, 40.0, 40.0])
+    return lab, lut_tf(rgb, sigma)
+
+
+def test_categorical_tf_rejects_linear_mode():
+    lab, tf = _label_volume_1_3()
+    assert tf.categorical is True
+    cam = Camera(eye=(0, -5, 0.3), target=(0, 0, 0.3), width=24, height=24, ortho_height=3.0)
+    o, d = cam.rays()
+    for call in (lambda: render_volume(lab, LO, HI, cam, tf, step=0.02),
+                 lambda: render_volume(lab, LO, HI, cam, tf, step=0.02, mode="linear"),
+                 lambda: march_volume(lab, LO, HI, o.reshape(-1, 3), d.reshape(-1, 3), tf, 0.02)):
+        try:
+            call()
+        except ValueError as e:
+            assert "nearest" in str(e)
+        else:
+            raise AssertionError("categorical TF with mode='linear' must raise")
+
+
+def test_categorical_tf_nearest_renders_only_existing_labels():
+    lab, tf = _label_volume_1_3()
+    cam = Camera(eye=(0, -5, 0.3), target=(0, 0, 0.3), width=48, height=48, ortho_height=3.0)
+    rgb, a = render_volume(lab, LO, HI, cam, tf, step=0.02, mode="nearest")
+    assert rgb[..., 1].abs().max().item() == 0.0          # no invented label-2 (green) wall at the 1|3 boundary
+    assert rgb[..., 0].max() > 0.9 and rgb[..., 2].max() > 0.9
