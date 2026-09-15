@@ -97,3 +97,103 @@ OMP_NUM_THREADS=4 $P preview_c.py
 - 32³ vs 64³: trilinear(32³) vs 64³ max rel diff 6.1e-4, median 3.6e-4; plates visually identical.
 - Observation: strand colours alternate between even and odd steps: λ₁ itself oscillates with period 2 (measured, not a render artefact).
 - Open for M3: the context plate's tubes (R 0.0035) dominate the chords at 5600 steps; a thinner-tube variant would read more as a ribbon. The hero's bottom ~20 % is empty (camera framing).
+
+## M3 (re-frame, canyon TF, film, README) — log
+
+- `render_ribbon.py` refactored to be importable without side effects: CLI parsing moved into `_parse_cli()`,
+  called only under `if __name__ == "__main__":`; module-level `DEV`/`S`/`DT`/`args` keep safe defaults so
+  `render_film.py` can `import render_ribbon as rr` and reuse `Chart`, `ribbon_layers`, `canyon_layer`,
+  `composite`, `lam_rgb`, `crop_to_content` directly (setting `rr.DEV`/`rr.DT`). `camera()`'s `w`/`h` defaults
+  changed from `=S` (bound at def time, so they froze at the import-time value) to `=None` with an
+  at-call-time fallback to the current `S` — a latent bug the refactor would otherwise have introduced.
+  Verified with a size-96 smoke render after the refactor: output matches pre-refactor behaviour.
+- Decision: hero re-frame is a pure post-composite **crop**, not a camera change. `crop_to_content()` finds
+  the row bounding box of non-background pixels (eps 0.03) in the *unlabelled* composite, then keeps a 6%
+  top pad and a 7% bottom pad (room for the caption), before `annotate()` runs on the cropped canvas. Camera
+  az/el/radius/zoom, chart, axes and exaggeration are all unchanged. Old hero_glow.png was 2400×2400 with the
+  bottom ~21% empty (measured: content rows 114–1895 of 2400, i.e. top margin 4.75%, bottom margin 21%.
+  New hero_glow.png is 2400×2012 (aspect 1.19), content centred.
+- Decision: canyon transfer function replaced. M2's 6 equal-weight Gaussian shells read as flat stacked
+  sheets (loss is nearly quadratic along u_ref alone, so equal-loss shells are nearly flat planes). New:
+  `opacity_floor(x) = exp(-x / FLOOR_TAU)`, x = normalised loss (0 at the grid minimum), FLOOR_TAU = 0.10 —
+  chosen by comparing 0.10/0.14/0.22/0.30 on the hero window (`cache/preview` not kept, inspected directly):
+  0.10 gives the most legible bright floor with visible falloff; 0.30 reads as generic fog. This is a
+  monotone re-weighting of the same measured scalar field (declared in every canyon caption), not new
+  structure — checked against the loss profile along each axis (`cache/m2/canyon_hero32.npz`): along u_ref
+  the floor slice loss goes 0.266 (lo) -> 0.1746 (min, at u_ref ~ -0.0086, matching Stage C's fitted vertex
+  -0.0089) -> 0.261 (hi); along pc1 at the floor slice loss only spans 0.1627-0.1873 across the whole ±0.30
+  range (the canyon's long, nearly flat trench direction). Applied uniformly via `canyon_layer()`'s default
+  `opacity_floor`, so hero, honesty, stereo, context and check64 all use it (re-rendered together for
+  consistency; none of these needed a data change, only the TF).
+  Old TF_DOC / SHELLS constant is kept only for the plotter's contour levels (unrelated to opacity).
+- Decision: context plate tubes thinned R 0.0035 -> 0.0018 so the additive chord glow shows between strands
+  over the full 5585-step EoS phase (open item from M2). Also fixed the context caption's overlap number:
+  it quoted "top-3 subspace overlap 0.30" (a Stage-B bank-rotation statistic, cache/stageB_verify.json),
+  which is not the context plate's own quantity; replaced with "median adjacent-frame overlap 0.39"
+  (`frame_align_median` in cache/m2/prep_info.json = 0.3935, the actual per-frame alignment statistic
+  computed for this plate in prep_m2.py) per controller ruling.
+- Decision: `canyon_layer()` gained a `step_div` parameter (default 400, unchanged for existing stills) and
+  an in-process cache of the loaded loss grid, both film-only optimisations. `step_div=120` (coarser ray
+  march) was checked side by side against 400 at hero-window frames and is visually indistinguishable,
+  because the new floor TF is smooth/broad (unlike M2's narrow width-0.018 shells, which needed the finer
+  step). This alone was a ~2.5x speedup (S=500: 6.4s/frame -> 2.5s/frame).
+- Film design (`render_film.py`): camera target = the 21-step centred mean (`uniform_filter1d`, mode
+  "nearest") of the hero window's own fixed-frame coordinates (the "central flow" of the window, oscillation
+  removed), az/el/radius/zoom constant at the hero's values -> a pure translation alongside the path
+  (declared: not an orbit). At output frame i (one per window step, 400 total) the ribbon draws only steps
+  [max(0, i-149), i] (trailing 150-step window, growing from the start of the window); the canyon is the
+  same static hero32 box/TF as the hero plate, re-rendered every frame (parallax as the camera moves), never
+  cut away. No new data: reads only cache/m2/hero.npz and cache/m2/canyon_hero32.npz (already computed at
+  M1/M2), so the film needed no queued compute job, only rendering.
+- Perf check: at S=720 (final choice, <= 1080²), step_div=120, no clip plane: ~5.1s/frame measured on
+  frames 200-202 -> 400 frames ~= 34 min, fps=16 -> 25 s film (in the 20-30s range). Frames are skipped if
+  their PNG already exists (`cache/film_frames/frame_%05d.png`), so a rerun resumes; this doubled as the de
+  facto checkpoint for the pause below.
+- Re-rendered for the new canyon TF (crop only for hero): hero_glow.png 149.6s, context_eos_glow.png 114.0s
+  (thinner tubes + caption fix), honesty_fixed_vs_moving.png 133.8s, stereo_crosseye.png 102.0s,
+  check_canyon_32_vs_64.png 57.5s (all CPU, 4 threads). plotter_hero.svg/_proof.png untouched (no canyon TF
+  in that plate; only contour levels from the raw grid).
+
+## PAUSED (M3) — 2026-09-15, controller pause request
+
+**Stopped cleanly at the controller's request.** No corruption: the killed process (`render_film.py`) writes
+one complete PNG per frame and checks `os.path.exists` per frame, so partial progress is safe to resume from.
+
+**Done:**
+- Hero re-framed (crop_to_content), committed.
+- Canyon valley-floor TF (FLOOR_TAU=0.10) designed, applied to hero/honesty/stereo/context/check64, all
+  re-rendered and committed.
+- Context plate thinned tubes + caption fix, re-rendered and committed.
+- `render_ribbon.py` refactored to be safely importable (see above), committed.
+- `render_film.py` written and validated on individual test frames (frames 0-2, 200-202, 399 all inspected
+  and correct), committed.
+- Film full run started (`logs/film_render.log`, 720², fps 16, step_div=120): **killed at frame ~22/400**
+  (`cache/film_frames/` has partial frames; `cache/` is gitignored, nothing to commit there).
+
+**Not done (remaining M3 work):**
+1. Finish the film: rerun the exact command below (resumes from existing frames), then check the MP4 size
+   (<=20MB; re-encode crf<=27 if not — `render_film.py` already does this automatically) and look at a few
+   frames plus the assembled MP4/GIF.
+2. Write `README.md` (does not exist yet) per the plan's M3 spec: hero + film, "The phenomenon" (EoS
+   Cohen et al. ICLR 2021 arXiv:2103.00065; central flows Cohen/Damian/Talwalkar/Kolter/Lee ICLR 2025
+   arXiv:2410.24206), "The pieces" (per-image captions: hero, honesty, stereo, plotter, context, check64,
+   film), "What was computed" (wall-time table, numbers are in this file and in
+   `docs/superpowers/plans/reports/ribbon-M1.md` / `ribbon-M2.md`), "Verification" (Stage A failure +
+   sketch-drift-leakage reason, Stage B lambda1*eta/2 vs main4 median ~1.9% [1.86% after t_edge+200, 1.63%
+   all steps], bit-exact replay, canyon curvature 87.6 vs lambda1 87.77, 32³ vs 64³ max rel diff 6.1e-4),
+   "Caveats" (fixed axis only local: top-3 subspace overlap 0.30 after 250 steps for hero/honesty/stereo,
+   median adjacent-frame overlap 0.39 for context; Stage B != main4 trajectory after t_edge, do not cite
+   main4 burst times; stereo pairs rotate rather than shift; alternating strand colour is measured, lambda1
+   itself oscillates period 2), "References". Run the link check before committing (command in the plan and
+   in `art/ml-art-3d.md` §0 shared brief item 5).
+3. Write the M3 report to `docs/superpowers/plans/reports/ribbon-M3.md`.
+4. Final `commit.sh ribbon "..."`.
+
+**Resume commands:**
+```bash
+cd /home/fzeng/ml/research/art/ribbon
+P=/home/fzeng/ml/research/art/.venv/bin/python
+OMP_NUM_THREADS=4 $P render_film.py --size 720 --device cpu --fps 16 > logs/film_render.log 2>&1   # resumes
+tail -f logs/film_render.log   # ~5.1s/frame, ~34 min total for the frames not yet on disk
+# then: write README.md, write the M3 report, commit.sh ribbon "<msg>"
+```
