@@ -38,6 +38,25 @@ OMP_NUM_THREADS=4 ../.venv/bin/python analyze_toys.py
 - Decision: axis set for the 128^3 volume = toy (a) (log eta0, log eta1, log sigma) — (1) rougher boundary: D3(b=1-16) 2.12 +- 0.01 vs toy (b) 2.07 +- 0.02 and null 1.99 +- 0.02 (only (a) clears null + 0.1); (2) sigma is not an extrusion: 21 % of sigma-lines change label and 25 % of all label changes are across sigma (toy (b): eta0-lines 11 %, eta1-lines 24 %; its body is essentially one wall normal to eta2); (3) it contains the sigma = 1 plane, which reproduces the float64 overview (99.71 %, all misses near the boundary) and is what the M3 cutaway needs; (4) 1.5x cheaper per voxel (1553 vs 1026 px/s).
 - Decision (recommendation for M2, not yet acted on): the overview window is 0.14 decade/voxel, where the edge is a near-flat wall; consider an (eta0, eta1) window centred on the seam (e.g. the 10^1 zoom window of steps_zoomA2 / zoomA kf2, whose sigma = 1 plane is an existing plate) so 128^3 resolves the rough part.
 
+## M2 (in progress)
+- Files: `vol_run.py` (f32 -> iterated f64 shell -> 1 % f64 audit -> final -> f64 plane; per-chunk checkpoints under
+  cache/vol/<name>/), `choose_windows.py` (candidates | null | B), `analyze_m2.py` (D tables, 12 oblique slices,
+  resolution doubling, plane checks, previews `cache/preview/m2_*.png`), `run_m2.sh` (single queued chain).
+- Resume: `setsid nohup ../_shared/gpu1.sh bash run_m2.sh > logs/m2.log 2>&1 < /dev/null &` (skips finished chunks/stages).
+- Decision: MEASURE FIX — non-finite loss -> v = 1e6 (clamp ceiling) instead of min(1e6/l0, 1e6). Found when the first M2 chain's
+  quad2 null audit flipped 3.5 % of interior voxels, all at sigma >= 10^3.28: l0 > 1e6 there, float32 overflows to inf
+  (never reaching the 1e100 early exit), and his rule scored those runs converged (float64 said diverged, measure ~1.0005).
+  Identical labels whenever l0 <= 1e6 (all of sigma = 1, all source plates). The aborted log is logs/m2_aborted_measurebug.log;
+  cache/vol was wiped. M1 toy (a) (sigma up to 10^3.47, float32) was affected in its large-sigma planes: recomputed as
+  cache/toys/toy_a_64_float32_fix.npz at the head of run_m2.sh. Toy (b) and the null (no sigma, l0 ~ 1) are unaffected.
+- Decision: probe candidates are data-driven: the 3 densest 8^3 edge-cell blocks of the fixed M1 toy (a) (>= 2 blocks apart),
+  each a window of +-1 decade on every axis at 64^3 f32 (`choose_windows.py candidates`); B = max D3(b=1-16) - D3(null probe).
+- Decision: the null for the sigma volumes is the source's own quadratic null (`quad2` = tfractal.train_chunk_quadratic) with sigma
+  scaling both inits; its window (same +-1 decade size) is centred on the densest edge-cell region of its own 128^3 volume
+  (the source centred its null zoom on its own boundary too). A three-lr quadratic has no sigma axis.
+- Decision: "within one voxel of a label change" = the 3x3x3 neighbourhood holds both labels; the f64 shell is iterated
+  (up to 6 rounds) on voxels that become adjacent to a change after f64 labels land.
+
 ## M1 results (2026-09-15)
 - Space-time: trainable 64.80 / 49.29 / 48.94 % at T = 10/100/1000; per-T D (b=2-32) 1.046/1.270/1.367/1.420/1.414/1.412 at T = 10/30/100/250/500/1000 (README 1.05/1.27/1.37/1.42/1.41/1.41). 6-neighbour boundary voxels 300 990. Body stops changing above T ~ 250 (top 75 % of the linear T axis is nearly an extrusion: M3 risk).
 - Toy a (net2, f32): conv 58.22 %, boundary voxels 11 543, edge cells 8420, D3(1-16) 2.122 +- 0.013; 175 s, 1494 px/s (1553 excl. compile chunk).

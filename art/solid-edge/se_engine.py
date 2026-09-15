@@ -6,14 +6,19 @@ Extends art/trainability-fractal/tfractal.py (imported read-only, never modified
   net3  - two hidden layers, width 16, tanh(sqrt2 z), three learning rates:
           h0 = phi(X W0 / sqrt n), h1 = phi(h0 W1 / sqrt n), y_hat = h1 W2 / n.
           Same data recipe as the source: X, Y ~ N(0,1), N = #params (= 528).
+  quad2 - the source's own quadratic null (tfractal.train_chunk_quadratic): y = F0 a + F1 b,
+          F0 = X/sqrt n, F1 = tanh(sqrt2 X W0/sqrt n)/n frozen, init a = W0[0], b = W1; the
+          optional sigma scales both inits (it cannot move a linear-GD stability boundary).
   quad3 - null model: the exactly quadratic loss of y_hat = F0 a + F1 b + F2 c with
           frozen features F0 = X/sqrt n, F1 = h0/n, F2 = h1/n taken from net3's init,
           one learning rate per block. GD is linear, so its stability boundary is
           the smooth algebraic surface rho(I - P Hess) = 1.
 
-Convergence measure: his `convergence_measure`, identical to tfractal.train_chunk
+Convergence measure: his `convergence_measure` as in tfractal.train_chunk
 (v_t = min(l_t/l_0, 1e6), converged iff mean(v over last 20) < 1, value -sum v if
-converged else +sum 1/v).
+converged else +sum 1/v), with ONE declared change (2026-09-15, M2): a non-finite loss gives
+v_t = 1e6 instead of min(1e6/l_0, 1e6). They coincide when l_0 <= 1 and give the same label when
+l_0 <= 1e6; for l_0 > 1e6 (init scale sigma >~ 10^2.5) his version labels overflowed runs converged.
 
 Early exit follows tfractal.train_chunk (freeze a row's v once its loss is non-finite
 or > 1e100, but only when > 2 % of live rows die at a check). The difference is
@@ -48,6 +53,13 @@ def make_problem(kind, seed=0, width=N_HID, device='cuda', dtype=torch.float32):
         finally:
             tf.DT = old
         return dict(kind=kind, width=width, Ws=[p['W0'], p['W1']], X=p['X'], Y=p['Y'], data=(p['X'], p['Y']))
+    if kind == 'quad2':
+        p = make_problem('net2', seed, width, device, torch.float64)
+        X, W0 = p['X'], p['Ws'][0]
+        H = torch.tanh(X @ W0 * (S2 / math.sqrt(width)))
+        c = lambda t: t.to(device, dtype)
+        return dict(kind=kind, width=width, Ws=[c(W0[0].reshape(width, 1)), c(p['Ws'][1])], X=c(X), Y=c(p['Y']),
+                    data=(c(X / math.sqrt(width)), c(H / width), c(p['Y'])))
     n = width
     g = torch.Generator(device='cpu').manual_seed(seed)
     W0 = torch.randn(n, n, generator=g, dtype=torch.float64)
@@ -108,12 +120,14 @@ def _lossgrad_net2(n):
 
 def _lossgrad_quad3(n):
     def lossgrad(Ws, data):
-        F0, F1, F2, Y = data
+        Fs, Y = data[:-1], data[-1]
         N = Y.shape[0]
-        r = torch.matmul(F0, Ws[0]) + torch.matmul(F1, Ws[1]) + torch.matmul(F2, Ws[2]) - Y   # (P,N,1)
+        r = -Y
+        for F, W in zip(Fs, Ws):
+            r = r + torch.matmul(F, W)                                              # (P,N,1)
         loss = (r * r).mean(dim=(1, 2))
         r = r * (2.0 / N)
-        return loss, [torch.matmul(F.t(), r) for F in (F0, F1, F2)]
+        return loss, [torch.matmul(F.t(), r) for F in Fs]
 
     return lossgrad
 
@@ -124,7 +138,7 @@ _STEPS = {}
 def get_step(kind, n, compiled=True):
     key = (kind, n, compiled)
     if key not in _STEPS:
-        lg = {'net2': _lossgrad_net2, 'net3': _lossgrad_net3, 'quad3': _lossgrad_quad3}[kind](n)
+        lg = {'net2': _lossgrad_net2, 'net3': _lossgrad_net3, 'quad3': _lossgrad_quad3, 'quad2': _lossgrad_quad3}[kind](n)
 
         def step(Ws, lrs, data):
             loss, gs = lg(Ws, data)
@@ -167,10 +181,14 @@ def train_chunk(prob, lrs, sigma=None, steps=500, early_exit=True, check_every=2
     shapes = {P0}
     for t in range(steps):
         loss, Ws = step(Ws, a_lr, data)
-        l = torch.where(torch.isfinite(loss), loss, torch.full_like(loss, MAX_VAL))
+        fin = torch.isfinite(loss)
+        l = torch.where(fin, loss, torch.full_like(loss, MAX_VAL))
         if t == 0:
             v0 = l.clone()
-        v = torch.clamp(l / v0, max=MAX_VAL)
+        # Non-finite loss -> v = MAX_VAL (the clamp ceiling). His measure sets l = 1e6 *before*
+        # normalising, which scores an overflowed run as converged whenever l0 > 1e6 (large sigma;
+        # float32 overflows at 3e38 long before the 1e100 early exit). Labels are unchanged when l0 <= 1e6.
+        v = torch.where(fin, torch.clamp(l / v0, max=MAX_VAL), torch.full_like(l, MAX_VAL))
         aS.add_(v)
         aSi.add_(1.0 / v)
         if t >= steps - LAST:

@@ -90,3 +90,28 @@ def test_sigma_plane_is_one():
     s, lg, k1 = se.sigma_axis(64)
     assert k1 == 26 and s[k1].item() == 1.0
     assert abs(lg[0] + 2.4375) < 1e-12
+
+
+def test_quad2_matches_source_null():
+    g = torch.Generator().manual_seed(4)
+    P = 300
+    l0, l1 = _loglr(P, g, -1, 3), _loglr(P, g, 0, 4)
+    ref = tf.train_chunk_quadratic(tf.make_problem(0, nonlin='quadratic', device='cpu'), l0, l1, steps=200)['measure'].numpy()
+    pr = se.make_problem('quad2', device='cpu', dtype=D64)
+    m = se.train_chunk(pr, [l0, l1], steps=200, compiled=False, bucket_min=8)['measure'].numpy()
+    assert (np.sign(m) == np.sign(ref)).all()
+    conv = ref < 0
+    assert np.allclose(m[conv], ref[conv], rtol=1e-9)
+
+
+def test_overflow_is_diverged_in_float32():
+    """sigma = 10^3.3 makes l0 > 1e6; a run that overflows float32 must be labelled diverged,
+    matching float64 (the M2 measure fix)."""
+    P = 64
+    lr0 = torch.full((P,), 1e4, dtype=D64); lr1 = torch.pow(10.0, torch.linspace(-3, 6, P, dtype=D64))
+    sig = torch.full((P,), 10 ** 3.3, dtype=D64)
+    out = {}
+    for dt in (torch.float32, D64):
+        pr = se.make_problem('quad2', device='cpu', dtype=dt)
+        out[dt] = se.train_chunk(pr, [lr0, lr1], sigma=sig, steps=500, compiled=False, bucket_min=8)['measure'].numpy()
+    assert (np.sign(out[torch.float32]) == np.sign(out[D64])).mean() > 0.95
