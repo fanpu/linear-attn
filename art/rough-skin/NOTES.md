@@ -67,3 +67,24 @@ variogram ∝ θ^{2H} in geodesic angle with H = 2^{−L}. On S³ (d = 3) the pr
 - Decision: the **window protocol** is the primary calibration — calibration volumes are central, non-periodic windows (1/8–1/2 of the box side) of periodic 1024³ power-law fields. Why: the width-4096 L = 1 field matched H = 1/2 periodic-box fields in local slope at b ≤ 8 but fell below them at b ≥ 16; a 0.5 rad cube is a window of a field on all of S³ (≈ 1/6 of a great-circle half-turn), so it carries trends longer than the cube, which a periodic box of grid size does not. The periodic numbers stay in the table as a systematic (they move calibrated D by −0.04 to −0.08).
 - Decision: extra width-1024 draws (seeds 8–11) to measure draw-to-draw scatter of D, since the width-4096 field is a single draw (≈ 15 s GPU each).
 - Decision: report L ≥ 3 3D values as "above calibrated range" rather than extrapolating; the estimator on exact D = 2.969 fields reads 2.94–2.96, and the nets read 2.96–2.99.
+
+## M2 (renders) — log
+
+Rulings from the M1 gate: 2 more width-4096 draws (seeds 8, 9) and draw statistics for L = 1, 2; the README D table (M3) must use them, state the calibration systematics and the 1.5-decade fit range, and make no D claim for L ≥ 3; 3D renders only for Heaviside L = 1, 2 and ReLU; L = 3/4 only in the slice atlas (and M3 film frames).
+
+Commands:
+```bash
+setsid nohup ../_shared/gpu1.sh $PWD/run_draws4096.sh > logs/draws_w4096.log 2>&1 < /dev/null &   # seeds 8, 9 (no float64 slab)
+setsid nohup ../_shared/gpu1.sh $PWD/run_m2.sh > logs/m2_render.log 2>&1 < /dev/null &           # verify_plate, casts, fog at 2048²
+OMP_NUM_THREADS=4 $PY render_atlas.py                                                            # CPU, slice atlases
+$PY render_diptych.py exterior ; $PY render_diptych.py cutaway
+OMP_NUM_THREADS=4 $PY measure_dims.py                                                            # adds width-4096 draw statistics
+```
+
+- Decision: solid = {T ≤ u}, seen from above (el 32°, az −35°, orthographic) — for this draw both Heaviside L = 1 and ReLU put {T > u} mostly in the upper half (centroid z ≈ +0.4 of the half side), so the lower side is a block whose top is the skin; the other side would hide the skin inside a closed box.
+- Decision: quadrant cutaway (x > 0, y < 0, full height) instead of a single octant — the top octant misses most of the L = 1 skin near z ≈ 0; two vertical section planes show the skin's profile. Section faces (cube boundary and cut planes) are a darker plaster.
+- Decision: one raking light (0.45, −1, 0.75), hard shadow, 32-ray AO radius 0.12 (15 voxels); plaster albedo 0.95/0.93/0.89, section 0.70/0.68/0.65. Light shows form only.
+- Decision: ReLU is rendered twice — crisp voxels through the identical Heaviside path (the null, used in the diptych) and a linear isosurface (allowed for ReLU only; the gradient-normalised field makes the cutaway a CSG min with the quadrant's signed distance).
+- Decision: Spectral fog on paper ground only; a dark ground made low-opacity emission read muddy. TF declared in render_fog.py: per-side rank normalisation over the slab, seam colours #5e4fa2 | #9e0142, opacity 0.10 + 0.90(1 − |q|)^24, density 25, nearest-voxel sampling; slab z-voxels 116–139.
+- Decision: slice atlas cuts are z = const planes of the chart (z-voxels round(linspace(8, 247, 12))), coastline along voxel edges at the whole-volume median, 4 px per voxel, depth-roughness paper/ink/C059 helpers imported from its render_common.py.
+- Decision: plate reproduction (§0.7): the great S² {x4 = 0} ⊂ S³; `verify_plate.py` feeds depth-roughness's own n = 4096, seed 11 weights through this piece's forward code and compares with `depth-roughness/cache/nets_patch.npz`.

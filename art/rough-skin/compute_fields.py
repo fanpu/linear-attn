@@ -73,7 +73,7 @@ print(f"[{tag}] field assembled", flush=True)
 
 # ---- float64 slab: 32 central z-planes, rows in half-plane chunks ----
 slabfn = f"cache/slab64_{tag}.npz"
-if not os.path.exists(slabfn):
+if not os.path.exists(slabfn) and seed == 7:          # float64 check only on the main draw
     W64 = [W0.to(dev), v.to(dev), [W.to(dev) for W in Ws]]
     nz = 32 // stride
     z0 = R // 2 - nz // 2

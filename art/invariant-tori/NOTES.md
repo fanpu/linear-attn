@@ -3,13 +3,35 @@
 Spec: `art/ml-art-3d.md` §5 (+§0). Plan: `docs/superpowers/plans/2026-09-15-3d-pieces.md` §5.
 Source piece: `art/game-chaos/` (read only; code copied with source comments).
 
-## State (M2 done, 2026-09-15)
+## State (M3 in progress, 2026-09-15)
 
 M1 = chart + orbits + voxels + membrane + previews (report `docs/superpowers/plans/reports/invariant-tori-M1.md`).
 M2 = renders with `art/_shared/r3d/` into `gallery/` (report `.../invariant-tori-M2.md`). M3 (films, STL, README) next.
 
 **M1 numbers below the M2 section are for the FIRST pole; the current pole is the M2 one.**
 
+
+## M3 (controller fixes + films, STL, README)
+
+- Fix 1: sheet shown only on the fog support: weight clip(2 * G_sigma=2vox([count>0]), 0, 1).
+- Fix 2: density box = full support of the stored T=2e5 chaotic segment + 2% per side (was 0.5-99.5 percentile):
+  lo (-3.383,-2.169,-2.710) hi (3.596,2.122,2.392); 99.95% of 24M samples inside; 30.8% voxels occupied, mean 23.2;
+  split-half r = 0.61. fields256 and membrane recomputed (dots in membrane voxel 96.9%, +neighbour 100%).
+- Fix 3: stereo +-1.5 deg.
+- Fix 4: `tori_plaster_cutaway.png` renamed `tori_plaster.png`; new `tori_slice.png` = exact meridional crossings
+  (compute_slice.py, T=1e5, 163,955 crossings, plane spanned by doughnut axis a and b from render_lib.tori_frame()).
+  Scene frame now defined once in render_lib.tori_frame() (raw dt=0.01 samples of torus 0, every 4th, t<=1000).
+- Film sweep: stereo_sweep_fine.npz (dt=0.01, t<=1000, float32); HOLD 10 + TWEEN 6 crossfade frames, 24 fps,
+  camera spin 60 deg about the torus axis; chaotic (lambda>5e-3 at T=1e4) pale cyan, regular plasma(index).
+- Turntable: cutaway with camera-facing clip, 240 frames, step 0.008, 1080^2.
+- Second pole plate: render_secondpole.py; eps0 tori 29.0 deg/0.50-8.0 (current) vs 30.5/0.50-7.2 (M1 pole);
+  regular eps0.5 23.6/0.50-11.9 vs 20.9/0.50-15.1.
+- STL: make_stl.py 201 -> gallery/torus_woven_kam201.stl, t<=70 (self-avoidance rule with 2.2 r), r = 0.6 mm,
+  80 x 72 x 27 mm, 162,816 faces, watertight, 1079 mm^3. Decision: tube_mesh with the self-avoidance cap rather than
+  a fused union (tried a 300^3 EDT union of kam 121 t<=300: watertight but lumpy at printable voxel size; dropped).
+- Break-up: index 0 chaotic at eps 0.04, 0.06, 0.08 (with 1 at 0.08); at 0.10 only index 1 -> finite-time noise.
+- commit.sh prints a harmless `stat` error for deleted files (they are still removed correctly).
+- Batch: `./render_m3.sh` (CPU stills, then gpu1.sh: sea stills, film sweep, turntable; frames checkpointed in cache/).
 
 ## M2 (controller rulings applied)
 
@@ -59,6 +81,7 @@ Decisions (M2):
 | `preview.py` | matplotlib previews -> `cache/preview/` |
 | `repole.py` | M2 ruling 1: pole without kam 38, replacement choice |
 | `render_lib.py`, `render_tori.py`, `render_sea.py`, `render_plates.py`, `render_m2.sh` | M2 renders -> `gallery/` |
+| `compute_slice.py`, `render_film.py`, `render_secondpole.py`, `make_stl.py`, `render_m3.sh`, `README.md` | M3 |
 | `test_chart.py` | pytest: convexity along rays, round trip, H drift, basis/stereo exactness |
 
 ## Resume commands (from this directory; ~3 min total, 4 threads)

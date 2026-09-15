@@ -122,6 +122,23 @@ for ia, a in enumerate(ACTS):
             raws.append(D3); cals.append(invert(D3, 128, 0, "D3")[0])
         draws[f"{a}_L{l+1}"] = dict(seeds=[sd for sd, _ in seed_files], D3_raw=raws, D3_cal=cals)
 
+# draw statistics at width 4096, 256^3 (M2 ruling: seeds 7, 8, 9)
+draws4 = {}
+seed_files4 = [(7, "cache/field_w4096_r256.npy")] + [(sd, f"cache/field_w4096_r256_s{sd}.npy") for sd in (8, 9)]
+seed_files4 = [(sd, fn) for sd, fn in seed_files4 if os.path.exists(fn)]
+for ia, a in enumerate(ACTS):
+    for l in range(LMAX):
+        rows = []
+        for sd, fn in seed_files4:
+            f = np.asarray(np.load(fn, mmap_mode="r")[ia, l]).astype(np.float64)
+            lvl = median_level(f)
+            D3 = fit_slope(SIZES3, boxcount_mask(boundary_mask(f, lvl), SIZES3), 2, 64)[0]
+            sl = slices_from_volume(f, 1, lvl)
+            rows.append(dict(seed=sd, D3_raw=D3, D3_cal=invert(D3, 256, 1, "D3")[0], D3_cal_k0=invert(D3, 256, 0, "D3")[0],
+                             D3_cal_periodic=invert(D3, 256, 1, "D3", "periodic")[0],
+                             slice_raw=float(sl.mean()), slice_cal=invert(float(sl.mean()), 256, 1, "slice")[0]))
+        draws4[f"{a}_L{l+1}"] = rows
+
 calrows = {}
 for proto in ["window", "periodic"]:
     for T, k in [(256, 0), (256, 1), (128, 0), (128, 1), (128, 2)]:
@@ -129,7 +146,7 @@ for proto in ["window", "periodic"]:
             Dt, m, s, cnt = curve(T, k, what, proto)
             calrows[f"{proto}_T{T}_k{k}_{what}"] = dict(D_true=Dt.tolist(), mean=m.tolist(), sd=s.tolist(), n=cnt.tolist(),
                                                         smooth_null=smooth_null(T, k, what, proto))
-json.dump(dict(dims=res, flips=flips, calibration=calrows, draws_w1024_r128=draws), open("cache/dims.json", "w"), indent=1)
+json.dump(dict(dims=res, flips=flips, calibration=calrows, draws_w1024_r128=draws, draws_w4096_r256=draws4), open("cache/dims.json", "w"), indent=1)
 
 # markdown tables
 L = []
@@ -166,5 +183,16 @@ for key, v in draws.items():
     cs = f"{fin.mean():.3f} ± {fin.std():.3f} ({len(fin)}/{len(c)} in range)" if len(fin) else "out of range"
     L.append(f"| {a} | {l} | {len(v['seeds'])} | {', '.join(f'{x:.3f}' for x in v['D3_raw'])} | "
              f"{np.mean(v['D3_raw']):.3f} ± {np.std(v['D3_raw']):.3f} | {cs} |")
+L.append("\n### Draw statistics, width 4096 on 256³ (window calibration, k = 1; systematics: k = 0 and periodic protocol)\n")
+L.append("| act | L | draws | 3D raw per draw | 3D calibrated mean ± sd | 3D cal k=0 mean | 3D cal periodic mean | 1+slice raw mean | 1+slice calibrated mean ± sd |")
+L.append("|---|---|---|---|---|---|---|---|---|")
+def ms(xs):
+    x = np.array(xs, float); x = x[np.isfinite(x)]
+    return f"{x.mean():.3f} ± {x.std(ddof=1) if len(x) > 1 else 0:.3f} (n={len(x)})" if len(x) else "out of range"
+for key, rows in draws4.items():
+    a, l = key.split("_L")
+    L.append(f"| {a} | {l} | {len(rows)} | {', '.join(f'{r['D3_raw']:.3f}' for r in rows)} | {ms([r['D3_cal'] for r in rows])} | "
+             f"{ms([r['D3_cal_k0'] for r in rows])} | {ms([r['D3_cal_periodic'] for r in rows])} | "
+             f"{np.mean([r['slice_raw'] for r in rows]):.3f} | {ms([r['slice_cal'] for r in rows])} |")
 open("cache/dims_tables.md", "w").write("\n".join(L) + "\n")
 print("wrote cache/dims.json, cache/dims_tables.md")

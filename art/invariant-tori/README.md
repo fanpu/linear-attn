@@ -57,7 +57,7 @@ Twelve orbits start on a ray of the Poincaré section. The ray runs from the ell
 <img src="gallery/plate_section_flat_vs_membrane.png" width="100%">
 
 **One section, three panels.**
-- **Left:** `../game-chaos/gallery/poincare_ink_eps0.50.png`, unchanged.
+- **Left:** the game-chaos plate `poincare_ink_eps0.50.png` (from the game-chaos gallery), unchanged.
 - **Middle:** the same 1.77 M section crossings (395 orbits) in the plate's own axes (x_R, y_P). Colour is a declared key: the rank of x_R + y_P through cmc.batlow.
 - **Right:** the same crossings, same colours, placed where they lie on the membrane in the chart, framed on the fog box. The two tear-drop islands and the sea are the same objects bent by the chart.
 

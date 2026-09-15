@@ -54,7 +54,7 @@ def shade(hit, style, size, device):
     m = hit["mask"]
     lam = r3d.lambert(hit["normal"][m], LIGHT, ambient=0.0)
     if style == "plaster":
-        img = torch.tensor([0.80, 0.785, 0.76], dtype=torch.float64, device=device).expand(size, size, 3).clone()
+        img = torch.tensor([0.36, 0.35, 0.34], dtype=torch.float64, device=device).expand(size, size, 3).clone()
         base = torch.tensor([0.95, 0.93, 0.89], dtype=torch.float64, device=device)
         endc = torch.tensor([0.62, 0.20, 0.12], dtype=torch.float64, device=device)
         col = torch.where(hit["is_end"][m][:, None], endc, base)
@@ -82,8 +82,8 @@ def tubes(n, kind, size, device, tag=""):
                      f"memorised {mem:.3f} (all 20k seeds, d1 < d2/3), null (fresh knot points) {null:.3f}.  Declared: " +
                      ("matte plaster, endpoints terracotta, one raking Lambert light (form only; no AO, no shadow)" if style == "plaster"
                       else "hue = t (colorcet bmy), endpoints warm white, one Lambert light (form only)") + ", orthographic az -60 el 40."]
-            bg = (204, 200, 194) if style == "plaster" else (8, 8, 10)
-            fg = (40, 38, 36) if style == "plaster" else (215, 210, 200)
+            bg = (92, 89, 87) if style == "plaster" else (8, 8, 10)
+            fg = (236, 232, 226) if style == "plaster" else (215, 210, 200)
             img = R.caption_strip(img, lines, bg=bg, fg=fg, scale=0.75)
             R.save(R.GALLERY / "tubes" / f"tubes_{style}_{kind}_N{n}{'_cutaway' if cut else ''}{tag}.png", img)
     print(f"[tubes] {kind} N={n} {size}px {time.time() - t0:.0f}s", flush=True)

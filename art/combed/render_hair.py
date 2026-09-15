@@ -70,9 +70,11 @@ def diptych(n: int, size: int, device: str, P: dict, n_hair=None, tag=""):
     print(f"[diptych] N={n} {size}px {time.time() - t0:.0f}s", flush=True)
 
 
-def stereo(n: int, kind: str, size: int, device: str, P: dict, sep: float = 0.9):
-    cam = R.camera(size)
-    left, right = r3d.stereo_pair(cam, sep)
+def stereo(n: int, kind: str, size: int, device: str, P: dict, half_angle: float = 2.5):
+    # Orthographic cameras have no parallax under a sideways shift (r3d.stereo_pair), so use rotation stereo:
+    # the two views orbit the target at azimuth -/+ half_angle degrees.
+    left = R.camera(size, OH, az_deg=R.VIEW["az_deg"] - half_angle)
+    right = R.camera(size, OH, az_deg=R.VIEW["az_deg"] + half_angle)
     # cross-eye: the right-eye image goes on the left
     pr = R.to_u8(glow_panel(kind, n, size, device, cam=right, **P))
     pl = R.to_u8(glow_panel(kind, n, size, device, cam=left, **P))
@@ -80,9 +82,9 @@ def stereo(n: int, kind: str, size: int, device: str, P: dict, sep: float = 0.9)
     img = np.concatenate([pr, gap, pl], 1)
     mem, null = R.memo_numbers(kind, n)
     name = "closed-form v*" if kind == "closed" else "trained MLP"
-    img = R.caption_strip(img, [f"CROSS-EYE stereo pair (right-eye view on the left), parallel axes, separation {sep} world units, orthographic.",
+    img = R.caption_strip(img, [f"CROSS-EYE stereo pair (right-eye view on the left): rotation stereo, azimuth -60 -/+ {half_angle} deg, el 40, orthographic.",
                                 f"N = {n}, {name}; memorised {mem:.3f} at {R.T_END_LABEL}, null (fresh knot points) {null:.3f}. "
-                                f"colour = t (colorcet bmy), additive glow."], scale=0.9)
+                                f"Declared: hue = mean t (colorcet bmy), brightness = log-compressed hair density, endpoint glow."], scale=0.9)
     R.save(R.GALLERY / "stereo" / f"hair_stereo_crosseye_{kind}_N{n}.png", img)
 
 
