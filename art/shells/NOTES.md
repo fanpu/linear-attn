@@ -8,6 +8,30 @@
   - `jobs/m2_film_cpu.sh` (log logs/m2_film_cpu.log, logs/film_ep*_k.log): ResNet-20 17^3 film volumes on CPU.
   - Both loops resume: rerun the same `setsid nohup bash jobs/<loop>.sh > logs/<loop>.log 2>&1 < /dev/null &`.
 
+## PAUSED (2026-09-15 ~08:37, controller/user request)
+Loop scripts `jobs/m2_gpu_loop.sh` and `jobs/m2_film_cpu.sh` were killed, and so were the 3 CPU ep016 workers (0 slabs done;
+slab writes are atomic, so nothing is partial). The resnet56 GPU shard 1/4 that was already running was left to finish
+(expected exit ~08:41, 14/27 slabs). Nothing else is queued.
+
+| volume | slabs done | assembled |
+|---|---|---|
+| resnet20_final_random_g27 / _pca_g27 / _pca_g27_ext (M1) | 27/27, 27/27, 32/32 | yes |
+| resnet20_ep{040,000,001,002,004,008}_random_g17 | 17/17 each | yes (analysed + previews) |
+| resnet20_ep016_random_g17 | 0/17 | no |
+| resnet56_final_random_g27 | 11/27 at pause (shards 0 done, 1 finishing -> 14/27) | no |
+| resnet56_noshort_final_random_g27 | 0/27 | no |
+
+Resume (both loops skip finished slabs, shards and volumes):
+```
+cd /home/fzeng/ml/research/art/shells
+setsid nohup bash jobs/m2_gpu_loop.sh >> logs/m2_gpu_loop.log 2>&1 < /dev/null &   # GPU shards, <= ~10 min each
+setsid nohup bash jobs/m2_film_cpu.sh >> logs/m2_film_cpu.log 2>&1 < /dev/null &   # CPU, only ep016 left (~16 min)
+```
+Then: analyze and preview run automatically. Still to do: write reports/shells-M2.md (anisotropy table for all models and
+epochs, slice reproduction vs g51 and g101). Findings so far: ep040 17^3 vs final 27^3 at 2,197 shared points gives max rel
+6.5e-7; ep040 vs g51 gives 3.4e-7; ResNet-56 centre loss 0.092708 (= g51). At ep000 the minimum is off-centre and
+the relative shells touch the ±1.28 box.
+
 ## M3 caption rules
 - The PCA-direction volume moves the *final* weights w* along the PCA directions (final BN statistics). The checkpoint
   path drawn through it crosses a loss ~10 plateau of *that* field; this is not the loss of those checkpoints and not
