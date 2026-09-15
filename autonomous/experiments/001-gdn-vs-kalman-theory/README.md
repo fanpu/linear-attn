@@ -84,7 +84,29 @@ Simulation must match within Monte-Carlo error (target: ≤ 2% relative at d ≥
 ---
 
 ## 5. What actually happened
-*(to be written)*
+
+*Isotropic part complete (2026-09-15). The anisotropic sweep (P3/P4) is running.*
+
+**Deviations from the plan in §4.**
+- The first isotropic run used $T = \max(2000, 20/(q+1/d))$. That is too short when the optimal $\beta$ is small (noisy, low-drift settings): at $d=128$, $qd=0.01$, $\sigma^2=1$ the relaxation time is ≈ 700 steps, and the simulation read 0.168 against a theory value of 0.100. I discarded that run and reran everything with $T = \max(2000, 20\tau)$, where $\tau = 1/(1-\alpha^2(1-(2\beta-\beta^2)/d))$ is the delta rule's relaxation time at its optimum.
+- I added a $d$-scaling run (`sweep_dscale.py`, $d$ = 16…1024) to test a limit I conjectured after seeing the first numbers. It was not pre-registered.
+
+**P1 (exact formula): confirmed.** Across all 42 isotropic configurations ($d \in \{32, 128\}$, 7 drift rates, 3 noise levels), simulated steady-state risk matches the closed form within 0.5%. The unit tests also match the full transient recursion within 3% on 50-step blocks. The closed-form optimum always has $\alpha^* = a = \sqrt{1-q}$ to 4–5 digits: **the best forget gate equals the true persistence of the task.** Only $\beta^*$ depends on the noise.
+
+**P2 (isotropic gap): the prediction of ≈ 2 was wrong. The gap is smaller.** Ratio of excess risks, best delta rule / Kalman, at $d = 128$:
+
+| $qd$ | $\sigma^2 = 0$ | $\sigma^2 = 0.1$ | $\sigma^2 = 1$ |
+|---|---|---|---|
+| 0.01 | 1.458 | 1.044 | 1.017 |
+| 0.1 | 1.399 | 1.105 | 1.027 |
+| 1 | 1.138 | 1.079 | 1.015 |
+| 10 | 1.004 | 1.003 | 1.001 |
+
+- **Noiseless $d$-scaling.** At $qd = 0.01$ the ratio is 1.389, 1.423, 1.444, 1.453, 1.459, 1.466, 1.465 (±0.004) for $d$ = 16…1024. It levels off at **≈ 1.465**.
+- **Why.** The Kalman error settles at ≈ 0.675–0.68 $qd$, while the delta rule's is $qd/(1+qd)$.
+- **Neither conjectured constant fits.** An "age" model, in which each Kalman measurement fully resets the most uncertain direction, predicts $2/\pi \approx 0.637$ and a ratio of $\pi/2$. $1/\ln 2 = 1.443$ is exceeded from $d = 64$ on.
+- **Status of the constant.** The exact high-dimensional constant remains open. It needs the steady-state spectrum of $P$ under random rank-one Riccati updates.
+
 
 ## 6. Interpretation
 *(to be written)*
