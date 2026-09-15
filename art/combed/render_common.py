@@ -85,9 +85,10 @@ def font(size: int):
     return ImageFont.load_default()
 
 
-def caption_strip(img: np.ndarray, lines: list[str], bg=(8, 8, 10), fg=(215, 210, 200), scale: float = 1.0) -> np.ndarray:
-    W = img.shape[1]
-    fs = max(12, int(18 * scale * W / 2048))
+MIN_CAPTION_FRAC = 0.016  # controller M3 ruling: caption text >= 1.4% of final image height; 1.6% is the safety margin used here
+
+
+def _wrap(lines, W, fs):
     f = font(fs)
     probe = ImageDraw.Draw(Image.new("RGB", (8, 8)))
     wrapped = []
@@ -100,11 +101,28 @@ def caption_strip(img: np.ndarray, lines: list[str], bg=(8, 8, 10), fg=(215, 210
             else:
                 cur = trial
         wrapped.append(cur)
-    lines = wrapped
-    h = int(len(lines) * fs * 1.45 + fs)
+    return wrapped, f
+
+
+def caption_strip(img: np.ndarray, lines: list[str], bg=(8, 8, 10), fg=(215, 210, 200), scale: float = 1.0,
+                   min_frac: float = MIN_CAPTION_FRAC) -> np.ndarray:
+    """Appends a word-wrapped caption strip below `img`. Font size is the larger of the `scale`-derived size and a
+    floor of `min_frac` of the FINAL (image + strip) height, solved by fixed point since the strip height depends on
+    the font size in turn (M3 ruling: captions >= 1.4% of image height; default floor here is 1.6%, a safety margin)."""
+    H, W = img.shape[0], img.shape[1]
+    fs = max(12, int(18 * scale * W / 2048))
+    for _ in range(4):
+        wrapped, _ = _wrap(lines, W, fs)
+        strip_h = int(len(wrapped) * fs * 1.45 + fs)
+        need = int(np.ceil(min_frac * (H + strip_h)))
+        if need <= fs:
+            break
+        fs = need
+    wrapped, f = _wrap(lines, W, fs)
+    h = int(len(wrapped) * fs * 1.45 + fs)
     strip = Image.new("RGB", (W, h), bg)
     d = ImageDraw.Draw(strip)
-    for i, line in enumerate(lines):
+    for i, line in enumerate(wrapped):
         d.text((int(fs * 0.8), int(fs * 0.5 + i * fs * 1.45)), line, fill=fg, font=f)
     return np.concatenate([img, np.asarray(strip)], 0)
 

@@ -4,7 +4,21 @@
 - M1 DONE (2026-09-15, CPU): all 10 fields sampled, order checks, t->1 limit, null, previews in `cache/preview/`. Report: `docs/superpowers/plans/reports/combed-M1.md`.
 - M2 DONE 2026-09-15: dense trajectories + basin volumes (GPU via gpu1.sh), SVGs + box counting + all heroes (CPU, 4 threads,
   controller-approved; chain `logs/cpu_m2_heroes.sh`, 689 s total). Report: docs/superpowers/plans/reports/combed-M2.md.
-- M3 (film, README) not started.
+- M3 DONE 2026-09-15: caption re-flow, N-sweep film, README. Report: docs/superpowers/plans/reports/combed-M3.md.
+
+## M3 files and commands (from art/combed/)
+- `render_common.caption_strip` gained a `min_frac` floor (default 0.016, i.e. 1.6%, a margin above the controller's
+  1.4% ruling): font size is solved by a small fixed point against the FINAL (panel + strip) height, since strip
+  height depends on font size in turn. Re-ran (no code changes needed elsewhere, callers unchanged):
+  `render_tubes.py tubes --size 2400 --ns 64 1024` (16 images), `render_basin.py --res 128 --size 2400`,
+  `render_basin.py --res 256 --size 2400` (10 images total). Hair diptych/stereo captions already met the 1.4% floor
+  under the OLD formula (checked numerically: 1.57%/1.47%) so were not re-rendered.
+- `render_film.py` (new): N-sweep film, reuses `render_hair.glow_panel` per frame with a per-frame camera (az sweeps
+  -60 -> +60 deg over the whole film, hard cuts in content at each N boundary, no flow interpolation). 5 segments x
+  50 frames, panel 520 px (total 1064 px with a 24 px gap), 4,000 of the 20,000 shared seeds per frame (speed
+  budget, declared in the caption; static diptychs use all 20,000). `--test` renders a 4-frame smoke test.
+  `OMP_NUM_THREADS=4 ../.venv/bin/python render_film.py --device cpu` -> `cache/frames_film/*.png`,
+  `gallery/film_N_sweep.mp4` + `.gif` via `r3d.write_film`.
 
 ## M2 files and commands (from art/combed/)
 - `compute_m2.py dense|basin --device cuda` (via gpu1.sh, `logs/gpu_m2_compute.sh`): `cache/dense_{kind}_N{N}.npz` (states (269,20000,3) float32:
@@ -85,3 +99,17 @@ Every stage skips outputs that already exist.
 - Decision: heroes (>= 2000 px) rendered on CPU with 4 threads, not through gpu1.sh — the queued GPU render job waited 05:02-06:35 behind ~9 art jobs (solid-edge m2 alone ~3 h left); controller approved; own queued job (gpu1 pid 662025 + its flock) killed before it took the lock. CPU timings: tubes 8 s per (N, kind) at 2400 px (4 images each), basin 9 s (128^3) / 17 s (256^3) at 2400 px, 20k-hair diptych 68-107 s at 2048 px/panel, whole chain 689 s.
 - Decision: stereo uses rotation stereo (azimuth -60 -/+ 2.5 deg): r3d.stereo_pair shifts an orthographic camera sideways, which gives zero parallax.
 - Decision: plaster ground darkened to grey 0.36 (tubes at 0.95 x (0.62..1) were indistinguishable from a 0.8 ground).
+
+## M3 decisions
+- Decision: caption floor = 1.6% of the FINAL image height (controller ruling: >= 1.4%), solved by a 4-iteration
+  fixed point in `caption_strip` (strip height depends on font size). Verified numerically before re-rendering:
+  old tubes/basin captions were 0.6-0.65% (well under the ruling); old hair diptych/stereo were already 1.47-1.57%
+  (over the ruling) so those were left as-is to save CPU time.
+- Decision: film shows 4,000 of the 20,000 shared seeds per frame, not all 20,000 (glow_panel cost scales linearly
+  in seed count, ~14-18s/panel at 20k vs ~3.2s/panel at 4k, at small film-resolution panels); declared in the
+  per-frame caption. The static hair diptychs (gallery/hair/) are unaffected and still use all 20,000.
+- Decision: hard cuts between N segments, continuous slow camera rotation (az -60 -> +60 deg) across the whole
+  film — satisfies "same camera" (same VIEW params, same rotation pattern, every segment) while never interpolating
+  between measured flows at different N.
+- Decision: 50 frames/N x 5 N = 250 frames at 10 fps = 25 s, panel 520 px (1064 px total with gap) — within the
+  <=1080 px and 20-30 s ruling. Wall clock ~7.3 s/frame CPU (4 threads) -> ~30 min, under the ~45 min budget.
