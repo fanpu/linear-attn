@@ -24,11 +24,12 @@ dr = ImageDraw.Draw(im)
 dr.text((90, 70), "Same weights, one activation apart", font=font(96), fill=ink)
 dr.text((90, 185), "{T ≤ median} for a width-4096 network on a 0.5 rad exp-map cube of S³, 256³ crisp voxels, orthographic",
         font=font(46, "italic"), fill=ink)
-dr.text((90, top + S + 30), "Heaviside, depth 1: theory dim 3 − 1/2 = 2.5", font=font(64), fill=ink)
+dr.text((90, top + S + 30), "Heaviside, depth 1: D = 2.426 ± 0.031  (theory 2.5)", font=font(64), fill=ink)
 dr.text((S + gap + 90, top + S + 30), "ReLU, depth 1: a piecewise-linear surface, dim 2", font=font(64), fill=ink)
-dr.text((90, top + S + 140), "Plaster, one raking light, hard shadow and ambient occlusion show form only. Darker faces are cuts "
-        "(the cube boundary" + (" and the cutaway quadrant" if sfx else "") + "), not skin.", font=font(42, "italic"), fill=ink)
-dr.text((90, top + S + 205), "ReLU terraces are voxel steps of a smooth surface: the null rendered through the identical path.",
+dr.text((90, top + S + 140), "Measured D: 3-draw mean ± sd, calibrated 3D box counting, width 4096, 256³ (1 + slice: 2.448 ± 0.067). "
+        "Plaster, one raking light, hard shadow and AO show form only.", font=font(42, "italic"), fill=ink)
+dr.text((90, top + S + 205), "Darker faces are cuts (the cube boundary" + (" and the cutaway quadrant" if sfx else "") +
+        "), not skin. ReLU terraces are voxel steps of a smooth surface: the null through the identical path.",
         font=font(42, "italic"), fill=ink)
 out = f"gallery/diptych_heaviside_L1_vs_relu{sfx}.png"
 im.save(out); print(out, im.size)

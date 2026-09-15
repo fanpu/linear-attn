@@ -15,8 +15,10 @@ Source piece (read-only): `art/depth-roughness/` (net definition from `nets.py`,
 - **M2 (renders): DONE**, report `docs/superpowers/plans/reports/rough-skin-M2.md`. Three width-4096 draws (seeds 7, 8, 9):
   Heaviside L = 1 3D calibrated 2.426 ± 0.031, slices 2.448 ± 0.067; L = 2 3D 2.774 ± 0.076, slices 2.769 ± 0.040 (theory 2.5, 2.75).
   Plate reproduction vs depth-roughness nets_patch (n = 4096): 3 and 27 of 1,048,576 pixels differ in sign (L = 1, 2).
-- M3 (film, STL, README) not started. README D table must use the 3-draw statistics, state the calibration systematics
-  (window vs periodic −0.07, k = 0 vs 1 +0.04) and the 1.5-decade fit range, and make no D claim for L ≥ 3.
+- **M3 (film, objects, README): in progress.** Diptych re-rendered with measured D beside theory (ruling); STL made
+  (Heaviside L1 96³ native, ReLU L1 128³ cache subsample, both watertight, 80 mm); film queued via gpu1.sh
+  (`render_film.py all --size 1080 --device cuda`); README written. See M3 log below for the resume state if
+  interrupted, and `docs/superpowers/plans/reports/rough-skin-M3.md` for the final report.
 
 ## Files
 
@@ -93,3 +95,51 @@ OMP_NUM_THREADS=4 $PY measure_dims.py                                           
 - Decision: slice atlas cuts are z = const planes of the chart (z-voxels round(linspace(8, 247, 12))), coastline along voxel edges at the whole-volume median, 4 px per voxel, depth-roughness paper/ink/C059 helpers imported from its render_common.py.
 - Decision: plate reproduction (§0.7): the great S² {x4 = 0} ⊂ S³; `verify_plate.py` feeds depth-roughness's own n = 4096, seed 11 weights through this piece's forward code and compares with `depth-roughness/cache/nets_patch.npz`.
 - Decision: the casts and fog were rendered on CPU (4 threads, 50–140 s per 2048² cast, 6 s per fog) rather than through gpu1 — the art GPU queue was held by solid-edge's multi-hour B256 volume with four other waiters, and r3d on CPU at this size is minutes. The GPU chain `run_m2.sh` still ran (plate reproduction; the cast/fog stages skipped the existing outputs).
+
+## M3 (film, objects, README) — log
+
+Ruling: diptych and cast captions print the measured D (3-draw mean ± sd from the M2 gate) beside theory, and the diptych
+is re-rendered with that caption. README D table uses the 3-draw statistics, states the calibration systematics
+(window vs periodic −0.07, k = 0 vs 1 +0.04) and the 1.5-decade fit range, and makes no D claim for L ≥ 3. Film: L = 1→4
+depth dial (measured D per frame where it exists, "saturated" for L ≥ 3), hard cuts only, plus an L = 1 turntable,
+≤ 1080², 20–30 s, MP4 + GIF, MP4 ≤ 20 MB. STL: Heaviside L1 and ReLU zero-set solids at 128³, watertight, 80 mm.
+
+- Decision: diptych re-render (`render_diptych.py`) — Heaviside caption now reads "D = 2.426 ± 0.031 (theory 2.5)"
+  with the slice value and the 3-draw/calibration protocol in the italic subtitle; shortened from the original wording
+  so the line fits within its half of the canvas (checked with `ImageDraw.textlength`, which the original caption did
+  not need since it was shorter).
+- Decision: STL grid — the 128³ mesh of Heaviside L = 1 (from the cached 256³ field's even-node subsample) is 584k
+  faces / ~29.2 MB, over the 20 MB budget; no mesh-decimation library is installed (`trimesh`/`open3d`/`pyvista` all
+  absent from `art/.venv`). Per the ruling's fallback, Heaviside L1 is instead a **native 96³ evaluation** (same
+  weights, seed 7, freshly forward-passed on a native 96-node grid — not a decimation of the 128³ mesh), 291,782
+  faces, 14.6 MB, watertight. ReLU L1 stays at 128³ (cache subsample), 153,872 faces, 7.7 MB, watertight — no
+  fallback needed since ReLU is smooth. Both scaled to 80 mm. `make_stl.py`, 6.1 s total (CPU + a GPU forward pass
+  for the 96³ re-evaluation). Level = volume median at each mesh's own resolution (same per-volume-median rule as
+  every other measurement in this piece); "zero-set" in the spec's language means this declared level, not literal
+  T = 0 (T = 0 can miss the patch, per the M1 level decision above).
+- Decision: film composition (`render_film.py`) — one film, two hard-cut parts (no interpolation between depths,
+  per the ruling's preference): a depth dial (L = 1, 2 as the exact 3D crisp-voxel cast, camera/level/light
+  identical to the M2 casts, captioned with the measured D beside theory; L = 3, 4 switch to the plotter idiom —
+  one of the 12 atlas cuts enlarged, same `coast_tile` code as `render_atlas.py` — captioned "saturated", since the
+  3D box-count estimator has no measured value there and the isosurface itself is foam), then a 240-frame, 360°
+  turntable of the L = 1 Heaviside cast (fixed world-space light, so faces rotate through it — a real property of
+  a turntable under one raking light, not a bug). FPS 24, hold 3 s/depth (72 frames, repeated via hardlink of one
+  render — no re-render needed since the four dial sub-clips are static), target length ~22 s (12 s dial + 10 s
+  turntable), within the 20–30 s window. Captions use `ImageDraw.textlength`-based auto-fit (`fit_font`) after the
+  first attempt at 1080² overflowed the frame at a fixed font size; theory 2^-L is written as a fraction (1/2, 1/4,
+  …) rather than a unicode superscript, which the C059 font did not render correctly.
+- Decision: turntable and both dial 3D frames render through `gpu1.sh` (`--device cuda`); timed at 320²/CPU (17s)
+  vs 1080²/GPU (2.5–3.7 s) before committing to GPU — CPU would have been 60–90 min for 240 turntable frames alone,
+  over the ~30 min CPU budget and over gpu1's ≤20 min per-segment rule; GPU fits in one ~15 min segment.
+- Decision: MP4 CRF — `r3d.write_film` hardcodes CRF 18; re-encoded to CRF ≤ 27 after the fact if the first pass is
+  over the 20 MB budget (see M3 report for the final size and whether a re-encode was needed).
+
+**M3 result:** film job ran 08:04:32–08:12:57 (queued ~45 min behind solid-edge's B256 volume before that), 8.4 min
+GPU wall time for 4 dial frames + 240 turntable frames at 1080². First-pass MP4 (CRF 18, `r3d.write_film` default)
+was 21.34 MB, over the 20 MB budget; re-encoded with `ffmpeg -c:v libx264 -crf 23 -pix_fmt yuv420p` to 13.13 MB
+(replaces the CRF-18 file; the GIF, 11.66 MB, was left as `write_film` made it). Final: 1080×1080, 24 fps, 528
+frames, 22.0 s. Checked frames: dial L1/L4 and a mid-turntable frame (viewed) — captions legible, hard cut at
+frame 288 (dial → turntable) lands on the same camera angle as the dial's L1 frame, by construction.
+**M3: DONE.** README written and link-checked clean (`grep -o 'gallery/[^")> ]*' README.md | ...`, no missing files
+after rewording four inline `gallery/` backtick references that were false-positiving on the trailing backtick).
+Report: `docs/superpowers/plans/reports/rough-skin-M3.md`.
