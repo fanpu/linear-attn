@@ -1,0 +1,7 @@
+{
+ "sweep_helix_s": 524.8696668148041,
+ "sweep_frames": 750,
+ "turntable_days_s": 593,
+ "turntable_months_s": 586,
+ "note": "turntable times from frame mtimes, CPU shared with a concurrent still render; mp4s re-encoded at CRF 27 to stay under 20 MB"
+}

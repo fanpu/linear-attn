@@ -61,7 +61,7 @@ def scene_numbers(G, kind, which):
     af = np.arange(len(fit)) / 20.0                # geometry.py samples the fit at 20 points per integer
     return dict(beads=P, value=a, K=K, bead_r=0.04 if which == "helix" else 0.035, glow=0.5,
                 lines=[dict(P=P, value=a, K=K, r=0.006, closed=False, opaque=False),               # consecutive integers
-                       dict(P=fit, value=af, K=K, r=0.012 if which == "helix" else 0.022, closed=False, opaque=True, fit=True)])  # fitted curve
+                       dict(P=fit, value=af, K=K, r=0.006 if which == "helix" else 0.009, closed=False, opaque=True, fit=True, dim=0.45)])  # fitted curve
 
 
 def scene_tower(G, name, kind):
@@ -101,7 +101,7 @@ def cam_light(cam, right, up, toward):
     return tuple((L / np.linalg.norm(L)).tolist())
 
 
-def gather(scene, cmap, dev, spacing):
+def gather(scene, cmap, dev, spacing, dim_to_light=False):
     """All spheres (beads + sampled connectors) with colour and a connector flag."""
     b = torch.tensor(scene["beads"], dtype=torch.float64)
     cols = [torch.tensor(cyc(scene["value"], scene["K"], cmap))]
@@ -112,6 +112,8 @@ def gather(scene, cmap, dev, spacing):
         vcol = torch.tensor(cyc(ln["value"], ln["K"], cmap))
         i0 = s.floor().long().clamp(max=len(P) - 1); i1 = (i0 + 1).clamp(max=len(P) - 1); f = (s - i0)[:, None]
         c = vcol[i0] * (1 - f) + vcol[i1] * f
+        dim = ln.get("dim", 1.0)                   # declared: the fit line is lower-contrast than the data
+        c = 1 - (1 - c) * dim if dim_to_light else c * dim
         if ln.get("opaque", True):
             cen.append(pts); rad.append(torch.full((len(pts),), ln["r"], dtype=torch.float64)); flag.append(torch.ones(len(pts)))
             cols.append(c)
@@ -149,7 +151,7 @@ def sphere_field(cen, rad, G, pad):
 
 def style_plaster(scene, cam, dev, S, G=None):
     G = G or (192 if S < 1200 else 256)
-    cen, rad, col, flag, _, _ = gather(scene, LIGHT_MAP, dev, spacing=scene["bead_r"] * 0.25)
+    cen, rad, col, flag, _, _ = gather(scene, LIGHT_MAP, dev, spacing=scene["bead_r"] * 0.25, dim_to_light=True)
     hit = r3d.splat_spheres(cen, rad, cam, attrs=col)
     m = hit["mask"]
     ray_o, ray_d = cam.rays(dev, torch.float64)
@@ -258,7 +260,8 @@ def main():
                                             ["Qwen3-0.6B months, measured", "point-label shuffle (null)"], args.styles),
         "tower_numbers": lambda: render_pair("tower_numbers", [scene_tower(G, "numbers", "measured"), scene_tower(G, "numbers", "null")],
                                              S * 2 // 3, S, 30, 28, dev, out, S,
-                                             ["OLMo-2 numbers T=100 plane, measured", "shuffled labels (null)"], args.styles),
+                                             ["OLMo-2 numbers T=100 plane, measured", "shuffled labels (null)"],
+                                             [st for st in args.styles if st != "plotter"]),   # plotter dropped: stipple, no structure
         "hero_days": lambda: render_pair("hero_tower_days", [scene_tower(G, "days", "measured")], S * 2 // 3, S, 30, 40,
                                          dev, out, S, [""], args.styles),
         "hero_months": lambda: render_pair("hero_tower_months", [scene_tower(G, "months", "measured")], S * 2 // 3, S, 30, 40,

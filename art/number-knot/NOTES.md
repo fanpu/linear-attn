@@ -60,3 +60,11 @@ Resume: `../.venv/bin/python geometry.py && ../.venv/bin/python render_atlas.py 
 - Decision: cyclic palettes: colorcet `cyclic_rygcbmr_50_90_c64_s25` (L* 55–84) on dark, cmcrameri `romaO` pigment for plaster; light in the camera frame (glow key upper-left front; plaster raking upper-left).
 - Decision: all splatting on CPU (controller: r3d CUDA splat bug), orthographic cameras only.
 - Decision: slice atlases (per-layer 2-D planes, same coordinates as towers) are the §0.4 companion for every tower.
+
+## M3 (films, README) — 2026-09-15
+- Controller rulings applied: fit line thinner (helix r 0.006, knot 0.009) and lower-contrast (×0.45 towards black on dark, towards white on plaster); `tower_numbers_plotter.svg` dropped (render_m2 skips plotter for the numbers tower); knot kept as secondary plate with its weakness stated.
+- Films (`films.py`, glow, CPU): film_turntable_{days,months} (720 frames, 1024², 24 s, ~590 s each while sharing CPU), film_sweep_helix (750 frames, 1080×720, 25 s, 525 s). Frames in cache/frames/<film>/ (resume skips existing).
+- Decision: turntable MP4s re-encoded at CRF 27 preset slow (write_film uses CRF 18 → 37–47 MB, over commit.sh's 20 MB) — 10–14 MB, visually checked.
+- Decision: sweep holds each layer 1 s, 0.5 s linear morphs (declared interpolation); camera frames the central 99 % of beads over all layers; both panels scaled by the measured layer's RMS in-plane radius. Known flaw: the last layer (16) spills out of frame.
+- README written (shape of edge-of-stability); link check clean. References verified by arXiv abstract pages: K&T, Engels (SAE), Zhou (title/authors), Štefánik (abstract does not mention OLMo 2).
+- Resume: `OMP_NUM_THREADS=4 ../.venv/bin/python films.py --only sweep` (or days/months); `--test <layer>` renders one sweep frame to /tmp.

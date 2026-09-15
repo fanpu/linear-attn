@@ -28,14 +28,14 @@
    "plotter": 0.3
   },
   "helix": {
-   "glow": 4.2,
-   "plaster": 41.3,
-   "plotter": 0.3
+   "glow": 7.4,
+   "plaster": 51.2,
+   "plotter": 0.4
   },
   "knot": {
-   "glow": 4.5,
-   "plaster": 47.4,
-   "plotter": 0.3
+   "glow": 10.2,
+   "plaster": 50.6,
+   "plotter": 0.5
   }
  }
 }

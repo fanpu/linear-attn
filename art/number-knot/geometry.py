@@ -98,6 +98,20 @@ def main():
             err = np.angle(np.exp(1j * (ang - 2 * np.pi * lab / T)))
             meta[f"knot_{kind}"][f"median_abs_angle_err_T{T}_deg"] = float(np.degrees(np.median(np.abs(err))))
 
+    # helix layer sweep (film): per layer, beads + fitted curve in that layer's fit frame; both panels divided by the
+    # measured layer's RMS in-plane bead radius (declared; the residual norm grows with depth)
+    sweep_scale = []
+    for l in range(L1):
+        Pm, _ = project(X[:, l], a, 100); Fm = project.fit
+        Pn, _ = project(X[:, l], a_sh, 100); Fn = project.fit
+        cm, cn = Pm.mean(0), Pn.mean(0)
+        sc = np.sqrt((Pm[:, :2] ** 2).sum(1).mean())
+        sweep_scale.append(float(sc))
+        for kind, P, Fc, c in (("measured", Pm, Fm, cm), ("null", Pn, Fn, cn)):
+            out.setdefault(f"sweep_{kind}", np.zeros((L1, N, 3), np.float32))[l] = (P - c) / sc
+            out.setdefault(f"sweepfit_{kind}", np.zeros((L1, len(Fc), 3), np.float32))[l] = (Fc - c) / sc
+    meta["sweep_scale"] = sweep_scale
+
     # numbers tower: T=100 plane at every layer, template 1
     for kind, lab in labels.items():
         tw = np.zeros((L1, N, 2)); info = []
