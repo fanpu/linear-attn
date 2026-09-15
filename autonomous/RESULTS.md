@@ -47,7 +47,7 @@ Each entry follows this format:
 - **Caveats:**
   - A coarse β grid near 1 (a few % bias).
   - Only a log-uniform spectrum, Gaussian inputs, and isotropic drift in weight space.
-  - The √ form likely has classical roots (steady-state Riccati for random-walk tracking). The novelty check isn't done.
+  - **Novelty (checked 2026-09-15, `literature/novelty-sqrt-law.md`):** the Σ^(−½) metric, the s↔1−s symmetry, and Kalman ∝ E√λ are *classical in the noisy, small-step regime* (Eweda 1994; Sayed 2008), where the penalty is the **square root** of the one above. Our σ² = 0.1 data follow the classical law (1.17 measured vs 1.19 at κ = 100; Kalman 0.71 vs 0.733). New: the squared law in the noiseless projection regime, the noise-driven crossover, exact preservation of the isotropic gap under s = ½, and the key-projection interpretation (nearest ML ancestor: Aitchison, NeurIPS 2020, for optimizers).
   - The law was derived after seeing the data, then checked on all configurations; it was not pre-registered.
 - **Takeaway:** a memory that tracks a changing task should refresh each direction in proportion to the square root of its importance. A linear-attention key projection can learn that, and once it does, uncertainty tracking buys only a small constant factor.
 
@@ -56,7 +56,7 @@ Each entry follows this format:
 - **Question:** On in-context regression whose weights drift (q per token, dimension d, noise σ²), how much lower is the Kalman filter's steady-state excess risk than that of the best-tuned gated delta rule (NLMS form)?
 - **Result:**
   - The delta rule's steady-state risk has an exact closed form (two-moment recursion). It matches float64 simulation within 0.5% on 42 configurations.
-  - The optimal forget gate is α* = √(1−q), the true task persistence, to 4–5 digits.
+  - At the *joint* optimum over (α, β), the forget gate is α* = √(1−q), the true task persistence (|α*−a| ≤ 2e-8). At a fixed, non-optimal β it moves away.
   - Ratio (delta rule / Kalman) at d = 128:
     - noiseless: 1.46 (qd = 0.01) → 1.14 (qd = 1) → 1.00 (qd = 10);
     - σ² = 0.1: at most 1.13;

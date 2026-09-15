@@ -91,7 +91,7 @@ Simulation must match within Monte-Carlo error (target: ≤ 2% relative at d ≥
 - The first isotropic run used $T = \max(2000, 20/(q+1/d))$. That is too short when the optimal $\beta$ is small (noisy, low-drift settings): at $d=128$, $qd=0.01$, $\sigma^2=1$ the relaxation time is ≈ 700 steps, and the simulation read 0.168 against a theory value of 0.100. I discarded that run and reran everything with $T = \max(2000, 20\tau)$, where $\tau = 1/(1-\alpha^2(1-(2\beta-\beta^2)/d))$ is the delta rule's relaxation time at its optimum.
 - I added a $d$-scaling run (`sweep_dscale.py`, $d$ = 16…1024) to test a limit I conjectured after seeing the first numbers. It was not pre-registered.
 
-**P1 (exact formula): confirmed.** Across all 42 isotropic configurations ($d \in \{32, 128\}$, 7 drift rates, 3 noise levels), simulated steady-state risk matches the closed form within 0.5%. The unit tests also match the full transient recursion within 3% on 50-step blocks. The closed-form optimum always has $\alpha^* = a = \sqrt{1-q}$ to 4–5 digits: **the best forget gate equals the true persistence of the task.** Only $\beta^*$ depends on the noise.
+**P1 (exact formula): confirmed.** Across all 42 isotropic configurations ($d \in \{32, 128\}$, 7 drift rates, 3 noise levels), simulated steady-state risk matches the closed form within 0.5%. The unit tests also match the full transient recursion within 3% on 50-step blocks. At the *joint* optimum over $(\alpha, \beta)$, $\alpha^* = a = \sqrt{1-q}$ (to ~2e-8 after grid refinement): **the best forget gate equals the true persistence of the task.** Only $\beta^*$ depends on the noise. At a fixed, non-optimal $\beta$, $\alpha^*$ moves away from $a$. Qin et al. (2604.10946) report that the analogous identity does *not* hold for GLA.
 
 **P2 (isotropic gap): the prediction of ≈ 2 was wrong. The gap is smaller.** Ratio of excess risks, best delta rule / Kalman, at $d = 128$:
 
@@ -125,12 +125,15 @@ Simulation must match within Monte-Carlo error (target: ≤ 2% relative at d ≥
   - s = 1 penalty: measured 1.112, 1.417, 1.845 against predicted 1.111, 1.419, 1.862.
   - s = ½: measured 0.993–1.004 against predicted 1.
 - *Where the law fails:* with no preconditioning (s = 0) it overpredicts the penalty at large κ (1.63 measured vs 1.86 predicted at κ = 1000). There the weak directions are refreshed so rarely that their error saturates at the prior variance, which caps the damage. The Kalman scaling also breaks with noise (0.71 vs 0.54 at κ = 1000, σ² = 0.1).
-- *Novelty:* the √ structure probably has classical roots (the steady-state Riccati solution for random-walk tracking scales like (Q R⁻¹)^½ in the slow-drift, noisy limit). What's not yet found in the literature: the noiseless-projection version, the (E λ^s)(E λ^(1−s)) cost, and the exact preservation of the isotropic gap.
+- *Novelty* (checked afterwards; see `literature/novelty-sqrt-law.md`):
+  - **Classical, in the noisy small-step regime:** optimal metric ∝ R^(−½) for Q ∝ I, the s ↔ 1−s symmetry (Eweda 1994), the penalty √[(E λ^s)(E λ^(1−s))]/E λ^½, and Kalman ∝ E λ^½ (Sayed 2008 formulas; P R P = σ²Q).
+  - **Different in the noiseless projection regime (our result):** every factor is **squared**. The noisy σ² = 0.1 runs sit close to the classical law (s = 0 at κ = 100: 1.17 vs classical 1.19 vs noiseless 1.42), so noise sets the exponent.
+  - **Not found:** exact preservation of the isotropic gap under s = ½, the Kalman constant, and the key-projection interpretation.
 
 ## 6. Interpretation
 
 1. **A Kalman memory's advantage over a *well-configured* gated delta rule is a small constant on stationary input statistics:** ≤ 1.47× noiseless and ≤ 1.13× at σ² = 0.1, for any input anisotropy, *provided* the delta rule's key metric is Σ^(−½). The advantage does not grow with anisotropy.
-2. **The right metric is Σ^(−½), not the Σ⁻¹ that "whitening" or "natural gradient" intuition suggests.** Under drift, a memory should spend refreshes in proportion to √(importance).
+2. **The right metric is Σ^(−½), not the Σ⁻¹ that "whitening" or "natural gradient" intuition suggests.** Under drift, a memory should spend refreshes in proportion to √(importance). This is known for noisy LMS; we find it also holds, with a larger (squared) penalty, in the noiseless projection regime relevant to exact recall.
 3. **This is learnable.** With tied query/key projections A, a GDN's update is w ← w + β r AᵀA x / xᵀAᵀA x, so its key metric is M = AᵀA. A trained GDN can in principle sit exactly at the s = ½ allocation.
    - Prediction for trained models: under drift, learned AᵀA ∝ Σ^(−½).
    - Contrast with stationary one-shot in-context regression, where linear attention learns Γ⁻¹ (Zhang–Frei–Bartlett; reproduced in theory/08), i.e. s = 1.
