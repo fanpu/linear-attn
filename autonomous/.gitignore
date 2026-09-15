@@ -1,0 +1,8 @@
+# Keep raw outputs, checkpoints and logs out of git; figures and small JSON summaries are committed.
+cache/
+logs/
+_scratch/
+.venv/
+GPU_PAUSE
+tools/.gpu.lock
+tools/.running.pid
