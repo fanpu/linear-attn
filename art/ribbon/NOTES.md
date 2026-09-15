@@ -6,9 +6,13 @@ Source: `art/edge-of-stability/` (read-only). Model/data code copied into `eosne
 ## State (M1)
 - Stage A (CPU, `stage_a.py`) analysed: **fails the decision rule** -> Stage B is the M2 source.
 - Stage B (GPU, `stage_b.py` via `run_stage_b.sh`) **finished**: 187 s training + 22 s replay (not ~2 h:
-  M = 1 on an uncontended GPU; the source's 7611 s was M = 4 under 8-slot contention).
+  M = 1 in share mode, GPU otherwise lightly loaded; the source's 7611 s was M = 4 under 8-slot contention).
 - `verify_b.py` -> `cache/stageB_verify.json`, `cache/stageB/axes.npz`. λ₁·η/2 matches main4 (median 1.9 %).
-- Stage C (GPU, `stage_c.py`) queued/running; log `logs/stage_c.log`; outputs `cache/stageC/`.
+- Stage C (GPU, `stage_c.py`) **finished** (queued 30 min behind rough-skin; ran 39 s): coords for every step + two 32³ canyons.
+  fused-vs-plain forward max rel diff 3.2e-8. local span ±(0.058, 0.300, 0.074), loss 0.162–0.382; global span
+  ±(0.062, 4.64, 1.81), loss 0.101–1.165; loss(θ_ref) = 0.1775. Quadratic fit of the local canyon along u_ref:
+  curvature 87.6 vs bank λ₁(3250) = 87.77 (0.2 %), vertex −0.0089 = centre of the axis-1 oscillation (≈ −0.01).
+  Preview `cache/preview/stageC_chart.png`: the ribbon bounces inside the u_ref valley; loss falls along pc1.
 
 ## main4.npz inventory (what the keys are)
 Per step, shape (6000, 4[, …]), model index 1 = 2/η = 80:
@@ -54,6 +58,8 @@ Stage B (cache/stageB_verify.json):
 - Decision: Stage C first layer uses the exact linear decomposition X(W0_ref + Σ c_j W0_j)ᵀ; checked against the plain forward (assert rel diff < 1e-4).
 
 ## Risks for M2
+- Global canyon is symmetric about θ_ref but the EoS trajectory spans pc1 −2…+3 and pc2 0…+1.2: its bounding box fills only ~54 % × 33 % ≈ 18 % of the pc1–pc2 cross-section; M2 may want an asymmetric box (rerun is 10 s).
+- Stage B diverges from main4 in detail after t_edge (float32 nondeterminism); the ribbon is Stage B's run, so M2 captions must not cite main4 braid details (burst times) as the same trajectory.
 - A single fixed axis 1 is only locally meaningful (top-3 subspace overlap 0.30 over 250 steps). The spec's piecewise-fixed frames (sign + Procrustes) are available from the bank (24 frames) and proj_bank covers every step.
 - Axis scales are very anisotropic (axis 1 oscillation ~0.03, pc1 drift ~several units): M2 must declare per-axis scaling.
 
