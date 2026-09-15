@@ -19,6 +19,8 @@ p.add_argument("--h", type=float, default=0.08, help="random: grid spacing")
 p.add_argument("--tag", default="")
 p.add_argument("--extend", type=int, nargs=6, default=None, metavar=("ALO", "AHI", "BLO", "BHI", "CLO", "CHI"),
                help="append this many grid points (same spacing) below/above each axis; output tag _ext")
+p.add_argument("--slab-shard", type=int, nargs=2, default=[0, 1], metavar=("K", "N"),
+               help="only the slabs whose position in the centre-first order is K mod N (parallel CPU runs)")
 p.add_argument("--reuse", default=None, help="npz volume whose coincident grid points prefill this run")
 p.add_argument("--memfrac", type=float, default=0.10)
 p.add_argument("--margin", type=float, default=0.08, help="pca: fractional margin around the trajectory")
@@ -58,6 +60,9 @@ if args.extend:
     name += "_ext"; out = os.path.join(CACHE, "vol", name + ".npz"); sdir = os.path.join(CACHE, "vol", name + ".slabs")
     os.makedirs(sdir, exist_ok=True)
 A, B, C = axes
+if os.path.exists(out):
+    print(f"{out} already exists; nothing to do", flush=True)
+    raise SystemExit(0)
 pre = {}
 if args.reuse:
     r = np.load(args.reuse)
@@ -84,9 +89,9 @@ meta = dict(vars(args), name=name, directions=dmeta, subset="loss-landscape fixe
             date=datetime.date.today().isoformat(), coords="w = w* + a*d1 + b*d2 + c*d3; loss[c, b, a]", evaluator=evaluator)
 print(json.dumps(meta), flush=True)
 t_all = time.time(); done_pts = 0
-for k in order:
+for pos, k in enumerate(order):
     f = os.path.join(sdir, f"slab{k:02d}.npz")
-    if os.path.exists(f):
+    if os.path.exists(f) or pos % args.slab_shard[1] != args.slab_shard[0]:
         continue
     t0 = time.time()
     P = np.array([(a, b, C[k]) for b in B for a in A])  # row b, col a
@@ -113,6 +118,10 @@ for k in order:
     if k == k0 and args.dirs == "random":
         print(f"  centre loss {L.reshape(nb, na)[nb//2, na//2]:.6f}", flush=True)
 
+missing = [k for k in range(n) if not os.path.exists(os.path.join(sdir, f"slab{k:02d}.npz"))]
+if missing:
+    print(f"shard {args.slab_shard} finished; slabs still missing {missing}; rerun without --slab-shard to assemble", flush=True)
+    raise SystemExit(0)
 loss = np.stack([np.load(os.path.join(sdir, f"slab{k:02d}.npz"))["loss"] for k in range(n)])
 acc = np.stack([np.load(os.path.join(sdir, f"slab{k:02d}.npz"))["acc"] for k in range(n)])
 walls = [float(np.load(os.path.join(sdir, f"slab{k:02d}.npz"))["wall_s"]) for k in range(n)]

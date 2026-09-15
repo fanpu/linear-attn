@@ -1,12 +1,17 @@
 # NOTES: shells (§2 of art/ml-art-3d.md) — living handoff
 
 ## State
-- M1 in progress. Code: `lib.py` (imports loss-landscape/common.py; SeqEvaluator, VmapEvaluator),
+- M1 DONE (2026-09-15 07:05); report docs/superpowers/plans/reports/shells-M1.md. Next: M2 (ResNet-56 pair, epoch film volumes) after the gate. Code: `lib.py` (imports loss-landscape/common.py; SeqEvaluator, VmapEvaluator),
   `pca3.py` (CPU), `check.py` (equivalence + slice points + K sweep), `volume.py` (27^3, per-slab checkpoints),
   `analyze.py` (slice reproduction, anisotropy, ellipsoid null), `preview.py` (matplotlib previews to cache/preview/).
 - GPU chain `jobs/m1.sh` (check -> choose K -> random 27^3 -> PCA 27^3), log `logs/m1.log`: DONE 04:38.
   `cache/vol/resnet20_final_random_g27.npz` (16.0 min, 20.5 pts/s), `cache/vol/resnet20_final_pca_g27.npz` (10.7 min, 30.5 pts/s).
-- `jobs/m1_pca_ext.sh` (log `logs/m1_pca_ext.log`): PCA volume extended +9 a, +5 c points -> `resnet20_final_pca_g27_ext.npz`.
+- PCA extension (+9 a, +5 c points) -> `cache/vol/resnet20_final_pca_g27_ext.npz` (36 x 27 x 32 on (a, b, c)), DONE on CPU
+  (3 slab shards, logs/pca_ext_cpu{0,1,2}.log, 11,421 new points, ~42 min wall, 1.7 pts/s per process) because the GPU
+  queue was held by a multi-hour solid-edge chain. `jobs/m1_pca_ext.sh` is still queued in gpu1.sh (logs/m1_pca_ext.log);
+  volume.py now exits immediately when the output exists, so it is a no-op when it runs.
+- Controller rule (2026-09-15): one gpu1.sh job <= ~20 min; split volumes into slab segments (volume.py --slab-shard)
+  with a CPU-side loop queueing the next segment. Applies to M2.
 
 ## Resume
 ```
@@ -32,6 +37,8 @@ $PY analyze.py cache/vol/resnet20_final_pca_g27_ext.npz && $PY preview.py cache/
 - Random volume: c=0 slab vs g51 at 625 coincident points max rel 2.7e-7, median 4.3e-8; b=c=0 row vs line (25 pts)
   max 2.0e-7. Minimum at the centre vertex, 0.124409. Loss max 440.
 - Random shells: r1/r3 = 1.67 / 1.58 / 1.47 at L = 0.5 / 1 / 2.303, fill 0.99-0.97 (near-ellipsoidal), all closed.
+- PCA extended volume: shells closed; r1/r3 = 2.22 / 2.25 / 2.24 at L = 0.5 / 1 / 2.303, fill 0.985 / 0.981 / 0.952.
+  Ellipsoid null on the PCA box: ratio 3.00 -> 2.94, axis |cos| > 0.99999. On the random grid: 3.00 -> 2.97.
 - PCA base volume: all three shells touch the +a face (and the 2.3 shell the +c face): the basin extends past
   w* away from the trajectory, beyond the 8% margin. -> extension job.
 
@@ -58,6 +65,8 @@ $PY analyze.py cache/vol/resnet20_final_pca_g27_ext.npz && $PY preview.py cache/
   face, which would make the anisotropy table meaningless. Base volume kept; anisotropy reported on the extension.
 - Decision: the ellipsoid null is scaled to each box (semi-axes 0.9/0.5/0.3 x half-extent/1.04, centred), so it is
   identical on the random grid and resolvable on the PCA grid.
+- Decision: run the 11k-point PCA extension on CPU (3 processes x 4 threads) instead of waiting behind a ~3 h GPU
+  chain — CPU and GPU agree with the GPU-measured g51 plate to 3e-7 (toy volume), far below any shell-level effect.
 - Decision: one gpu1.sh chain for check + both volumes (spec §12 chain pattern; avoids re-queueing behind other pieces).
 - Decision: anisotropy levels L = 0.5, 1.0, ln 10 = 2.303 (declared before seeing the volume): ln 10 is chance-level
   cross-entropy for 10 classes; 0.5 and 1.0 are ~4x and ~8x the minimum 0.124. Method: 26-connected component of
