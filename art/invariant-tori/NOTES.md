@@ -3,7 +3,7 @@
 Spec: `art/ml-art-3d.md` §5 (+§0). Plan: `docs/superpowers/plans/2026-09-15-3d-pieces.md` §5.
 Source piece: `art/game-chaos/` (read only; code copied with source comments).
 
-## State (M3 in progress, 2026-09-15)
+## State (M3 done, 2026-09-15)
 
 M1 = chart + orbits + voxels + membrane + previews (report `docs/superpowers/plans/reports/invariant-tori-M1.md`).
 M2 = renders with `art/_shared/r3d/` into `gallery/` (report `.../invariant-tori-M2.md`). M3 (films, STL, README) next.

@@ -4,7 +4,7 @@
 
 <p align="center"><img src="gallery/tori_glow.png" width="49%"> <img src="gallery/tori_plaster.png" width="49%"></p>
 <p align="center"><video src="gallery/film_eps_sweep.mp4" autoplay loop muted playsinline width="70%"></video><br>
-<sub>film_eps_sweep.mp4 (<a href="gallery/film_eps_sweep.gif">GIF</a>): the tie payoff ε from 0 to 0.5 at fixed energy H = 2.8, one measured keyframe per ε, same 12 starting strategies.</sub></p>
+<sub>film_eps_sweep.mp4 (17 s, 1080², <a href="gallery/film_eps_sweep.gif">GIF</a>): the tie payoff ε from 0 to 0.5 at fixed energy H = 2.8, one measured keyframe per ε, same 12 starting strategies.</sub></p>
 
 ## 1. The phenomenon
 
@@ -50,7 +50,7 @@ Twelve orbits start on a ray of the Poincaré section. The ray runs from the ell
 | <img src="gallery/sea_stereo_crosseye.png" width="100%"> **Cross-eye stereo pair** of the cutaway. Declared: rotation stereo with eyes at azimuth ∓1.5° about the box centre (orthographic cameras have no translation parallax) and the same clip plane for both eyes. The right-eye image is on the left. | <img src="gallery/sea_anaglyph_redcyan.png" width="100%"> **Red–cyan anaglyph** of the same pair: red = left-eye luminance, cyan = right-eye luminance. |
 
 <p align="center"><video src="gallery/film_turntable_sea.mp4" autoplay loop muted playsinline width="60%"></video><br>
-<sub>film_turntable_sea.mp4 (<a href="gallery/film_turntable_sea.gif">GIF</a>): 360° of the cutaway, 240 frames. Declared: the clip plane turns with the camera, always removing the near half, so each frame's cut face is a different slice through the sea.</sub></p>
+<sub>film_turntable_sea.mp4 (10 s, 1080², <a href="gallery/film_turntable_sea.gif">GIF</a>): 360° of the cutaway, 240 frames. Declared: the clip plane turns with the camera, always removing the near half, so each frame's cut face is a different slice through the sea.</sub></p>
 
 ### 2.3 The slice plate and the second pole
 
@@ -59,7 +59,7 @@ Twelve orbits start on a ray of the Poincaré section. The ray runs from the ell
 **One section, three panels.**
 - **Left:** the game-chaos plate `poincare_ink_eps0.50.png` (from the game-chaos gallery), unchanged.
 - **Middle:** the same 1.77 M section crossings (395 orbits) in the plate's own axes (x_R, y_P). Colour is a declared key: the rank of x_R + y_P through cmc.batlow.
-- **Right:** the same crossings, same colours, placed where they lie on the membrane in the chart, framed on the fog box. The two tear-drop islands and the sea are the same objects bent by the chart.
+- **Right:** the same crossings, same colours, placed where they lie on the membrane in the chart, framed on the 5–95 percentile box of the crossings. The two tear-drop islands and the sea are the same objects bent by the chart.
 
 96.9% of these dots fall inside a membrane voxel of the 128³ grid, and 100% fall in one or a face neighbour. Ink coverage is 1 − exp(−g·hits), with g three times higher in the right panel (declared).
 
@@ -110,7 +110,8 @@ Shapes, sizes and apparent tube thickness all change with the pole. Nesting and 
 | `compute_chart.py fields256 membrane` | g, dg/dt and signed distance on 256³ and 128³ grids through the inverse chart | 110 s + 15 s |
 | `compute_slice.py` | meridional crossings, 12 orbits, T = 10⁵ | 26 s |
 | `render_tori.py`, `render_plates.py`, `render_secondpole.py`, `make_stl.py` | stills and STL | ≤ 40 s each |
-| `render_sea.py`, `render_film.py` | sea stills, 2400² (volume on GPU through `gpu1.sh`), films at 1080² | see `logs/render_times.log` |
+| `render_sea.py` | sea stills at 2400², volume and splats on the GPU through `gpu1.sh` | 13–17 s each |
+| `render_film.py sweep` / `turntable` | 410 frames / 240 frames at 1080², GPU | 69 s / 594 s (after about 1.8 h in the shared queue) |
 
 **Reproduce** (from this directory, `P=/home/fzeng/ml/research/art/.venv/bin/python`, `OMP_NUM_THREADS=4`):
 
@@ -125,7 +126,7 @@ $P compute_slice.py && $P -m pytest -q -p no:cacheprovider test_chart.py
 $P make_stl.py 201 --preview
 ```
 
-**Software:** GB10, driver 580.173.02, CUDA 13.0, torch 2.14.0+cu130, float32 rendering, float64 dynamics, 2026-09-15. **Files over 20 MB:** none. `cache/` (about 3 GB) is not committed.
+**Software:** GB10, driver 580.173.02, CUDA 13.0, torch 2.14.0+cu130, float32 rendering, float64 dynamics, 2026-09-15. **Files over 20 MB:** none. `cache/` (about 2.5 GB, including film frames) is not committed.
 
 ## 4. Verification
 

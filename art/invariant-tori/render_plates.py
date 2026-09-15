@@ -62,8 +62,8 @@ def flat_view(size, x, y, cols):
 
 
 def membrane_view(size, dots, cols):
-    dz = np.load(os.path.join(L.CACHE, 'density_eps05.npz'))   # frame on the fog box used by the sea renders
-    lo_b, hi_b = dz['lo'], dz['hi']
+    # declared framing: the per-axis 5-95 percentile box of the crossings (the dense core of the section)
+    lo_b, hi_b = np.percentile(dots, 5, axis=0), np.percentile(dots, 95, axis=0)
     core = np.all((dots >= lo_b) & (dots <= hi_b), 1)
     D = dots[core]
     c = D.mean(0); w, v = np.linalg.eigh(np.cov((D - c).T))
