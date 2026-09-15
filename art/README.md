@@ -1,6 +1,6 @@
 # Art from real ML and hardware phenomena: gallery index
 
-Every piece renders a measured or exactly computed quantity; aesthetic choices are declared in each project README. Proposals: [ml-art-directions.md](ml-art-directions.md), [ml-art-fractals.md](ml-art-fractals.md), [../hardware/hw-art-directions.md](../hardware/hw-art-directions.md). Palettes: [color-research](color-research/). Process log: [PROGRESS.md](PROGRESS.md).
+Every piece renders a measured or exactly computed quantity; aesthetic choices are declared in each project README. Proposals: [ml-art-directions.md](ml-art-directions.md), [ml-art-fractals.md](ml-art-fractals.md), [../hardware/hw-art-directions.md](../hardware/hw-art-directions.md), [ml-art-3d.md](ml-art-3d.md). Palettes: [color-research](color-research/). Process log: [PROGRESS.md](PROGRESS.md).
 
 ## ML phenomena
 
