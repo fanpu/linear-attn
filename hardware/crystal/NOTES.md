@@ -56,8 +56,8 @@ Rulings from the controller: colour by profiler kernel names; dense bf16 cube wi
 only if projected <= 1 h; load check at every slab; timing 64³ with GPU1_EXCLUSIVE=1 queued right after the cube.
 - Files: `cube.py` (per k-slab checkpoints in `cache/cube_<dtype>/k<kkk>.npz`; slabs 32, 96, 160, 256 first, then 1..256;
   every slab re-profiles the first 200 M1 sample shapes and compares labels with `cache/m1_kern.npz`, and records nvidia-smi
-  compute apps before/after), `timing.py` (lattice hygiene, checkpoint every 16 384 shapes), `chain_m2.sh` (waits for the
-  cube job to exit, queues timing with GPU1_EXCLUSIVE=1, and once timing has started queues `cube.py --dtype fp32 --max-hours 1`),
+  compute apps before/after), `timing.py` (lattice hygiene, checkpoint every 16 384 shapes), `run_m2.sh` (CPU driver: bf16 cube in <= 18-min
+  gpu1.sh segments `cube.py --budget-min 18`, then timing as one GPU1_EXCLUSIVE=1 job, then fp32 segments with `--max-hours 1`),
   `m2_analyze.py` (label cube `cache/cube_bf16_labels.npz`, stats `cache/m2_stats_bf16.json`, `cache/m2_timing_stats.json`,
   previews `cache/preview/m2_*.png`).
 - Decision: probe nbig = min(64, 2*(k//4)) from M2 on — identical to lattice for k >= 128, fixes k in [64, 127] (M1 note above).
@@ -69,8 +69,22 @@ only if projected <= 1 h; load check at every slab; timing 64³ with GPU1_EXCLUS
 Resume M2:
 ```bash
 cd /home/fzeng/ml/research/hardware/crystal
-# cube (resumes per slab)
-setsid nohup /home/fzeng/ml/research/art/_shared/gpu1.sh env OMP_NUM_THREADS=4 /home/fzeng/ml/research/art/.venv/bin/python -u cube.py --dtype bf16 > logs/cube_bf16.log 2>&1 < /dev/null &
-setsid nohup ./chain_m2.sh > logs/chain_m2.out 2>&1 < /dev/null &      # needs logs/cube_bf16.log to end with gpu1 "exit"
+setsid nohup ./run_m2.sh > logs/run_m2.out 2>&1 < /dev/null &    # resumes per slab / per 16 384 timing shapes; log logs/run_m2.log
 OMP_NUM_THREADS=4 /home/fzeng/ml/research/art/.venv/bin/python m2_analyze.py
 ```
+- 06:32 controller rule: no gpu1.sh job > ~20 min. The single queued cube job (never started) and chain_m2.sh were stopped and replaced by run_m2.sh (segments).
+
+## PAUSED (2026-09-15 08:37, controller/user request)
+- bf16 cube: **114 / 256 k-slabs done** (k = 1..112, 160, 256), all checkpoints load and validate (shapes, vocab indices, info).
+  Segments 1–2 ran 07:01–08:04; segment 3 was queued, never started, and was killed along with the driver `run_m2.sh`.
+  Load check so far: every slab 200/200 kernel labels identical to M1; no slab had another compute process present.
+- Timing volume: **not run** (never queued). fp32 cube: not started.
+- Nothing of crystal's is running or queued.
+- Resume (continues from the per-slab checkpoints, then timing as one GPU1_EXCLUSIVE=1 job, then the optional fp32 cube):
+```bash
+cd /home/fzeng/ml/research/hardware/crystal
+setsid nohup ./run_m2.sh > logs/run_m2.out 2>&1 < /dev/null &
+# after the cube and timing finish:
+OMP_NUM_THREADS=4 /home/fzeng/ml/research/art/.venv/bin/python m2_analyze.py
+```
+  Note: run_m2.sh names segment logs from seg01 again, so move `logs/cube_bf16_seg0*.log` aside before resuming if the old logs matter.

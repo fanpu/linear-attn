@@ -11,6 +11,8 @@ A rerun skips finished slabs. Order: the four spread slabs first (so --max-hours
 
     python cube.py --dtype bf16
     python cube.py --dtype fp32 --max-hours 1      # skips (writes SKIPPED.json) if the projection exceeds 1 h
+    python cube.py --dtype bf16 --budget-min 18    # one segment: stop before a slab would end past 18 min
+Segments (controller rule: <= ~20 min per gpu1.sh job) are driven by run_m2.sh.
 """
 import argparse, json, os, time
 import numpy as np
@@ -26,8 +28,11 @@ def main():
     ap.add_argument("--dtype", default="bf16")
     ap.add_argument("--max-hours", type=float, default=0.0)
     ap.add_argument("--nref", type=int, default=200)
+    ap.add_argument("--budget-min", type=float, default=0.0)
     args = ap.parse_args()
     out = f"{CACHE}/cube_{args.dtype}"; os.makedirs(out, exist_ok=True)
+    if os.path.exists(f"{out}/SKIPPED.json"):
+        print("SKIPPED.json present; nothing to do", flush=True); return
     probes = Probes(args.dtype)
     info = dict(stack=stack(args.dtype))
     json.dump(info, open(f"{out}/stack.json", "w"), indent=1)
@@ -47,6 +52,9 @@ def main():
         path = f"{out}/k{k:03d}.npz"
         if os.path.exists(path):
             continue
+        if args.budget_min and walls and (time.time() - t_job + 1.5 * max(walls)) / 60 > args.budget_min:
+            print(f"segment budget reached after {len(walls)} slabs ({time.time()-t_job:.0f}s)", flush=True)
+            return
         s0 = smi(); t0 = time.perf_counter()
         sh = np.stack([M.ravel(), np.full(M.size, k), N.ravel()], 1)
         order = np.random.default_rng(k).permutation(len(sh))
@@ -77,7 +85,7 @@ def main():
         print(f"k={k} ({i+1}/{G}) {wall:.1f}s (fp {t_fp:.1f} names {t_nm:.1f}) vocab {len(vocab)} "
               f"busy={busy} check {chk.get('agree')}/{chk.get('n')} temp {s0['temp']} util {s0['util']} "
               f"elapsed {time.time()-t_job:.0f}s", flush=True)
-        if args.max_hours and len(walls) == len(FIRST):
+        if args.max_hours and k == FIRST[-1] and len(walls) == len(FIRST):
             proj = np.mean(walls) * G / 3600
             print(f"projection {proj:.2f} h (limit {args.max_hours} h)", flush=True)
             if proj > args.max_hours:
