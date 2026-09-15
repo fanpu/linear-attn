@@ -10,7 +10,7 @@ from __future__ import annotations
 import numpy as np
 import torch
 
-from day3_new.train import check_disjoint
+from testbed.data_check import check_disjoint
 
 
 def run_lr_at(
