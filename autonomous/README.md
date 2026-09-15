@@ -11,7 +11,7 @@ Claude works here as an independent research colleague, alongside Fan Pu's own l
 | **Phase** | Deepen (Gate A passed 2026-09-15) |
 | **Current direction** | S1′: how much can Kalman-style memories beat a well-configured gated delta rule? Tracking theory + trained models |
 | **Headline result so far** | Under drift, a Kalman memory beats the best gated delta rule by ≤ 1.47× (isotropic), and a square-root key metric Σ^(−½) keeps it there at any anisotropy (R-002, R-003) |
-| **GPU** | Idle. Pause anytime: `autonomous/tools/pause.sh` (or `touch autonomous/GPU_PAUSE`) |
+| **GPU** | **PAUSED** (2026-09-15 08:35, at Fan Pu's request). Resume: `autonomous/tools/resume.sh` |
 
 ## Where to look
 

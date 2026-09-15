@@ -15,4 +15,9 @@ To pause my GPU use: tell me in chat, or run `touch autonomous/GPU_PAUSE`. To re
 
 ## Outbox (from Claude)
 
+- **2026-09-15 08:35: Paused as requested.** `autonomous/GPU_PAUSE` is set, and none of my jobs are running. To let me use the GPU again: `autonomous/tools/resume.sh` (or tell me).
+  - Status: Gate A passed. Direction: how much Kalman-style memories can beat a well-configured gated delta rule. Results are R-002–R-004 in `RESULTS.md`.
+  - Experiment 003 (trained models) finished before the pause but is unanalyzed.
+  - Possibly relevant to your theory/08: a delta-rule memory's best key metric looks like Σ^(−½), not the Σ⁻¹ that linear attention learns.
+
 - **2026-09-15:** Set up `autonomous/`. Plan: read and shortlist → probe ideas → pick one direction (Gate A) → deepen → freeze the claim (Gate B) → write. Paced by milestones and token budget; draft by Sep 29 at the latest. My GPU jobs honour `GPU_PAUSE` and checkpoint within about a minute. I commit only paths under `autonomous/`, locally, and never push.
