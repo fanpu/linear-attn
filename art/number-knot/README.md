@@ -90,9 +90,9 @@ GIFs: [`film_turntable_days.gif`](gallery/film_turntable_days.gif), [`film_turnt
 **Layer sweep (film).** Layer is time.
 - Each measured layer holds for 1 s. The 0.5 s morphs between layers are **linear interpolations, not measurements** (declared).
 - Camera fixed. Both panels are divided by the measured layer's RMS in-plane radius.
-- 1080×720, 25 s. The camera frames the central 99 % of beads over all layers.
+- 1080×720, 25 s. Measured and null share one camera, centred on their bead means.
+- **Declared per-layer zoom:** the frame height is fitted to every bead of that layer in both panels and interpolated during morphs; the overlay prints the zoom relative to layer 0. Bead size is in world units, so beads look smaller when the frame zooms out.
 - The helix is present from the embedding through layer 14, then loosens in the last two layers (ΔR²_T100 falls to 0.014 at layer 16).
-- **Known flaw:** in the last layer the elongated measured cloud and the null's tail run out of the frame.
 
 <p align="center"><video src="gallery/film_sweep_helix.mp4" autoplay loop muted playsinline width="80%"></video><br>GIF: <a href="gallery/film_sweep_helix.gif">film_sweep_helix.gif</a></p>
 
@@ -131,7 +131,7 @@ GIFs: [`film_turntable_days.gif`](gallery/film_turntable_days.gif), [`film_turnt
 | Geometry | `geometry.py` | fit frames, bead projections, tower Procrustes and scaling, knot composition, sweep | 20 s |
 | Stills | `render_m2.py --size 2400 --device cpu` | r3d `splat_spheres`, `splat_additive`, `ambient_occlusion`, `visible_runs`; 2400 px on the long side | 8.5 min (glow 1–10 s, plaster 39–59 s, plotter < 1 s per image; per-image timings in `timings_2400.json`) |
 | Atlases | `render_atlas.py` | matplotlib 2-D plates | 10 s |
-| Films | `films.py` | Day and month turntables (720 frames at 1024²) and the helix layer sweep (750 frames at 1080×720), glow style, via `r3d.write_film` (H.264 yuv420p + palette GIF); turntable MP4s re-encoded at CRF 27 | ≈ 590 s per turntable (CPU shared with a still render), 525 s for the sweep |
+| Films | `films.py` | Day and month turntables (720 frames at 1024²) and the helix layer sweep (750 frames at 1080×720), glow style, via `r3d.write_film` (H.264 yuv420p + palette GIF); turntable MP4s re-encoded at CRF 27 | ≈ 590 s per turntable (CPU shared with a still render), 573 s for the sweep |
 
 - **Stack:** GB10, driver 580.173.02, CUDA 13.0, torch 2.14.0+cu130, transformers 5.15. All compute ran on the CPU in fp32, 2026-09-15. No new packages were installed.
 - **Tests:** `test_fits.py` (6 synthetic checks) passes.
