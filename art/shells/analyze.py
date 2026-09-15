@@ -59,9 +59,11 @@ def shell_stats(loss, axes, level, s=4):
 def null_test(axes, s=4):
     rng = np.random.default_rng(0)
     Q, _ = np.linalg.qr(rng.normal(size=(3, 3)))
-    r_true = np.array([0.9, 0.5, 0.3])
+    half = min((ax[-1] - ax[0]) / 2 for ax in axes)
+    ctr = np.array([(axes[2][0] + axes[2][-1]) / 2, (axes[1][0] + axes[1][-1]) / 2, (axes[0][0] + axes[0][-1]) / 2])
+    r_true = np.array([0.9, 0.5, 0.3]) * half / 1.04  # scaled to the box: unchanged on the random-direction grid
     C, B, A = np.meshgrid(*axes, indexing="ij")
-    P = np.stack([A, B, C], -1) @ Q  # coordinates in the ellipsoid frame
+    P = (np.stack([A, B, C], -1) - ctr) @ Q  # coordinates in the ellipsoid frame
     f = 0.1 + ((P / r_true) ** 2).sum(-1)  # level 0.1 + 1 is the ellipsoid with semi-axes r_true
     st = shell_stats(f, axes, 1.1, s)
     cosines = [abs(float(np.dot(st["axes_abc"][i], Q[:, i]))) for i in range(3)]
