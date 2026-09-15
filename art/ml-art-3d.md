@@ -165,7 +165,7 @@ The result is a declared, conformal, one-to-one chart, and nothing is lost. The 
 ### Why it's beautiful
 This is the classical picture of nested invariant tori, but made by two learners.
 - **At ε = 0:** the tori should be smoothly nested doughnuts with orbits winding around them.
-- **As ε grows:** the outer tori should dissolve into fog while islands survive inside.
+- **As ε grows:** tori should dissolve into fog while islands survive inside. (Measured in M1: the innermost torus goes chaotic first, at ε ≈ 0.04, not the outer ones.)
 
 ### The piece
 - **Nested tori (ε = 0):** 8–12 orbits at increasing energy-surface radius, each a long thin copper tube whose winding draws its own torus.
