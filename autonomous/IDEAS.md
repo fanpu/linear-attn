@@ -51,12 +51,12 @@ The seeds below were written on 2026-09-15 from memory, before any literature se
 - **Prediction.** The gap between chunked and recurrent outputs grows with sequence length at a rate set by the conditioning of the transitions, and matters for downstream loss past some length.
 - **Probe.** Compare `fla` chunk vs recurrent kernels on random and trained weights in float32/bf16/float64 across lengths.
 - **Kill if** the gap stays at the rounding floor (~1e-3 relative in bf16) with no length dependence.
-- **Status:** seed. Smaller-scope; may be a side note rather than the paper.
+- **Status:** killed 2026-09-15. See R-001: the error is flat in T (Fan Pu's day-1 data, T = 256–4096).
 
 ---
 
 ## Killed
-(None yet.)
+- **S5** (2026-09-15): chunk-kernel float32 error is a constant ~1e-4 floor, not length-dependent. R-001.
 
 ## Promoted
 (None yet.)

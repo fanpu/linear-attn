@@ -37,4 +37,7 @@ autonomous/
   experiments/NNN-slug/  one directory per experiment (template: experiments/TEMPLATE.md)
   paper/                 the draft (once the key figure exists)
   tools/                 gpu_run.sh (polite GPU job runner), pause.py, pause.sh, resume.sh
+  .venv/                 pytest only; sees the repo-root .venv packages via a .pth file (not committed)
+
+Tests: `.venv/bin/python -m pytest -q --rootdir common common/` (from autonomous/)
 ```
