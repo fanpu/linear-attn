@@ -42,32 +42,47 @@ def d3_table(L, ranges):
 
 
 def oblique(L, n_slices=12, seed=0, fit=None):
+    """12 random oblique planes, each through a uniformly random 2x2x2 edge cell (so every slice meets
+    the boundary) with a random orientation, redrawn until the square lies inside the volume;
+    nearest-voxel sampling at voxel spacing.
+    Slice side R/2+1 -> edge image R/2 (tiles exactly for b <= R/8)."""
     R = L.shape[0]
-    side = R * 5 // 8 + 1                    # 161 at 256: edge image 160 = 5*32 tiles exactly; corners inside the inscribed sphere
-    fit = fit or ((2, 32) if R >= 256 else (2, 16))
+    side = R // 2 + 1
+    fit = fit or ((2, 16) if R >= 256 else (1, 16))
+    cand = np.argwhere(edges3d(L))
     rng = np.random.default_rng(seed)
     out, imgs = [], []
+    if len(cand) == 0:
+        return dict(side=side, fit=list(fit), slices=[], D_mean=None, D_sd=None, one_plus_D_mean=None, n_valid=0), []
+    h = side / 2 - 0.5
     for q in range(n_slices):
-        n = rng.normal(size=3); n /= np.linalg.norm(n)
-        a = np.array([1.0, 0, 0]) if abs(n[0]) < 0.9 else np.array([0, 1.0, 0])
-        u = np.cross(n, a); u /= np.linalg.norm(u); v = np.cross(n, u)
-        off = rng.uniform(-R / 16, R / 16)
-        c = (R - 1) / 2 + off * n
+        for tries in range(100000):      # rejection: random edge cell + random orientation until the square fits
+            n = rng.normal(size=3); n /= np.linalg.norm(n)
+            a = np.array([1.0, 0, 0]) if abs(n[0]) < 0.9 else np.array([0, 1.0, 0])
+            u = np.cross(n, a); u /= np.linalg.norm(u); v = np.cross(n, u)
+            c = cand[rng.integers(len(cand))] + 0.5
+            corners = np.array([c + su * h * u + sv * h * v for su in (-1, 1) for sv in (-1, 1)])
+            if corners.min() >= 0 and corners.max() <= R - 1:
+                break
+        else:
+            break
         x = np.arange(side) - side / 2 + 0.5
         X, Y = np.meshgrid(x, x, indexing='ij')
         P = c[None, None, :] + X[..., None] * u + Y[..., None] * v
         idx = np.rint(P).astype(int)
-        assert idx.min() >= 0 and idx.max() < R
         img = L[idx[..., 0], idx[..., 1], idx[..., 2]]
         E = edges(np.where(img, -1.0, 1.0))
         s, cnt = box_counts(E)
         f = fit_dimension(s, cnt, *fit) if (cnt[s == fit[0]].sum() > 0 and (cnt > 0).sum() >= 4) else None
-        out.append(dict(normal=n.round(4).tolist(), offset=float(off), conv=float(img.mean()), edge_px=int(E.sum()),
-                        D=(f['D'] if f else None), se=(f['se'] if f else None)))
+        f2 = fit_dimension(s, cnt, 1, R // 8) if f else None
+        out.append(dict(normal=n.round(4).tolist(), center=c.tolist(), conv=float(img.mean()), edge_px=int(E.sum()),
+                        D=(f['D'] if f else None), se=(f['se'] if f else None), D_b1_R8=(f2['D'] if f2 else None), tries=tries + 1))
         imgs.append(img)
     Ds = np.array([o['D'] for o in out if o['D'] is not None])
+    D2 = np.array([o['D_b1_R8'] for o in out if o['D_b1_R8'] is not None])
     return dict(side=side, fit=list(fit), slices=out, D_mean=float(Ds.mean()), D_sd=float(Ds.std(ddof=1)),
-                one_plus_D_mean=float(1 + Ds.mean()), n_valid=int(len(Ds))), imgs
+                one_plus_D_mean=float(1 + Ds.mean()), n_valid=int(len(Ds)),
+                one_plus_D_b1_R8_mean=float(1 + D2.mean())), imgs
 
 
 def six_slices(v, name, title):
@@ -107,13 +122,15 @@ for name, v in vols.items():
     if v is None:
         continue
     R = v['L'].shape[0]
-    rng = [(1, 16), (2, 16)] if R == 64 else ([(1, 32), (2, 32)] if R == 128 else [(1, 64), (2, 32), (2, 64), (4, 64)])
+    rng = [(1, 16), (2, 16)] if R == 64 else ([(1, 32), (2, 32), (1, 16)] if R == 128 else [(1, 64), (2, 16), (1, 32), (2, 32), (2, 64), (4, 64)])
     S[name] = dict(res=R, grid={k: v['grid'][k] for k in v['grid'] if k not in ('overview_pix',)},
                    f32=v['meta'].get('f32'), shell=v['meta'].get('shell'), audit=v['meta'].get('audit'),
                    plane=v['meta'].get('plane'), final_conv=float(v['L'].mean()), f64_frac=float(v['mask'].mean()),
                    boxcount=d3_table(v['L'], rng))
     if R >= 128:
         ob, imgs = oblique(v['L'])
+        S[name]['oblique'] = ob
+    if R >= 128 and imgs:
         S[name]['oblique'] = ob
         fig, axs = plt.subplots(3, 4, figsize=(12, 9.4), dpi=100)
         for a, img, o in zip(axs.flat, imgs, ob['slices']):
@@ -224,7 +241,7 @@ for name in cols:
         print(name, f'conv={b["conv"]:.4f} edge={b["edge_cells"]} B6={b["boundary_voxels_6nbr"]}',
               {k: f'{f["D"]:.3f}±{f["se"]:.3f}' for k, f in b['fits'].items()}, 'slopes', np.round(b['local_slopes'], 2).tolist())
         if 'oblique' in S[name]:
-            o = S[name]['oblique']; print('   oblique 1+D =', f'{o["one_plus_D_mean"]:.3f} (sd {o["D_sd"]:.3f}, n={o["n_valid"]})')
+            o = S[name]['oblique']; print('   oblique', {k: o[k] for k in o if k != 'slices'})
         if 'resolution_doubling' in S[name]:
             print('   resdoubling', {k: v for k, v in S[name]['resolution_doubling'].items() if not isinstance(v, dict)})
         print('   shell', S[name]['shell'] and {k: v for k, v in S[name]['shell'].items() if k != 'rounds'},
