@@ -2,7 +2,17 @@
 
 ## State
 - M1 DONE (2026-09-15, CPU): all 10 fields sampled, order checks, t->1 limit, null, previews in `cache/preview/`. Report: `docs/superpowers/plans/reports/combed-M1.md`.
-- M2 (renders, needs r3d) and M3 (film, README) not started. Cache is complete for M2 hair/tube/SVG; the N=16 basin volume is not computed yet.
+- M2 (renders) in progress 2026-09-15: dense trajectories + basin volumes computed (GPU), SVGs + box counting done (CPU);
+  GPU render chain `logs/gpu_m2_render.sh` (log `logs/gpu_m2_render.log`) renders hair diptychs, stereo, tubes, basin at 2048-2400 px.
+- M3 (film, README) not started.
+
+## M2 files and commands (from art/combed/)
+- `compute_m2.py dense|basin --device cuda` (via gpu1.sh, `logs/gpu_m2_compute.sh`): `cache/dense_{kind}_N{N}.npz` (states (269,20000,3) float32:
+  257 RK4 states on [0,1-1e-3] + every 8th of 96 geometric tail steps to 1-1e-6; end_nn/d1/d2 at 1-1e-6),
+  `cache/basin_N16_R{128,256}.npz` (labels, ratio, null_voronoi_x0). N=16 dense files were made on CPU (device stored in npz).
+- `compute_m2.py boxcount` -> `cache/basin_boxcount.json`; `plot_verify.py` -> `gallery/verify/basin_boxcount.png`.
+- `render_hair.py diptych|stereo`, `render_tubes.py tubes|svg`, `render_basin.py --res R`: read cache only; r3d.
+- Rulings from controller (M1 gate): all renders use the t = 1-1e-6 run; every memorised fraction is printed with the fresh-knot null; width/budget fixed and declared.
 
 ## Files
 - `combed_common.py`: trefoil data, closed-form field v*, `VelocityMLP`, RK4, Gu et al. criterion.
@@ -57,3 +67,18 @@ Every stage skips outputs that already exist.
 - Order check: MLP gaps shrink ~300x then ~50x per doubling (converged at 512); closed-form worst seeds shrink only ~2-10x per doubling (late basin commitment near t -> 1 is stiff), random seeds ~5-10x.
 - Trained MLP samples lie ~5e-3 off the knot at every N (training excess loss 0.005-0.026); at N >= 256 that blur exceeds the point spacing, so the MLP's low memorised fraction is below the null: it means "blurred along/off the knot", not "new points exactly on the knot".
 - Wall clock (CPU, 2 threads each, contended): training 255-355 s per N; closed sampling 4 s (N=16) .. 2106 s (N=4096); MLP sampling 300-613 s per N; limit closed 369 s at N=4096.
+
+## M2 decisions
+- Decision: render from dense RK4 states (257 + 12 tail) instead of the 64 cached points — linear interpolation of the 64 points misses true states by up to 1.6e-2 (p99.9 7-10e-3, ~5 px at 2048 px); dense vertices are <= 1/256 in t apart.
+- Decision: hair glow maps hue = density-weighted mean t (colorcet bmy) and brightness = (log1p(W/1)/log1p(150))^0.9, W = hair length density per 2048-px-equivalent pixel; raw additive 1-exp tonemap either saturated the core or hid the outer hairs. Endpoints: separate Gaussian glow (sigma 1.6 px at 2048), tonemap exposure 0.05, screen blend.
+- Decision: MLP renders also use the 1-1e-6 run (the ruling mandates it for closed-form; same stop for both keeps the diptych matched). MLP endpoints move < 1e-3 between stops.
+- Decision: plotter SVG draws t >= 0.5 only (declared window; full-length hairs are a uniform starburst that hides the knot), hidden lines by a tube depth buffer r = max(0.004, 2.5 px) with eps = 10 r (curves heading along the view axis otherwise self-occlude into dashes), runs < 3 px dropped.
+- Decision: tubes have no AO or shadow (r3d has no occluder for splatted tubes); plaster = matte off-white, one raking Lambert light at 0.62 ambient.
+- Decision: basin palette colorcet glasbey_category10 in training-set index order; null = Voronoi cell of the start point x0 (piecewise planar, D = 2 exactly) through the identical voxel render and box counting.
+- Decision: box-counting fit over eps = 1..R/16 voxels; larger boxes saturate (local slope -> 3 for both basins and the planar null).
+- Decision: views = orthographic az -60 el 40; hair/tube ortho height 3.4, SVG 2.6, basin 9.2.
+- Decision: hero N for tubes/SVG = 64 (tufts) and 1024 (knot), both fields; hair diptychs at all five N (feeds the M3 film); stereo pairs closed N=64 and MLP N=1024.
+
+## M2 numbers
+- Basin N=16 (t = 1-1e-6): 16 labels; agreement with Voronoi-of-x0 null 76.6%. Box counting eps 1-16 vox at 256^3: D = 2.13 (null 2.10); at 128^3 eps 1-8: 2.16 (null 2.13). Boundary voxels 256^3/128^3 = 4.11.
+- Dense stop 1-1e-6 memorised fractions (raw endpoint): closed 1.000/1.000/1.000/0.998/0.998, MLP 0.704/0.434/0.183/0.049/0.005.
