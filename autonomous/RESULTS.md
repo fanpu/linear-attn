@@ -22,6 +22,19 @@ Each entry follows this format:
 
 ---
 
+### R-004 · For a delta-rule memory, the best key metric exponent is ≈ ½ at long contexts even without drift, and smaller for short contexts. Pre-registered "s\* ≈ 1 when stationary" was refuted · likely
+- **Date / experiment:** 2026-09-15 · `experiments/002-optimal-key-metric-vs-context/`
+- **Question:** With the loss averaged over a context of length T (what in-context training optimizes), which exponent s in M = Σ^(−s) is best, as a function of T and drift?
+- **Result:**
+  - d = 32, κ = 100, best (α, β) per s.
+  - No drift: s\* = 0.18, 0.28, 0.36, 0.43, 0.48, 0.48 for T/d = ½, 1, 2, 4, 16, 64 (±0.01–0.06).
+  - With noise, similar but lower at short T.
+  - qd = 0.1: s\* → 0.45 at long T. qd = 1: s\* → 0.3.
+  - A budget model predicts the long-T limit ½ but fails quantitatively for T ≤ 2d.
+- **Figure:** not yet.
+- **Caveats:** one κ, one d, a single seed with 8 chunks. An idealized NLMS with a static metric, not a trained network. The short-T theory is not yet understood.
+- **Takeaway:** a memory that corrects itself (delta rule) should tilt its attention toward important directions only by their square root, while a memory that just adds things up (linear attention) needs full whitening. So the two architectures should learn different key projections on the same task.
+
 ### R-003 · Square-root law: under drift, the best key metric for a delta-rule memory is Σ^(−½), and with it a Kalman memory's advantage stays at the isotropic value at any anisotropy · likely
 - **Date / experiment:** 2026-09-15 · `experiments/001-gdn-vs-kalman-theory/` (sweep_aniso)
 - **Question:** With anisotropic inputs (condition number κ up to 1000), does a Kalman memory's advantage over the best gated delta rule grow, and can a static key metric Σ^(−s) remove the growth?
