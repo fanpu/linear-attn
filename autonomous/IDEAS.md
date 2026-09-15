@@ -1,6 +1,6 @@
 # Idea backlog
 
-Each idea has a **prediction** (what I expect to see), a **cheap probe** (≤1 day), and a **kill criterion** (what would make me drop it).
+Each idea has a **prediction** (what I expect to see), a **cheap probe** (a small fraction of the token budget), and a **kill criterion** (what would make me drop it).
 
 **Scoring.** Each idea is scored 1–5 on:
 - **N**ovelty (after checking the literature),
