@@ -1,0 +1,41 @@
+{
+ "size": 2400,
+ "device": "cpu",
+ "timings": {
+  "tower_days": {
+   "glow": 1.2,
+   "plaster": 54.5,
+   "plotter": 0.4
+  },
+  "tower_months": {
+   "glow": 1.8,
+   "plaster": 58.9,
+   "plotter": 0.5
+  },
+  "tower_numbers": {
+   "glow": 4.8,
+   "plaster": 41.4,
+   "plotter": 0.9
+  },
+  "hero_days": {
+   "glow": 1.1,
+   "plaster": 39.5,
+   "plotter": 0.3
+  },
+  "hero_months": {
+   "glow": 1.4,
+   "plaster": 39.3,
+   "plotter": 0.3
+  },
+  "helix": {
+   "glow": 4.2,
+   "plaster": 41.3,
+   "plotter": 0.3
+  },
+  "knot": {
+   "glow": 4.5,
+   "plaster": 47.4,
+   "plotter": 0.3
+  }
+ }
+}

@@ -47,3 +47,16 @@ OMP_NUM_THREADS=4 ../.venv/bin/python preview.py
 - Qwen3 days: held-out R² 0.92 at L12 (order null 99% 0.69; point null 99% −0.05); true order ranks 1/360 at 27 of 29 layers; cyclic angular order exact at 28/29 layers, already in the embedding (L0 0.87).
   Months: 0.90 at L13 (order null 99% 0.44, max of 200 0.51), cyclic at 18/29 layers (not L1–2, L4–10, L27–28 — Jul/Aug/Sep crowd together).
 - Next (M2, needs r3d): helix from cache/fits_numbers_1000.npz `coords[1, 1, COORD_T.index(100)]`, knot from the T=100 and T=10 coords at the same cell, depth towers from `proj` in cache/fits_qwen_*.npz and coords over layers; null panels via preview.helix's shuffled-label fit.
+
+## M2 (renders) — 2026-09-15
+Files: `geometry.py` (CPU, 20 s -> cache/geom_M2.npz/.json), `render_m2.py` (r3d; glow, plaster, plotter; 2400 px on CPU,
+~9 min; logs/render_m2_2400.log, gallery/timings_2400.json), `render_atlas.py` (matplotlib slice atlases, 10 s).
+Resume: `../.venv/bin/python geometry.py && ../.venv/bin/python render_atlas.py && setsid nohup env OMP_NUM_THREADS=4 ../.venv/bin/python render_m2.py --size 2400 --device cpu > logs/render_m2_2400.log 2>&1 < /dev/null &`
+- Decision: helix/knot beads = orthogonal projection of the measured PCA-100 state onto an orthonormal frame built from the fit (e1 = cos direction, e2 = sin ⟂ e1, e3 = linear ⟂ both), in residual-stream units — not the M1 pseudo-inverse decode, which divides by the fitted amplitude and inflates the null by ~5×, so measured and null share one metric scale.
+- Decision: the fitted K&T curve C·B(a) is drawn as a thin opaque line (declared "fit"); consecutive-integer connectors are glow hairlines only (opaque tubes through noisy beads hid the structure). Plaster and plotter omit the hairlines.
+- Decision: helix beads coloured by a mod 100 (the period drawn), knot beads by last digit (its minor period T=10) — plan said last digit for the helix; with T=100 the last-digit colouring is confetti that hides the winding.
+- Decision: knot minor-radius scale s = 0.35 (measured median minor radius 1.04 ≈ major 1.28 would self-intersect); knot fit line drawn once (0 ≤ a < 100).
+- Decision: towers — per-layer orthogonal Procrustes (reflection allowed) of the class means onto the calendar angles, per-layer scale to unit RMS bead radius, height = layer index × 0.2 (numbers 0.32). Null tower = point-label shuffle (numbers: shuffled a) through the identical pipeline including Procrustes and scaling.
+- Decision: cyclic palettes: colorcet `cyclic_rygcbmr_50_90_c64_s25` (L* 55–84) on dark, cmcrameri `romaO` pigment for plaster; light in the camera frame (glow key upper-left front; plaster raking upper-left).
+- Decision: all splatting on CPU (controller: r3d CUDA splat bug), orthographic cameras only.
+- Decision: slice atlases (per-layer 2-D planes, same coordinates as towers) are the §0.4 companion for every tower.
