@@ -93,3 +93,7 @@ OMP_NUM_THREADS=4 $P preview_c.py
 - Decision: honesty panel replaces only the oscillation part of axis 1 with the stored moving-frame x_t = ⟨θ − θ̄, u₁(t)⟩ (Stage B log); slow part, pc axes, canyon and camera are identical.
 - Decision: stereo = rotation stereo (az ± 2.5°), because parallel-shift stereo gives no parallax with orthographic cameras.
 - Decision: plotter = hidden-line GD path (visible_runs vs a thin tube depth), loss contours of the far face pc2 = hi at the six TF levels, box wireframe; three Inkscape layers.
+- Final renders (GPU job run_m2_renders.sh, queued 04:52, started 06:48, 50 s total): hero_glow 2400² 12 s, honesty 3200×1600 10.6 s, stereo 2800×1400 8 s, context 3000×1860 8.5 s. CPU: check_canyon_32_vs_64 (1024², 48 s), plotter_hero.svg + proof PNG.
+- 32³ vs 64³: trilinear(32³) vs 64³ max rel diff 6.1e-4, median 3.6e-4; plates visually identical.
+- Observation: strand colours alternate between even and odd steps: λ₁ itself oscillates with period 2 (measured, not a render artefact).
+- Open for M3: the context plate's tubes (R 0.0035) dominate the chords at 5600 steps; a thinner-tube variant would read more as a ribbon. The hero's bottom ~20 % is empty (camera framing).
