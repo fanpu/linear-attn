@@ -69,4 +69,5 @@ Write the abstract in the journal. From here on, experiments only fill gaps the 
 Record every change to this plan with the date and the reason.
 
 - 2026-09-15: plan created.
+- 2026-09-15: **Gate A passed early → S1′.** S3′ was not probed: its main risk is replicating 2507.02782, and experiment 001 already meets all four criteria. Map + Probe used roughly 5% of the token budget, well under their ~40% share.
 - 2026-09-15: switched from calendar-day phases to milestone gates with token-budget shares. Fan Pu pointed out that tokens, not wall-clock time, are the bottleneck.

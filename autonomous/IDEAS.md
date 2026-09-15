@@ -55,7 +55,7 @@ The seeds below were written on 2026-09-15 from memory, before any literature se
 
 ## Shortlist after the literature check (2026-09-15)
 
-### S1′. When does a smarter memory write help? Gated delta rule vs Kalman filter under drift ★ top priority
+### S1′. When does a smarter memory write help? Gated delta rule vs Kalman filter under drift ★ PROMOTED at Gate A (2026-09-15)
 - **Intuition.**
   - A gated delta rule (GDN) makes *one* correction step per token, along the current key. A Kalman filter (KF) keeps a covariance, so it knows which directions it has already pinned down.
   - Noiseless, isotropic keys, drift q per token, d dimensions:
@@ -86,4 +86,4 @@ See S3 status. Only if S1′ dies at Gate A.
 - **S5** (2026-09-15): chunk-kernel float32 error is a constant ~1e-4 floor, not length-dependent. R-001.
 
 ## Promoted
-(None yet.)
+- **S1′** (Gate A, 2026-09-15): R-002 (isotropic gap ≤ 1.47×) and R-003 (square-root law). The next claim to test is that trained GDNs learn gates α ≈ √(1−q) and key metric AᵀA ∝ Σ^(−½) under drift (vs Σ⁻¹ stationary).

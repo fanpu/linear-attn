@@ -22,6 +22,22 @@ Each entry follows this format:
 
 ---
 
+### R-003 · Square-root law: under drift, the best key metric for a delta-rule memory is Σ^(−½), and with it a Kalman memory's advantage stays at the isotropic value at any anisotropy · likely
+- **Date / experiment:** 2026-09-15 · `experiments/001-gdn-vs-kalman-theory/` (sweep_aniso)
+- **Question:** With anisotropic inputs (condition number κ up to 1000), does a Kalman memory's advantage over the best gated delta rule grow, and can a static key metric Σ^(−s) remove the growth?
+- **Result:**
+  - No preconditioning (s = 0): the noiseless ratio grows slowly, 1.44 → 2.35 over κ = 1 → 1000. That fails the pre-registered 1.5×-at-κ = 100 criterion.
+  - s = ½: the ratio equals the isotropic value to about 1% at every κ, drift (qd ≤ 0.1), and noise level.
+  - s = 1 (full whitening): the ratio reaches 2.66 at κ = 1000.
+  - A budget argument (minimize Σ λ_i/r_i with Σ r_i fixed ⇒ r_i ∝ √λ_i) predicts a penalty of (E λ^s)(E λ^(1−s))/(E λ^½)² and a Kalman risk scaling of (E λ^½)². In the noiseless regime these match within about 1–2% (s = ½, s = 1, and Kalman); s = 0 is lower than predicted at large κ, because weak directions saturate. 24 configurations × 3 values of s; d = 64; 256 sequences; 1 seed.
+- **Figure:** not yet.
+- **Caveats:**
+  - A coarse β grid near 1 (a few % bias).
+  - Only a log-uniform spectrum, Gaussian inputs, and isotropic drift in weight space.
+  - The √ form likely has classical roots (steady-state Riccati for random-walk tracking). The novelty check isn't done.
+  - The law was derived after seeing the data, then checked on all configurations; it was not pre-registered.
+- **Takeaway:** a memory that tracks a changing task should refresh each direction in proportion to the square root of its importance. A linear-attention key projection can learn that, and once it does, uncertainty tracking buys only a small constant factor.
+
 ### R-002 · Under isotropic drift, a Kalman memory beats the best gated delta rule by at most ≈ 1.47×, and by ≤ 1.13× once there is noise · likely
 - **Date / experiment:** 2026-09-15 · `experiments/001-gdn-vs-kalman-theory/` (sweep_iso, sweep_dscale)
 - **Question:** On in-context regression whose weights drift (q per token, dimension d, noise σ²), how much lower is the Kalman filter's steady-state excess risk than that of the best-tuned gated delta rule (NLMS form)?
