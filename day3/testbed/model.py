@@ -8,6 +8,7 @@ makes fla's attention layer run on the GB10, where FlashAttention-3 has no
 sm_121 build: fla's Attention calls `flash_attn_func`, and we replace that
 module global with a wrapper around torch's scaled_dot_product_attention.
 """
+
 import torch
 import torch.nn.functional as F
 
@@ -62,8 +63,12 @@ def count_params(model) -> dict:
             emb += n
         elif "lm_head" in name:
             head += n
-    return {"body_M": (total - emb - head) / 1e6, "embed_M": emb / 1e6,
-            "head_M": head / 1e6, "total_M": total / 1e6}
+    return {
+        "body_M": (total - emb - head) / 1e6,
+        "embed_M": emb / 1e6,
+        "head_M": head / 1e6,
+        "total_M": total / 1e6,
+    }
 
 
 # ---------------------------- SDPA shim for fla's Attention ----------------------------
@@ -72,7 +77,9 @@ def _sdpa_flash_attn_func(q, k, v, causal=True, window_size=(-1, -1), **kwargs):
     assert tuple(window_size) == (-1, -1), "shim supports full causal attention only"
     assert not kwargs, f"unsupported kwargs: {list(kwargs)}"
     q, k, v = (x.transpose(1, 2) for x in (q, k, v))  # -> [B, H, T, D]
-    o = F.scaled_dot_product_attention(q, k, v, is_causal=causal, enable_gqa=(q.shape[1] != k.shape[1]))
+    o = F.scaled_dot_product_attention(
+        q, k, v, is_causal=causal, enable_gqa=(q.shape[1] != k.shape[1])
+    )
     return o.transpose(1, 2)  # -> [B, T, H, D]
 
 
@@ -83,10 +90,24 @@ def install_sdpa_shim():
     fla_attn.flash_attn_func = _sdpa_flash_attn_func  # looked up at call time, so patching the module global works
 
 
+class _SDPAFlashCtx:
+    """Reusable context pinning SDPA to Flash. torch's sdpa_kernel is a
+    @contextlib.contextmanager and can be entered only once, so we build a
+    fresh one on every __enter__."""
+
+    def __enter__(self):
+        from torch.nn.attention import SDPBackend, sdpa_kernel
+
+        self._cm = sdpa_kernel([SDPBackend.FLASH_ATTENTION])
+        return self._cm.__enter__()
+
+    def __exit__(self, *exc):
+        return self._cm.__exit__(*exc)
+
+
 def sdpa_ctx():
     """Context manager pinning SDPA to the Flash backend, the fastest on the GB10
     in the throughput benchmark (10-13% faster than cuDNN at every head count). Every forward pass in
-    training and evaluation runs inside this context so both use the same kernel."""
-    from torch.nn.attention import SDPBackend, sdpa_kernel
-
-    return sdpa_kernel([SDPBackend.FLASH_ATTENTION])
+    training and evaluation runs inside this context so both use the same kernel.
+    The returned object may be entered any number of times."""
+    return _SDPAFlashCtx()

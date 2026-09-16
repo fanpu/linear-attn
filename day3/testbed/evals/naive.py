@@ -4,6 +4,7 @@ This is the slow, unbatched version. It is the reference precisely because it
 performs the next-token shift by hand and so cannot inherit a mistake from the
 model's internal shift.
 """
+
 import torch
 
 
@@ -15,4 +16,13 @@ def ref_nll(model, val: torch.Tensor) -> float:
         nll    = logsumexp(logits) - logits[w[t + 1]]           (in fp32)
     Return the mean of the N * (T - 1) values.
     """
-    raise NotImplementedError
+
+    inputs = val[:, :-1]
+    logits = model(inputs).logits.float()
+
+    labels = val[:, 1:]
+    loss = torch.logsumexp(logits, dim=-1) - torch.gather(
+        logits, dim=-1, index=labels.unsqueeze(-1)
+    ).squeeze(-1)
+
+    return loss.mean().item()

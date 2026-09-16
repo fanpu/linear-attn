@@ -10,6 +10,10 @@ from __future__ import annotations
 import numpy as np
 import torch
 
+from testbed.analysis.seed_stats import seed_stats
+from testbed.evals.val_loss import evaluate
+from testbed.evals.naive import ref_nll
+from testbed.schedule import lr_at
 from testbed.data_check import check_disjoint
 
 
@@ -17,17 +21,17 @@ def run_lr_at(
     step: int, total_steps: int, peak_lr: float, warmup_frac: float, final_frac: float
 ) -> float:
     """Return the learning rate for batch `step` of a run of `total_steps` batches."""
-    raise NotImplementedError
+    return lr_at(step, total_steps, peak_lr, warmup_frac, final_frac)
 
 
 def run_evaluate(model, val: torch.Tensor, B: int, ctx) -> float:
     """Return the token-weighted mean next-token NLL over `val` in batches of B."""
-    raise NotImplementedError
+    return evaluate(model, val, B, ctx)
 
 
 def run_ref_nll(model, val: torch.Tensor) -> float:
     """Return the naive, unbatched mean next-token NLL over `val`."""
-    raise NotImplementedError
+    return ref_nll(model, val)
 
 
 def run_check_disjoint(train_shards: list[np.ndarray], val: np.ndarray, T: int) -> int:
@@ -37,4 +41,4 @@ def run_check_disjoint(train_shards: list[np.ndarray], val: np.ndarray, T: int) 
 
 def run_seed_stats(losses_by_size: dict[str, list[float]]) -> dict:
     """Return {"s_pooled", "nu", "lo", "hi", "mdd"} for the given final losses."""
-    raise NotImplementedError
+    return seed_stats(losses_by_size)
