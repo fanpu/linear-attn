@@ -28,10 +28,23 @@ SIZES = ["30M", "60M", "125M"]
 
 
 def read_run(d):
-    rows = [json.loads(l) for l in open(os.path.join(d, "metrics.jsonl")) if l.strip()]
+    # An unclean kill can leave NUL bytes where the last page was never written,
+    # and a resume from ckpt_latest.pt appends replayed steps; drop the NULs and
+    # keep the last row per step.
+    text = open(os.path.join(d, "metrics.jsonl"), "rb").read().replace(b"\x00", b"").decode()
+    rows, bad = [], 0
+    for l in text.splitlines():
+        if not l.strip():
+            continue
+        try:
+            rows.append(json.loads(l))
+        except json.JSONDecodeError:
+            bad += 1
+    if bad:
+        print(f"warning: {d}: skipped {bad} unparseable line(s)", file=sys.stderr)
     meta = next((r for r in rows if r.get("kind") == "meta"), {})
-    train = [r for r in rows if r.get("kind") == "train"]
-    ev = [r for r in rows if r.get("kind") == "eval"]
+    by_step = lambda kind: sorted({r["step"]: r for r in rows if r.get("kind") == kind}.values(), key=lambda r: r["step"])
+    train, ev = by_step("train"), by_step("eval")
     summ_path = os.path.join(d, "summary.json")
     summ = json.load(open(summ_path)) if os.path.exists(summ_path) else None
     return meta, train, ev, summ
