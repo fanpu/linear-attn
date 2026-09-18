@@ -3,7 +3,7 @@
   "run": "attn_d64_lr2.2e-03_s0",
   "mixer": "attn",
   "d_model": 64,
-  "num_heads": 2,
+  "num_heads": 1,
   "n_layers": 2,
   "lr": 0.00215,
   "seed": 0,

@@ -10,9 +10,10 @@ from __future__ import annotations
 import numpy as np
 import torch
 
-from testbed.evals import mqar_accuracy
+from testbed.ops.linear_attn.naive import naive_linear_attn
 from testbed.analysis.seed_stats import seed_stats
 from testbed.evals.val_loss import evaluate
+from testbed.evals.mqar_accuracy import mqar_accuracy
 from testbed.evals.naive import ref_nll
 from testbed.schedule import lr_at
 from testbed.data_check import check_disjoint
@@ -52,7 +53,7 @@ def run_naive_linear_attn(
     q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, scale: float | None
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Call your `testbed.ops.linear_attn.naive.naive_linear_attn` and return `(o, S)`."""
-    raise NotImplementedError
+    return naive_linear_attn(q, k, v, scale)
 
 
 def run_naive_delta_rule(
@@ -68,7 +69,7 @@ def run_naive_delta_rule(
 
 def run_mqar_accuracy(logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
     """Call your `testbed.evals.mqar_accuracy.mqar_accuracy` and return the `[B]` tensor."""
-    mqar_accuracy(logits, labels)
+    return mqar_accuracy(logits, labels)
 
 
 def run_state_elements(

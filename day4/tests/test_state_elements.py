@@ -5,7 +5,7 @@ from .adapters import run_state_elements
 
 
 @pytest.mark.parametrize("mixer,d,H,L,T,expect", [
-    ("attn", 64, 2, 2, 512, 131072),      # 2 layers x 2 x 512 x 64
+    ("attn", 64, 1, 2, 512, 131072),      # 2 layers x 2 x 512 x 64 (heads do not enter)
     ("attn", 128, 2, 2, 512, 262144),
     ("linattn", 64, 2, 2, 512, 4096),     # 2 layers x 2 heads x 32 x 32
     ("linattn", 128, 2, 2, 512, 16384),

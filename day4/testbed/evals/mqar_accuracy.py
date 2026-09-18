@@ -26,10 +26,12 @@ def mqar_accuracy(logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
             with label `-100` are excluded from both the numerator and the
             denominator; they are never counted as correct.
     """
+    predicted = logits.argmax(dim=-1, keepdim=False)
+    mask = labels != IGNORE_INDEX
 
-    mask = labels != -100  # [B, T]
-    pred = logits.argmax(dim=-1)  # [B, T]
-    correct = (pred == labels) & mask  # [B, T]
-    n_correct = correct.sum(dim=-1).to(torch.float32)  # [B]
-    n_labeled = mask.sum(dim=-1).to(torch.float32)  # [B]
-    return n_correct / n_labeled.clamp_min(1.0)
+    numerator = ((predicted == labels) & mask).sum(dim=-1)
+    denominator = mask.sum(dim=-1)
+
+    per_example_scores = numerator / denominator
+
+    return per_example_scores

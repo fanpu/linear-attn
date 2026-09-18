@@ -8,7 +8,7 @@ mixer = "attn"            # attn | linattn | deltanet | gdn
 [model]
 d_model = 64
 n_layers = 2
-num_heads = 2
+num_heads = 1                # Zoology Figure 2: one head for attention
 embed_dropout = 0.1       # Zoology: dropout on the embeddings
 attn_dropout = 0.1        # Zoology: dropout on the attention weights (attention only)
 

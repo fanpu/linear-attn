@@ -3,9 +3,11 @@
 after fla/ops/linear_attn/naive.py: the reference lives beside the fast op
 (`chunk.py`) and is the oracle the fast op is tested against.
 """
+
 from __future__ import annotations
 
 import torch
+from einops import einsum
 
 
 def naive_linear_attn(
@@ -34,4 +36,23 @@ def naive_linear_attn(
 
     The state and the arithmetic are fp32 regardless of the input dtype.
     """
-    raise NotImplementedError
+    B, T, H, K = q.shape
+    V = v.shape[-1]
+
+    S = torch.zeros((B, H, K, V), dtype=torch.float32, device=v.device)
+    o = torch.empty((B, T, H, V), dtype=v.dtype, device=v.device)
+
+    if scale is None:
+        scale = K**-0.5
+
+    for t in range(T):
+        q_t = scale * q[:, t].float()  # (B, H, K)
+        k_t = k[:, t].float()  # (B, H, K)
+        v_t = v[:, t].float()  # (B, H, V)
+
+        # (B, H, K, V)
+        S += einsum(k_t, v_t, "b h k, b h v -> b h k v")
+
+        o[:, t] = einsum(S, q_t, "b h k v, b h k -> b h v")
+
+    return (o, S)

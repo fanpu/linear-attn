@@ -57,11 +57,8 @@ class LinearAttention(nn.Module):
         k = F.silu(self.k_proj(x))
         v = F.silu(self.v_proj(x))
         q, k, v = (rearrange(t, "b t (h d) -> b t h d", d=self.head_dim) for t in (q, k, v))
-        # F.normalize is an autocast-to-fp32 op (it goes through linalg_vector_norm),
-        # so under bf16 autocast q and k come back fp32 while v stays bf16 and fla's
-        # kernels reject the mix. Normalize in fp32, hand the kernels one dtype.
-        q = F.normalize(q, p=2, dim=-1).to(v.dtype)
-        k = F.normalize(k, p=2, dim=-1).to(v.dtype)
+        q = F.normalize(q, p=2, dim=-1)
+        k = F.normalize(k, p=2, dim=-1)
 
         if self.rule == "additive":
             fn = linear_chunk.chunk_linear_attn if self.impl == "chunk" else linear_naive.naive_linear_attn
