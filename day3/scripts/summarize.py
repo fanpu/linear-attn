@@ -9,11 +9,12 @@
 Prints one row per run (size, seed, steps, tokens, final validation loss,
 median training tok/s, peak GB, hours), then per-size two-seed estimates and,
 via your seed_stats, the pooled seed standard deviation with its 80% range
-and the minimum detectable difference. Writes two figures next to --out:
-baselines_val.png, validation loss against training tokens (log x) with one
-curve per run, and baselines_train.png, training loss against tokens, plus
-_linear.png copies of both with a linear token axis starting at 0. Runs
-still in progress appear in the plots from their metrics.jsonl but not in the
+and the minimum detectable difference. Writes figures next to --out, all
+against training tokens (log x): baselines_train.png, training loss, and
+baselines_val.png, validation loss, one curve per run; baselines_lr.png, the
+logged learning rate, one curve per size; and baselines_all.png, the three
+stacked on one shared token axis. Each has a _linear.png copy with a linear
+token axis starting at 0. Runs still in progress appear in the plots from their metrics.jsonl but not in the
 statistics.
 """
 import argparse
@@ -99,35 +100,75 @@ def main():
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     stem = args.out[:-4] if args.out.endswith(".png") else args.out
-    f1, a1 = plt.subplots(figsize=(6.5, 4.5))
-    f2, a2 = plt.subplots(figsize=(6.5, 4.5))
     colors = {"30M": "C0", "60M": "C1", "125M": "C2"}
+
+    # learning rate as logged, one curve per size: seeds share the schedule, so draw
+    # the first run of each size and warn if another seed's schedule differs
+    lr_by_size = {}
     for name, meta, train, ev, summ in runs:
         size = meta.get("size", "?")
-        c = colors.get(size, "C3")
-        ls = "-" if meta.get("seed", 0) % 2 == 0 else "--"
-        if ev:
+        sched = [(r["tokens"], r["lr"]) for r in train if "lr" in r]
+        if not sched:
+            continue
+        if size not in lr_by_size:
+            lr_by_size[size] = (name, sched)
+            continue
+        ref_name, ref = lr_by_size[size]
+        common = dict(ref).keys() & dict(sched).keys()
+        if any(not math.isclose(dict(ref)[t], dict(sched)[t], rel_tol=1e-6) for t in common):
+            print(f"warning: {name} lr schedule differs from {ref_name}", file=sys.stderr)
+
+    def draw_train(a):
+        for name, meta, train, ev, summ in runs:
+            ls = "-" if meta.get("seed", 0) % 2 == 0 else "--"
+            if train:
+                a.plot([r["tokens"] for r in train], [r["loss"] for r in train], ls,
+                       color=colors.get(meta.get("size"), "C3"), alpha=0.6, lw=0.8, label=name)
+        a.set_ylabel("training loss (nats, mean over log interval)"); a.set_title("training loss")
+
+    def draw_val(a):
+        for name, meta, train, ev, summ in runs:
+            ls = "-" if meta.get("seed", 0) % 2 == 0 else "--"
             pts = [r for r in ev if r["step"] > 0]  # step 0 has no place on a log axis; it is in the table
-            a1.plot([r["tokens"] for r in pts], [r["val_loss"] for r in pts], ls, color=c, alpha=0.85, label=name)
-        if train:
-            a2.plot([r["tokens"] for r in train], [r["loss"] for r in train], ls, color=c, alpha=0.6, lw=0.8, label=name)
-    for a, t in ((a1, "validation loss (nats)"), (a2, "training loss (nats, mean over log interval)")):
-        a.set_xscale("log"); a.xaxis.set_minor_formatter(plt.NullFormatter()); a.set_xlabel("training tokens"); a.set_ylabel(t); a.grid(alpha=0.3); a.legend(fontsize=8)
-    a1.set_title("validation loss")
-    a2.set_title("training loss")
-    for f, suffix in ((f1, "val"), (f2, "train")):
-        out = f"{stem}_{suffix}.png"
+            if pts:
+                a.plot([r["tokens"] for r in pts], [r["val_loss"] for r in pts], ls,
+                       color=colors.get(meta.get("size"), "C3"), alpha=0.85, label=name)
+        a.set_ylabel("validation loss (nats)"); a.set_title("validation loss")
+
+    def draw_lr(a):
+        for size in sorted(lr_by_size, key=lambda k: SIZES.index(k) if k in SIZES else len(SIZES)):
+            name, sched = lr_by_size[size]
+            a.plot([t for t, _ in sched], [lr for _, lr in sched], color=colors.get(size, "C3"), lw=1.5, label=size)
+        a.set_ylim(bottom=0); a.set_ylabel("learning rate"); a.set_title("learning rate schedule")
+
+    def set_x(a, scale):
+        a.set_xscale(scale)
+        if scale == "log":
+            a.xaxis.set_minor_formatter(plt.NullFormatter())
+        else:
+            a.set_xlim(left=0)  # the gap before the first point is left visible
+
+    def save(f, out):
         f.tight_layout()
         f.savefig(out, dpi=130)
-        print(f"wrote {out}")
-    # same data on a linear token axis; the gap before the first point is left visible
-    for f, a, suffix in ((f1, a1, "val"), (f2, a2, "train")):
-        a.set_xscale("linear"); a.set_xlim(left=0)
-        out = f"{stem}_{suffix}_linear.png"
-        f.tight_layout()
-        f.savefig(out, dpi=130)
+        plt.close(f)
         print(f"wrote {out}")
 
+    panels = (("train", draw_train), ("val", draw_val), ("lr", draw_lr))
+    for scale, suffix in (("log", ""), ("linear", "_linear")):
+        # one figure per panel
+        for key, draw in panels:
+            f, a = plt.subplots(figsize=(6.5, 4.5))
+            draw(a); set_x(a, scale)
+            a.set_xlabel("training tokens"); a.grid(alpha=0.3); a.legend(fontsize=8)
+            save(f, f"{stem}_{key}{suffix}.png")
+        # all panels stacked on one shared token axis
+        f, axes = plt.subplots(len(panels), 1, figsize=(7, 11), sharex=True)
+        for a, (key, draw) in zip(axes, panels):
+            draw(a); a.grid(alpha=0.3); a.legend(fontsize=8)
+        set_x(axes[-1], scale)
+        axes[-1].set_xlabel("training tokens")
+        save(f, f"{stem}_all{suffix}.png")
 
 if __name__ == "__main__":
     main()
