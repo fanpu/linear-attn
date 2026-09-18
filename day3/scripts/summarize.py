@@ -9,10 +9,12 @@
 Prints one row per run (size, seed, steps, tokens, final validation loss,
 median training tok/s, peak GB, hours), then per-size two-seed estimates and,
 via your seed_stats, the pooled seed standard deviation with its 80% range
-and the minimum detectable difference. Writes experiments/day3_seed_variance/baselines.png: left,
-validation loss against training tokens (log x) with one curve per run; right,
-training loss against tokens. Runs still in progress appear in the plot from
-their metrics.jsonl but not in the statistics.
+and the minimum detectable difference. Writes two figures next to --out:
+baselines_val.png, validation loss against training tokens (log x) with one
+curve per run, and baselines_train.png, training loss against tokens, plus
+_linear.png copies of both with a linear token axis starting at 0. Runs
+still in progress appear in the plots from their metrics.jsonl but not in the
+statistics.
 """
 import argparse
 import glob
@@ -53,7 +55,8 @@ def read_run(d):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--runs", default="runs")
-    ap.add_argument("--out", default="experiments/day3_seed_variance/baselines.png")
+    ap.add_argument("--out", default="experiments/day3_seed_variance/baselines",
+                    help="output stem; writes <stem>_val.png and <stem>_train.png")
     args = ap.parse_args()
     dirs = sorted(d for d in glob.glob(os.path.join(args.runs, "*")) if os.path.exists(os.path.join(d, "metrics.jsonl")))
     if not dirs:
@@ -95,7 +98,9 @@ def main():
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    fig, (a1, a2) = plt.subplots(1, 2, figsize=(12, 4.5))
+    stem = args.out[:-4] if args.out.endswith(".png") else args.out
+    f1, a1 = plt.subplots(figsize=(6.5, 4.5))
+    f2, a2 = plt.subplots(figsize=(6.5, 4.5))
     colors = {"30M": "C0", "60M": "C1", "125M": "C2"}
     for name, meta, train, ev, summ in runs:
         size = meta.get("size", "?")
@@ -107,12 +112,21 @@ def main():
         if train:
             a2.plot([r["tokens"] for r in train], [r["loss"] for r in train], ls, color=c, alpha=0.6, lw=0.8, label=name)
     for a, t in ((a1, "validation loss (nats)"), (a2, "training loss (nats, mean over log interval)")):
-        a.set_xscale("log"); a.set_xlabel("training tokens"); a.set_ylabel(t); a.grid(alpha=0.3); a.legend(fontsize=8)
-    a1.set_title("validation loss, one curve per seed (solid = even seed, dashed = odd)")
+        a.set_xscale("log"); a.xaxis.set_minor_formatter(plt.NullFormatter()); a.set_xlabel("training tokens"); a.set_ylabel(t); a.grid(alpha=0.3); a.legend(fontsize=8)
+    a1.set_title("validation loss")
     a2.set_title("training loss")
-    fig.tight_layout()
-    fig.savefig(args.out, dpi=130)
-    print(f"wrote {args.out}")
+    for f, suffix in ((f1, "val"), (f2, "train")):
+        out = f"{stem}_{suffix}.png"
+        f.tight_layout()
+        f.savefig(out, dpi=130)
+        print(f"wrote {out}")
+    # same data on a linear token axis; the gap before the first point is left visible
+    for f, a, suffix in ((f1, a1, "val"), (f2, a2, "train")):
+        a.set_xscale("linear"); a.set_xlim(left=0)
+        out = f"{stem}_{suffix}_linear.png"
+        f.tight_layout()
+        f.savefig(out, dpi=130)
+        print(f"wrote {out}")
 
 
 if __name__ == "__main__":
