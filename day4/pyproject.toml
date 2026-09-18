@@ -1,0 +1,28 @@
+# after stanford-cs336/assignment1-basics pyproject.toml: uv-managed, pinned.
+[project]
+name = "testbed"
+version = "0.4.0"
+description = "Small-scale controlled testbed for linear-attention mixers on the DGX Spark (GB10)"
+requires-python = ">=3.12"
+dependencies = [
+    "torch==2.14.0",                      # +cu130 build on the GB10; the CPU build is enough for the tests
+    "flash-linear-attention==0.5.2",      # fla: the model classes (GPU only)
+    "numpy>=2.0",
+    "scipy>=1.13",
+    "matplotlib>=3.9",
+    "datasets>=3.0",                      # streaming download of FineWeb-Edu
+    "tiktoken>=0.8",                      # the GPT-2 tokenizer
+    "pytest>=8.0",
+    "einops>=0.8",                        # Day 4: tensor rearranges in the mixers
+    "tomli-w>=1.0",                       # Day 4: sweep.py writes one TOML per run
+]
+
+[tool.uv]
+package = true
+
+[tool.setuptools.packages.find]
+include = ["testbed*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["gpu: needs a CUDA device and fla's Triton kernels"]

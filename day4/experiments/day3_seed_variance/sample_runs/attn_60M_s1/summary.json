@@ -1,0 +1,20 @@
+{
+ "mixer": "attn",
+ "size": "60M",
+ "seed": 1,
+ "steps": 18310,
+ "tokens": 599982080,
+ "final_val_loss": 3.882,
+ "final_val_windows": 16384,
+ "train_tok_s_median": 53500,
+ "peak_mem_GB": 13.1,
+ "wall_h_this_process": 3.2120899374153167,
+ "complete": true,
+ "params_M": {
+  "body_M": 63.7,
+  "embed_M": 38.6,
+  "head_M": 38.6,
+  "total_M": 140.9
+ },
+ "synthetic": true
+}

@@ -1,0 +1,32 @@
+# Smoke preset (debugmodel): the easiest published MQAR setting, (64 tokens, 4 pairs), at d_model = 64.
+# torchtitan form: the flags of a run are this file. The learning rate here is
+# the base value; sweep.py writes one copy per learning rate into generated/.
+
+[run]
+mixer = "linattn"           # attn | linattn | deltanet | gdn
+
+[model]
+d_model = 64
+n_layers = 2
+num_heads = 2
+embed_dropout = 0.1       # Zoology: dropout on the embeddings
+attn_dropout = 0.1        # Zoology: dropout on the attention weights (attention only)
+
+[data]
+vocab_size = 8192
+input_seq_len = 64
+num_kv_pairs = 4
+num_train = 20000
+num_test = 3000
+power_a = 0.01
+random_non_queries = false
+data_seed = 123           # the same examples for every run of the day
+
+[training]
+max_epochs = 16
+batch_size = 256
+test_batch_size = 256
+lr = 2.15e-3
+weight_decay = 0.1
+early_stop_acc = 0.99     # stop after the first epoch whose test accuracy exceeds this
+precision = "bf16"

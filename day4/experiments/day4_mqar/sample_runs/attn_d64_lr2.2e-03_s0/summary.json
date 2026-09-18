@@ -1,0 +1,23 @@
+{
+  "synthetic": true,
+  "run": "attn_d64_lr2.2e-03_s0",
+  "mixer": "attn",
+  "d_model": 64,
+  "num_heads": 2,
+  "n_layers": 2,
+  "lr": 0.00215,
+  "seed": 0,
+  "input_seq_len": 512,
+  "num_kv_pairs": 64,
+  "state_elements": 131072,
+  "final_acc": 0.998,
+  "best_acc": 0.998,
+  "best_epoch": 3,
+  "epochs_run": 4,
+  "early_stopped": true,
+  "steps": 624,
+  "tok_s": 1200000.0,
+  "peak_mem_GB": 5.1,
+  "wall_s": 60.0,
+  "params": 2200000
+}

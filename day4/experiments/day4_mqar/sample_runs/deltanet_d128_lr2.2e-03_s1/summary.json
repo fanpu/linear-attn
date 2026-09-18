@@ -1,0 +1,23 @@
+{
+  "synthetic": true,
+  "run": "deltanet_d128_lr2.2e-03_s1",
+  "mixer": "deltanet",
+  "d_model": 128,
+  "num_heads": 2,
+  "n_layers": 2,
+  "lr": 0.00215,
+  "seed": 1,
+  "input_seq_len": 512,
+  "num_kv_pairs": 64,
+  "state_elements": 16384,
+  "final_acc": 0.82,
+  "best_acc": 0.82,
+  "best_epoch": 31,
+  "epochs_run": 32,
+  "early_stopped": false,
+  "steps": 4992,
+  "tok_s": 1200000.0,
+  "peak_mem_GB": 5.1,
+  "wall_s": 480.0,
+  "params": 2200000
+}
