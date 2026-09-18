@@ -4,9 +4,11 @@ after fla/ops/delta_rule/naive.py. Note the layout: fla's own naive file uses
 `[B, H, T, D]`; this one uses `[B, T, H, D]`, the layout of the chunked op
 it is tested against, so that no transpose sits between the two.
 """
+
 from __future__ import annotations
 
 import torch
+from einops import einsum
 
 
 def naive_delta_rule(
@@ -40,4 +42,26 @@ def naive_delta_rule(
         o: `[B, T, H, V]` in the dtype of `v`.
         S: `[B, H, K, V]` in fp32, the final state.
     """
-    raise NotImplementedError
+    B, T, H, K = q.shape
+    V = v.shape[-1]
+
+    if scale is None:
+        scale = K**-0.5
+
+    S = torch.zeros((B, H, K, V), dtype=torch.float32, device=v.device)
+    o = torch.empty((B, T, H, V), dtype=v.dtype, device=v.device)
+
+    for t in range(T):
+        q_t = q[:, t].float()
+        k_t = k[:, t].float()
+        v_t = v[:, t].float()
+
+        S_update = einsum(
+            (v_t - einsum(S, k_t, "b h k v, b h k -> b h v")),
+            k_t,
+            "b h v, b h k -> b h k v",
+        )
+        S += einsum(beta[:, t].float(), S_update, "b h, b h k v -> b h k v")
+        o[:, t] = einsum(S, scale * q_t, "b h k v, b h k -> b h v")
+
+    return (o, S)

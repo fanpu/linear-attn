@@ -10,6 +10,7 @@ from __future__ import annotations
 import numpy as np
 import torch
 
+from testbed.ops.delta_rule.naive import naive_delta_rule
 from testbed.ops.linear_attn.naive import naive_linear_attn
 from testbed.analysis.seed_stats import seed_stats
 from testbed.evals.val_loss import evaluate
@@ -64,7 +65,7 @@ def run_naive_delta_rule(
     scale: float | None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Call your `testbed.ops.delta_rule.naive.naive_delta_rule` and return `(o, S)`."""
-    raise NotImplementedError
+    return naive_delta_rule(q, k, v, beta, scale)
 
 
 def run_mqar_accuracy(logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
