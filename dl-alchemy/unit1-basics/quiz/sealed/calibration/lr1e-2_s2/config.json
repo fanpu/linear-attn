@@ -1,0 +1,39 @@
+{
+ "model": {
+  "vocab_size": 8192,
+  "depth": 8,
+  "width": 256,
+  "head_dim": 64,
+  "mlp_ratio": 4,
+  "context": 512
+ },
+ "train": {
+  "data_dir": "data/fineweb_edu_bpe8k",
+  "tokens": 120000000,
+  "batch_seqs": 64,
+  "micro_batch_seqs": 64,
+  "lr": 0.01,
+  "warmup_steps": 100,
+  "schedule": "cosine",
+  "final_frac": 0.1,
+  "sched_total_steps": 0,
+  "cooldown_frac": 0.2,
+  "cooldown_shape": "linear",
+  "weight_decay": 0.1,
+  "wd_independent": false,
+  "beta1": 0.9,
+  "beta2": 0.95,
+  "eps": 1e-08,
+  "clip": 1.0,
+  "seed": 2,
+  "seed_data": -1,
+  "eval_every": 250,
+  "eval_windows": 4096,
+  "final_eval_windows": 16384,
+  "eval_batch_seqs": 64,
+  "norms_every": 50,
+  "ckpt_every": 500,
+  "compile": true,
+  "mem_fraction": 0.25
+ }
+}

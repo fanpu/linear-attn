@@ -1,0 +1,18 @@
+{
+ "final_val_loss": 3.783343463204801,
+ "diverged_at": null,
+ "steps": 3662,
+ "tokens": 119996416,
+ "clip_rate": 0.005188421627525942,
+ "tokens_per_s": 95335.0772057736,
+ "wall_s": 1261.372218132019,
+ "peak_mem_GB": 6.44294656,
+ "flops_total": 6797518574714880,
+ "params_body": 6295552,
+ "params_embed": 2228224,
+ "params_head": 2097152,
+ "flops_per_token_body": 37773312,
+ "flops_per_token_head": 12582912,
+ "flops_per_token_attn": 6291456,
+ "flops_per_token_total": 56647680
+}

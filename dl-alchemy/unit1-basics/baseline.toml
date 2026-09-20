@@ -1,0 +1,24 @@
+# Unit 1 baseline. Every quiz diff and every experiment config is a change to this file.
+[model]
+vocab_size = 8192        # byte-level BPE trained on FineWeb-Edu (alchemy/retokenize.py); GPT-2's 50k made the head 55% of FLOPs
+depth = 8                # CS 312
+width = 256              # 4 heads; ~6.3M body + 2.1M head parameters. Chosen from measured throughput (see STATE.md)
+head_dim = 64
+mlp_ratio = 4
+context = 512
+
+[train]
+data_dir = "data/fineweb_edu_bpe8k"
+tokens = 120_000_000     # ~19 tokens per body parameter
+batch_seqs = 64          # 32,768 tokens per step, ~3,660 steps
+micro_batch_seqs = 64
+lr = 1e-3                # overridden by the LR grid; calibration picks the baseline value
+warmup_steps = 100
+schedule = "cosine"
+final_frac = 0.1
+weight_decay = 0.1
+beta1 = 0.9
+beta2 = 0.95
+eps = 1e-8
+clip = 1.0
+seed = 0

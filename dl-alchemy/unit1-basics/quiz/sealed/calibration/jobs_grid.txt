@@ -1,0 +1,6 @@
+unit1-basics/quiz/sealed/calibration/lr1e-4_s0 unit1-basics/baseline.toml train.lr=1e-4 train.seed=0
+unit1-basics/quiz/sealed/calibration/lr3e-4_s0 unit1-basics/baseline.toml train.lr=3e-4 train.seed=0
+unit1-basics/quiz/sealed/calibration/lr1e-3_s0 unit1-basics/baseline.toml train.lr=1e-3 train.seed=0
+unit1-basics/quiz/sealed/calibration/lr3e-3_s0 unit1-basics/baseline.toml train.lr=3e-3 train.seed=0
+unit1-basics/quiz/sealed/calibration/lr1e-2_s0 unit1-basics/baseline.toml train.lr=1e-2 train.seed=0
+unit1-basics/quiz/sealed/calibration/lr3e-2_s0 unit1-basics/baseline.toml train.lr=3e-2 train.seed=0

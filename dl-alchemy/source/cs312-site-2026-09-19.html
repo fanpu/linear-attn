@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stanford CS 312 | Deep Learning Alchemy</title>
+    <meta
+      name="description"
+      content="Official course website for Stanford CS 312: Deep Learning Alchemy (Fall 2026), including logistics, schedule, assignments, and course materials."
+    />
+    <meta
+      name="robots"
+      content="index,follow,max-snippet:-1,max-image-preview:large,max-video-preview:-1"
+    />
+    <meta name="author" content="Stanford CS 312 Staff" />
+    <meta name="google-site-verification" content="wiOvonGE569wp-Qd1SQpCtJ5oDwH_4TUadY4_-77ur4" />
+    <link rel="canonical" href="https://cs312.stanford.edu/" />
+    <link rel="icon" type="image/png" href="/assets/images/alchemy_mock.png" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:type" content="website" />
+    <meta
+      property="og:title"
+      content="Stanford CS 312 | Deep Learning Alchemy"
+    />
+    <meta
+      property="og:description"
+      content="Official course website for Stanford CS 312: Deep Learning Alchemy (Fall 2026), including logistics, schedule, assignments, and course materials."
+    />
+    <meta property="og:url" content="https://cs312.stanford.edu/" />
+    <meta property="og:site_name" content="Stanford CS 312" />
+    <meta name="twitter:card" content="summary" />
+    <meta
+      name="twitter:title"
+      content="Stanford CS 312 | Deep Learning Alchemy"
+    />
+    <meta
+      name="twitter:description"
+      content="Official course website for Stanford CS 312: Deep Learning Alchemy (Fall 2026), including logistics, schedule, assignments, and course materials."
+    />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Course",
+        "name": "CS 312: Deep Learning Alchemy",
+        "courseCode": "CS 312",
+        "description": "Stanford course focused on mastering the empirical phenomena and experimental skills involved in deep neural networks.",
+        "provider": {
+          "@type": "CollegeOrUniversity",
+          "name": "Stanford University",
+          "url": "https://www.stanford.edu"
+        },
+        "url": "https://cs312.stanford.edu/",
+        "inLanguage": "en"
+      }
+    </script>
+    <style>
+      #shuffle-container {
+        visibility: hidden;
+      }
+      /* #previous-offerings[hidden] {
+        display: none;
+      } */
+    </style>
+    <noscript
+      ><style>
+        #shuffle-container {
+          visibility: visible;
+        }
+      </style></noscript
+    >
+    <script>
+      // Shuffle instructors and CAs within their role groups
+      document.addEventListener("DOMContentLoaded", () => {
+        const container = document.getElementById("shuffle-container");
+        if (container) {
+          const children = Array.from(container.children);
+
+          const shuffle = (items) => {
+            const copy = [...items];
+            for (let i = copy.length - 1; i > 0; i -= 1) {
+              const j = Math.floor(Math.random() * (i + 1));
+              if (i !== j) {
+                [copy[i], copy[j]] = [copy[j], copy[i]];
+              }
+            }
+            return copy;
+          };
+
+          container.replaceChildren(
+            ...shuffle(children.slice(0, 2)),
+            ...shuffle(children.slice(2)),
+          );
+          container.style.visibility = "visible";
+        }
+
+        /* const offeringsToggle = document.getElementById(
+          "toggle-previous-offerings",
+        );
+        const offeringsList = document.getElementById("previous-offerings");
+        if (offeringsToggle && offeringsList) {
+          offeringsToggle.addEventListener("click", () => {
+            const isHidden = offeringsList.hasAttribute("hidden");
+            if (isHidden) {
+              offeringsList.removeAttribute("hidden");
+              offeringsList.setAttribute("aria-hidden", "false");
+              offeringsToggle.setAttribute("aria-expanded", "true");
+            } else {
+              offeringsList.setAttribute("hidden", "");
+              offeringsList.setAttribute("aria-hidden", "true");
+              offeringsToggle.setAttribute("aria-expanded", "false");
+            }
+          });
+        } */
+      });
+    </script>
+    <!-- bootstrap -->
+    <link
+      rel="stylesheet"
+      href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css"
+    />
+    <link rel="stylesheet" type="text/css" href="style.css" />
+    <link
+      rel="stylesheet"
+      href="https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css"
+    />
+  </head>
+  <body>
+    <nav class="navbar navbar-default navbar-fixed-top">
+      <div class="container">
+        <div class="navbar-header">
+          <a class="navbar-brand brand" href="/">
+            <img
+              class="brand-icon"
+              src="/assets/images/alchemy_mock.png"
+              alt=""
+              width="28"
+              height="28"
+            />
+            <span>CS 312</span>
+          </a>
+        </div>
+      </div>
+    </nav>
+    <main id="main-content">
+    <div id="header" style="text-align: center">
+      <h1>CS 312: Deep Learning Alchemy</h1>
+      <p class="term-line">
+        Stanford / Fall 2026
+        <!-- Previous offerings temporarily hidden.
+        <span
+          style="
+            position: relative;
+            font-weight: 300;
+            font-size: 16px;
+            margin-left: 6px;
+          "
+          >(<button
+            id="toggle-previous-offerings"
+            type="button"
+            aria-controls="previous-offerings"
+            aria-expanded="false"
+            style="
+              color: #7030A0;
+              text-decoration: underline;
+              background: none;
+              border: 0;
+              padding: 0;
+              font: inherit;
+              line-height: inherit;
+              cursor: pointer;
+            "
+          >
+            previous offerings</button
+          >)
+          <span
+            id="previous-offerings"
+            hidden
+            aria-hidden="true"
+            style="
+              position: absolute;
+              left: 50%;
+              transform: translateX(-50%);
+              top: 100%;
+              background: #fff;
+              border: 1px solid #ccc;
+              border-radius: 4px;
+              padding: 4px 12px;
+              font-size: 16px;
+              font-weight: 300;
+              white-space: nowrap;
+              box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+              z-index: 100;
+            "
+          >
+            <a href="/spring2025/" style="color: #7030A0">Spring 2025</a> |
+            <a href="/spring2024/" style="color: #7030A0">Spring 2024</a>
+          </span>
+        </span>
+        -->
+      </p>
+      <!-- Previous offerings temporarily hidden.
+      <noscript>
+        <p
+          style="
+            text-align: center;
+            margin-top: 6px;
+            margin-bottom: 0;
+            font-size: 16px;
+          "
+        >
+          Previous offerings: <a href="/spring2025/">Spring 2025</a> |
+          <a href="/spring2024/">Spring 2024</a>
+        </p>
+      </noscript>
+      -->
+    </div>
+    <!-- Intro -->
+    <section class="container enrollment-announcement" aria-label="Enrollment announcement">
+      <p>
+        At this time, the class has reached full enrollment and we have
+        recently opened a waitlist. The instructors are currently not
+        processing any special requests for enrollment.
+      </p>
+      <p>
+        If you are having technical issues enrolling in the waitlist, some students have suggested the following procedure: (1) Add CS 312 to your planned classes (2) Go to Axess and go to 'My Academics -> Enroll in classes -> Enroll (alternate)' to add yourself to the waitlist. Sorry for the inconvenience.
+      </p>
+    </section>
+    <!-- Staff Info -->
+    <div class="container sec" id="people">
+      <!-- <div class="row"> -->
+      <div class="col">
+        <h2>Course Staff</h2>
+        <div id="shuffle-container">
+          <div class="instructor">
+            <a href="https://thashim.github.io/">
+              <div class="instructorphoto">
+                <picture>
+                  <source srcset="/assets/images/thashim.webp" type="image/webp" />
+                  <img
+                    src="/assets/images/thashim.jpeg"
+                    alt="Tatsunori Hashimoto headshot"
+                    width="120"
+                    height="120"
+                  />
+                </picture>
+              </div>
+              <div>Tatsunori Hashimoto</div>
+            </a>
+            <div>Instructor</div>
+          </div>
+          <div class="instructor">
+            <a href="https://kothasuhas.github.io/">
+              <div class="instructorphoto">
+                <picture>
+                  <img
+                    src="/assets/images/suhas.jpg"
+                    alt="Suhas Kotha headshot"
+                    width="120"
+                    height="120"
+                  />
+                </picture>
+              </div>
+              <div>Suhas Kotha</div>
+            </a>
+            <div>Instructor</div>
+          </div>
+          <div class="instructor">
+            <a href="https://whenwen.github.io/">
+              <div class="instructorphoto">
+                <img
+                  src="/assets/images/kaiyue.jpg"
+                  alt="Kaiyue Wen headshot"
+                  width="120"
+                  height="120"
+                />
+              </div>
+              <div>Kaiyue Wen</div>
+            </a>
+            <div>CA</div>
+          </div>
+          <div class="instructor">
+            <a href="https://tristanthrush.com/">
+              <div class="instructorphoto">
+                <img
+                  src="/assets/images/tristan.png"
+                  alt="Tristan Thrush headshot"
+                  width="120"
+                  height="120"
+                />
+              </div>
+              <div>Tristan Thrush</div>
+            </a>
+            <div>CA</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Logistics -->
+    <div class="sechighlight">
+      <div class="container sec" id="logistics">
+        <h2>Logistics</h2>
+        <ul>
+          <li>
+            <b>Lectures:</b> Tues/Thurs, 1:30-2:50pm in
+            CoDa B90
+          </li>
+          <li>
+            <b>Recordings:</b> TBA (All recordings and class materials will be made public)
+          </li>
+          <!-- <li>
+            <b>Contact:</b> TBA
+          </li> -->
+        </ul>
+      </div>
+    </div>
+    <!-- Content -->
+    <div class="container sec" id="content">
+      <h2>Content</h2>
+      <h3>What is this course about?</h3>
+      <p>
+        Deep learning is now the foundation of all of machine learning and AI,
+        making it more important than ever for students to obtain mastery of the
+        empirical phenomena and experimental skills involved in deep neural
+        networks. How can students acquire the skills necessary to invent the
+        next generation of architectures or develop new broad theories of how
+        deep learning works? This course takes the stance that knowledge or math
+        abilities alone are not enough, and there is no substitute to getting
+        your hands dirty and running many, many experiments. To this end, we
+        will work through computationally tractable domains and take
+        students through the process of obtaining mastery in this domain through
+        efficient experimentation and experiment outcome prediction. The class will alternate between assignments (where students run experiments to understand deep learning phenomena), quizzes (where students are tested for their ability to predict held-out experiment outcomes), lectures, and tutorials.
+      </p>
+      <h3>Prerequisites</h3>
+      <p>
+        <b>Note:</b> This is a 5-unit class. It will require running a lot of experiments and taking seven difficult quizzes, and we don't intend to apply inflated grading curves. Please make a well-informed decision if you have the appropriate background and time to take this class.
+      </p>
+      <ul>
+        <li><b>Machine learning:</b> This class is a non-standard introduction to deep learning. Since we want to spend more time teaching experiment design and deep learning intuition, we will spend little time explaining precise details that other deep learning classes cover (e.g. backpropagation rules, efficient implementations, etc.). Therefore, it will be helpful to have familiarity with deep learning prior to enrolling (via courses such as CS 221, CS 229, CS 230, CS 124, CS 224N). Nonetheless, all the assignments are self-contained and we are particularly excited for this course to be a first introduction for students with no deep learning background (though it will require more work at the start of the course).</li>
+        <li><b>Math:</b> Students should be familiar with college calculus and linear algebra (e.g. MATH 51, CME 100) and basic probability/statistics (e.g. CS 109 or equivalent).</li>
+        <li><b>Programming:</b> All class assignments and quizzes will be in Python. Since we will provide scaffolding and support AI usage for assignments, it is not critical to be skilled at implementation. However, quizzes will assume understanding of the provided codebase and any short implementation diffs. </li>
+      </ul>
+    </div>
+    <!-- Coursework -->
+    <!-- Note the margin-top:-20px and the <br> serve to make the #coursework hyperlink display correctly (with the h2 header visible) -->
+    <div class="sechighlight">
+      <div class="container sec" id="coursework" style="margin-top: -20px">
+        <br />
+        <h2>Coursework</h2>
+        <h3>Structure</h3>
+        <p>The goal of this class is to develop human intuition for the variety of strange deep learning phenomena that exist in the real world. Our two core beliefs are:</p>
+        <ul>
+          <li><b>Alchemy is learned by hand:</b> Deep learning has many mysteries and surprises that are not well understood by the best researchers, let alone deep learning classes. As such, many classes teach mental models that are not supported by an empiricist's experience (e.g. classic bias-variance tradeoff disagrees with the current scaling era). This class will teach students how to design clean experiments that enable them to build intuition for themselves.</li>
+          <li><b>Prediction is understanding:</b> To build a scientific understanding is to be able to predict the outcome of an experiment before running it. Therefore, this class assesses human understanding via quizzes where students have to predict experiment outcomes.</li>
+        </ul>
+        <p>In this class, students will alternate between running experiments to understand a given unit (e.g. architecture stability) and taking quizzes testing their understanding. Course staff will support student learning with lectures on each unit and tutorials for interactive discussion.</p>
+        <details class="large-content-dropdown example-schedule-dropdown">
+          <summary>Example schedule</summary>
+          <ul>
+            <li>
+            At the introductory meeting and after each quiz: The assignment for the next unit is released
+            <ul>
+              <li>The assignment scopes out empirical phenomena that students will best understand through designing clean experiments.</li>
+              <li>Students will eventually submit a report with plots/tables explaining the experiments they ran.</li>
+            </ul>
+            </li>
+            <li>One or two class meetings: Lectures explain common intuitions for the unit</li>
+            <li>
+            Once a week: 30 minute tutorial
+            <ul>
+              <li>Every week, each student is required to meet with three other students and one course staff for 30 minutes.</li>
+              <li>During this session, the instructor will ask questions about what experiments each student is running as well as cover practice problems that will help for the quiz. This time can also serve as group office hours.</li>
+              <li>Students will receive a full grade given active participation.</li>
+            </ul>
+            </li>
+            <li>
+            The day before the quiz: Student reports are due
+            <ul>
+              <li>Note that the assignment is not graded and is only useful for partial credit on the quiz.</li>
+              <li>The reports may inspire questions that appear on the quiz.</li>
+            </ul>
+            </li>
+            <li>
+            At the end of the unit: A 40-minute experiment prediction quiz is administered
+            <ul>
+              <li>Each quiz question will correspond to a thematic held-out experiment run by the instructors. The student will be given a description of the experiment (including code diff) and asked to predict the outcome of the experiment.</li>
+              <li>Quiz questions will span easy, medium, and hard difficulty depending on how much extrapolation they require from the assignment suggestions.</li>
+              <li>During this quiz, students will not be allowed to refer to any external resources including their report. Students can cite their report in the quiz and can receive partial credit if their reasoning appears sound.</li>
+              <li>Immediately after the quiz, the instructors will cover the answers and discuss mental models with the class.</li>
+            </ul>
+            </li>
+          </ul>
+        </details>
+        <details class="large-content-dropdown example-problems-dropdown">
+          <summary>Example problem and questions</summary>
+          <div class="table-responsive">
+            <table class="table table-bordered example-problems-table">
+            <colgroup>
+              <col style="width: 50%" />
+              <col style="width: 50%" />
+            </colgroup>
+            <tbody>
+              <tr>
+                <td><b>Example Assignment Problem</b>: Start from the baseline depth 8 transformer that we pre-train on 614M tokens. This transformer (implementation provided below) features multiple components such as prenorm, attention, MLP, residuals, and positional embeddings. In this problem, we want to understand how much each component improves loss. Explore the following directions.
+                <ol type="a">
+                  <li>Perform leave-one-out ablations on the role of each component in our current model.</li>
+                  <li>...</li>
+                  <li>...</li>
+                  <li>Understand the role of the residual connection. Can you come up with different schemes that improve the loss benefit of the residual connection?</li>
+                </ol>
+                <details class="example-code-dropdown relevant-code">
+                  <summary>Relevant code snippet</summary>
+                  <pre><code>class Block(nn.Module):
+    def __init__(self, width, ...):
+        super().__init__()
+        self.attn_norm = RMSNorm(width)
+        self.attn = Attention(width, ...)
+        self.mlp_norm = RMSNorm(width)
+        self.mlp = MLP(width, ...)
+
+    def update(self, x):
+        attn = self.attn(self.attn_norm(x))
+        mlp = self.mlp(self.mlp_norm(x + attn))
+        return attn + mlp
+
+    def forward(self, x):
+        return x + self.update(x)
+
+
+class Transformer(nn.Module):
+    def __init__(self, vocab_size, depth=8, ...):
+        super().__init__()
+        self.token_embed = nn.Embedding(vocab_size, ...)
+        self.position_embed = nn.Embedding(...)
+        self.blocks = nn.ModuleList(
+            [Block(...) for _ in range(depth)]
+        )
+        self.final_norm = RMSNorm(...)
+        self.lm_head = nn.Linear(..., vocab_size)
+
+    def forward(self, tokens):
+        positions = torch.arange(
+            tokens.size(1), device=tokens.device
+        )
+        x = self.token_embed(tokens)
+        x = x + self.position_embed(positions)
+        for block in self.blocks:
+            x = block(x)
+        return self.lm_head(self.final_norm(x))</code></pre>
+                </details>
+                </td>
+                <td>
+                  <b>Example Quiz Question (Difficulty Easy)</b>: We train each of the following depth-8 transformer variants using the same training recipe and hyperparameters. Rank the variants from lowest to highest final validation loss. Use &lt;, &gt;, or = between the letters; use = when the losses are within 0.01.
+                  <ol type="A">
+                    <li>Baseline</li>
+                    <li>No prenorm</li>
+                    <li>No residual</li>
+                    <li>No MLP</li>
+                    <li>No attention</li>
+                    <li>No positional embeddings</li>
+                  </ol>
+                  <details class="example-code-dropdown question-diff">
+                    <summary>No prenorm diff</summary>
+                    <pre><code><span class="diff-context">@@ -10,4 +10,4 @@ class Block.update</span>
+<span class="diff-context"> def update(self, x):</span>
+<span class="diff-remove">-    attn = self.attn(self.attn_norm(x))</span>
+<span class="diff-add">+    attn = self.attn(x)</span>
+<span class="diff-remove">-    mlp = self.mlp(self.mlp_norm(x + attn))</span>
+<span class="diff-add">+    mlp = self.mlp(x + attn)</span>
+<span class="diff-context">     return attn + mlp</span></code></pre>
+                  </details>
+                  <details class="example-code-dropdown question-diff">
+                    <summary>No residual diff</summary>
+                    <pre><code><span class="diff-context">@@ -16,2 +16,2 @@ class Block.forward</span>
+<span class="diff-context"> def forward(self, x):</span>
+<span class="diff-remove">-    return x + self.update(x)</span>
+<span class="diff-add">+    return self.update(x)</span></code></pre>
+                  </details>
+                  <details class="example-code-dropdown question-diff">
+                    <summary>No MLP diff</summary>
+                    <pre><code><span class="diff-context">@@ -10,4 +10,3 @@ class Block.update</span>
+<span class="diff-context"> def update(self, x):</span>
+<span class="diff-context">     attn = self.attn(self.attn_norm(x))</span>
+<span class="diff-remove">-    mlp = self.mlp(self.mlp_norm(x + attn))</span>
+<span class="diff-remove">-    return attn + mlp</span>
+<span class="diff-add">+    return attn</span></code></pre>
+                  </details>
+                  <details class="example-code-dropdown question-diff">
+                    <summary>No attention diff</summary>
+                    <pre><code><span class="diff-context">@@ -10,4 +10,3 @@ class Block.update</span>
+<span class="diff-context"> def update(self, x):</span>
+<span class="diff-remove">-    attn = self.attn(self.attn_norm(x))</span>
+<span class="diff-remove">-    mlp = self.mlp(self.mlp_norm(x + attn))</span>
+<span class="diff-remove">-    return attn + mlp</span>
+<span class="diff-add">+    mlp = self.mlp(self.mlp_norm(x))</span>
+<span class="diff-add">+    return mlp</span></code></pre>
+                  </details>
+                  <details class="example-code-dropdown question-diff">
+                    <summary>No positional embeddings diff</summary>
+                    <pre><code><span class="diff-context">@@ -22,2 +22,1 @@ Transformer.__init__</span>
+<span class="diff-context">         self.token_embed = nn.Embedding(vocab_size, ...)</span>
+<span class="diff-remove">-        self.position_embed = nn.Embedding(...)</span>
+<span class="diff-context">@@ -30,8 +29,4 @@ Transformer.forward</span>
+<span class="diff-context">     def forward(self, tokens):</span>
+<span class="diff-remove">-        positions = torch.arange(</span>
+<span class="diff-remove">-            tokens.size(1), device=tokens.device</span>
+<span class="diff-remove">-        )</span>
+<span class="diff-context">         x = self.token_embed(tokens)</span>
+<span class="diff-remove">-        x = x + self.position_embed(positions)</span>
+<span class="diff-context">         for block in self.blocks:</span>
+<span class="diff-context">             x = block(x)</span></code></pre>
+                  </details>
+                  <br>
+                  <b>Example Quiz Question (Difficulty Hard)</b>: We train the default 8 layer transformer as well as a variant where instead of having the residual connection come from the previous layer, we take 0.5 contribution from the previous layer and 0.5 contribution from two layers before (except for the first layer). For each method, we take the best loss over six learning rates {10<sup>&minus;4</sup>, 3 &times; 10<sup>&minus;4</sup>, 10<sup>&minus;3</sup>, 3 &times; 10<sup>&minus;3</sup>, 10<sup>&minus;2</sup>, 3 &times; 10<sup>&minus;2</sup>}. What is your prediction of the loss difference between each method (<i>L<sub>mixed residual</sub></i> &minus; <i>L<sub>default</sub></i>)?
+                  <details class="example-code-dropdown question-diff">
+                    <summary>Core diff</summary>
+                    <pre><code><span class="diff-context">@@ -34,3 +34,9 @@ Transformer.forward</span>
+<span class="diff-context"> x_two_back = None</span>
+<span class="diff-context"> for i, block in enumerate(self.blocks):</span>
+<span class="diff-remove">-    x = block(x)</span>
+<span class="diff-add">+    update = block.update(x)</span>
+<span class="diff-add">+    residual = (</span>
+<span class="diff-add">+        x if i == 0</span>
+<span class="diff-add">+        else 0.5 * x + 0.5 * x_two_back</span>
+<span class="diff-add">+    )</span>
+<span class="diff-add">+    x_two_back, x = x, residual + update</span></code></pre>
+                  <br>
+                  <p><i>Note: both of these questions are hard, do not get discouraged if you do not have intuition for them without running experiments from the assignment!</i></p>
+                  </details>
+                </td>
+              </tr>
+            </tbody>
+            </table>
+          </div>
+        </details>
+        <h3>Assignments</h3>
+        <p><i>Current assignment topics are tentative.</i> Assignments 1 through 4 will study language model pre-training at a small scale reflective of larger-scale phenomena. Assignments 5 through 7 will switch to DNA.</p>
+        <ol>
+          <li>Basics: Hyperparameter tuning and scaling</li>
+          <li>Optimization 1: Hyperparameter invariants</li>
+          <li>Optimization 2: Sharp and flat basins</li>
+          <li>Architecture 1: Extending model capacity</li>
+          <li>Architecture 2: Stability across depth/time</li>
+          <li>Generalization: Data-efficient algorithms</li>
+          <li>Exotic: ???</li>
+        </ol>
+        All (currently tentative) deadlines are listed in the
+        <a href="#schedule">schedule</a>.
+
+        <h3>Grading</h3>
+
+        <ul>
+          <li><b>15%</b> will come from tutorial participation (with 2 permitted absences)</li>
+          <li><b>85%</b> will come from quizzes (with 2 drops out of 7 quizzes)</li>
+          <li><b>0%</b> will come from assignments (except for their use as partial credit when cited in a quiz)</li>
+        </ul>
+
+        <p>Attendance is <b>mandatory</b> on quiz and tutorial sessions. There will be no rescheduling or make-up opportunities except for those covered by accommodations. </p>
+
+        <h3>Honor code</h3>
+        Like all other classes at Stanford, we take the student
+        <a href="https://ed.stanford.edu/academics/masters-handbook/honor-code"
+          >Honor Code</a
+        >
+        seriously. Please respect the following policies:
+        <ul>
+          <li>
+            <b>Collaboration</b>: We encourage students to discuss experiment ideas with each other over the week and at tutorial. However, since we believe that running experiments confers deeper understanding, we require all submitted experiments to be run by the student. If you discussed experiments with anyone, please put their names at the top of your assignment.
+          </li>
+          <li>
+            <b>AI tools</b>: We view assignments as instrumental to improving human understanding. Therefore, we support AI usage on assignments for implementation, visualization, mock quizzes, etc. However, since grades will be primarily determined by quiz performance, we encourage students to be thoughtful about what AI usage enhances their ability to digest phenomena (as measured by their ability to predict experiment outcomes).
+          </li>
+        </ul>
+
+        <h3>Submitting coursework</h3>
+        <ul>
+          <li>
+            All coursework is submitted via Gradescope by the deadline (not by email). You can submit as many times as you'd like until the deadline: we will only grade the last submission.
+          </li>
+          <li>
+            Since assignment reports are not necessary to take the quiz, we will not accept <i>any</i> late reports.
+          </li>
+          <li>
+            If you believe that the course staff (and their models) made an objective error in
+          grading, you may submit a regrade request on Gradescope within 3 days
+          after the grades are released.
+          </li>
+        </ul>
+        <h3>GPU compute for self-study</h3>
+
+        <p>If you are following along at home, you can access GPU compute from a cloud provider to complete the assignments.</p>
+
+        <p>Here are a few options (public pricing for a single B200 GPU on March 28, 2026):</p>
+
+        <ul>
+            <li><a href="https://modal.com">Modal</a>: <b>$6.25/hour</b>. Offers $30 of free monthly compute. You are only charged for actual compute (no idle resources) and their UX makes switching between local dev and
+          large-scale gpu experiments simple. (<a href="https://modal.com/pricing">Modal Pricing</a>)</li>
+            <li><a href="https://lambda.ai">Lambda Labs</a>: <b>$6.69/hour</b> (<a href="https://lambda.ai/pricing">Lambda Pricing</a>)</li>
+            <li><a href="https://www.runpod.io">RunPod</a>: <b> $4.99/hour</b> (<a href="https://www.runpod.io/pricing">RunPod Pricing</a>)</li>
+            <li><a href="https://nebius.com/">Nebius</a>: <b>$5.50/hour</b> ($3.05/hour preemptible) (<a href="https://nebius.com/prices">Nebius Pricing</a>)</li>
+            <li><a href="https://www.together.ai/">Together</a>: <b>$7.49/hour</b>, minimum 8 GPUs, cheaper for longer commitments (<a href="https://www.together.ai/pricing#gpu-clusters">Together Pricing</a>)</li>
+        </ul>
+        <h3>Sponsor</h3>
+        <p>
+          We would like to thank <a href="https://modal.jobs/">Modal</a> for sponsoring compute for this class.
+        </p>
+      </div>
+    </div>
+    <!-- Schedule -->
+    <!-- Note the margin-top:-20px and the <br> serve to make the #schedule hyperlink display correctly (with the h2 header visible) -->
+    <div class="container sec" id="schedule" style="margin-top: -20px">
+      <br />
+      <h2>
+        Schedule
+        <span class="schedule-playlist">(YouTube playlist TBA)</span>
+      </h2>
+      <table class="table" style="margin-bottom: 10rem">
+        <colgroup>
+          <col style="width: 5%" />
+          <col style="width: 17%" />
+          <col style="width: 40%" />
+          <col style="width: 10%" />
+          <col style="width: 28%" />
+        </colgroup>
+        <thead>
+          <tr class="active">
+            <th>#</th>
+            <th>Date</th>
+            <th>Description</th>
+            <th>Materials</th>
+            <th>Assignments</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>Tue September 22</td>
+            <td><span class="schedule-label">Lecture</span>: Introduction</td>
+            <td>TBA</td>
+            <td class="assignment-block" rowspan="2">Assignment 1 out<span class="assignment-due-break"><br /></span> (due 09/28)</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td>Thu September 24</td>
+            <td><span class="schedule-label">Lecture</span>: Basics</td>
+            <td>TBA</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>Tue September 29</td>
+            <td><span class="schedule-label">Quiz</span>: Basics</td>
+            <td>TBA</td>
+            <td class="assignment-block" rowspan="3">Assignment 2 out<span class="assignment-due-break"><br /></span> (due 10/07)</td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td>Thu October 1</td>
+            <td><span class="schedule-label">Lecture</span>: Optimization 1</td>
+            <td>TBA</td>
+          </tr>
+          <tr>
+            <td></td>
+            <td>Tue October 6</td>
+            <td><span class="schedule-label">Lecture</span>: Optimization 1</td>
+            <td>TBA</td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td>Thu October 8</td>
+            <td><span class="schedule-label">Quiz</span>: Optimization 1</td>
+            <td>TBA</td>
+            <td class="assignment-block" rowspan="3">Assignment 3 out<span class="assignment-due-break"><br /></span> (due 10/19)</td>
+          </tr>
+          <tr>
+            <td>6</td>
+            <td>Tue October 13</td>
+            <td><span class="schedule-label">Lecture</span>: Optimization 2</td>
+            <td>TBA</td>
+          </tr>
+          <tr>
+            <td></td>
+            <td>Thu October 15</td>
+            <td><span class="schedule-label">Lecture</span>: Optimization 2</td>
+            <td>TBA</td>
+          </tr>
+          <tr>
+            <td>7</td>
+            <td>Tue October 20</td>
+            <td><span class="schedule-label">Quiz</span>: Optimization 2</td>
+            <td>TBA</td>
+            <td class="assignment-block" rowspan="3">Assignment 4 out<span class="assignment-due-break"><br /></span> (due 10/28)</td>
+          </tr>
+          <tr>
+            <td>8</td>
+            <td>Thu October 22</td>
+            <td><span class="schedule-label">Lecture</span>: Architecture 1</td>
+            <td>TBA</td>
+          </tr>
+          <tr>
+            <td></td>
+            <td>Tue October 27</td>
+            <td><span class="schedule-label">Lecture</span>: Architecture 1</td>
+            <td>TBA</td>
+          </tr>
+          <tr>
+            <td>9</td>
+            <td>Thu October 29</td>
+            <td><span class="schedule-label">Quiz</span>: Architecture 1</td>
+            <td>TBA</td>
+            <td class="assignment-block" rowspan="3">Assignment 5 out<span class="assignment-due-break"><br /></span> (due 11/09)</td>
+          </tr>
+          <tr>
+            <td></td>
+            <td>Tue November 3</td>
+            <td><i>No class (Democracy Day)</i></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>10</td>
+            <td>Thu November 5</td>
+            <td><span class="schedule-label">Lecture</span>: Architecture 2</td>
+            <td>TBA</td>
+          </tr>
+          <tr>
+            <td>11</td>
+            <td>Tue November 10</td>
+            <td><span class="schedule-label">Quiz</span>: Architecture 2</td>
+            <td>TBA</td>
+            <td class="assignment-block" rowspan="3">Assignment 6 out<span class="assignment-due-break"><br /></span> (due 11/18)</td>
+          </tr>
+          <tr>
+            <td>12</td>
+            <td>Thu November 12</td>
+            <td><span class="schedule-label">Lecture</span>: Generalization</td>
+            <td>TBA</td>
+          </tr>
+          <tr>
+            <td></td>
+            <td>Tue November 17</td>
+            <td><span class="schedule-label">Lecture</span>: Generalization</td>
+            <td>TBA</td>
+          </tr>
+          <tr>
+            <td>13</td>
+            <td>Thu November 19</td>
+            <td><span class="schedule-label">Quiz</span>: Generalization</td>
+            <td>TBA</td>
+            <td class="assignment-block" rowspan="4">Assignment 7 out<span class="assignment-due-break"><br /></span> (due 12/02)</td>
+          </tr>
+          <tr>
+            <td></td>
+            <td>Tue November 24</td>
+            <td><i>No class (Thanksgiving Recess)</i></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td></td>
+            <td>Thu November 26</td>
+            <td><i>No class (Thanksgiving Recess)</i></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>14</td>
+            <td>Tue December 1</td>
+            <td><span class="schedule-label">Lecture</span>: Exotic</td>
+            <td>TBA</td>
+          </tr>
+          <tr>
+            <td>15</td>
+            <td>Thu December 3</td>
+            <td><span class="schedule-label">Quiz</span>: Exotic</td>
+            <td>TBA</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    </main>
+    <footer id="footer" class="container">
+      Course website template adapted from
+      <a href="https://cs336.stanford.edu/spring2025/">Stanford CS336</a>.
+    </footer>
+    <!-- jQuery and Bootstrap -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+
+    <!-- Add whitespace to ensure schedule is visible when banner is active -->
+    <!-- <div style="height: 200px;"></div> -->
+  </body>
+</html>
