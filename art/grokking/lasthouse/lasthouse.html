@@ -1,0 +1,177 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>The Last House · grokking, drawn by hand</title>
+<style>body{margin:0;background:#242321;display:grid;place-items:center;min-height:100vh}canvas{max-width:100vw;max-height:92vh;object-fit:contain}.bar{color:#ddd;font:12px ui-monospace,monospace}</style>
+<canvas id="c"></canvas>
+<script src="core.js"></script>
+<script src="studio.js"></script>
+<script src="cels.js"></script>
+<script src="data.js"></script>
+<script src="lettering.js"></script>
+<script src="cast.js"></script>
+<script src="set.js"></script>
+<script>
+'use strict';
+/* FILM BRIEF
+Subject and beat: a postbird delivers round a pond. It learns each door by heart and keeps a note for every route. One
+  letter is for a house it has never found; an old mole waits there each evening with a lamp. All autumn and winter it
+  knocks on wrong doors. A storm takes the notes. Alone on the ice it finally sees that the doors are a ring and that
+  counting round is all there is. It flies straight to the last house. The lamp is out. Nobody comes. In spring it can
+  deliver anything, and the letter is still on the step. Understanding came after the one time it mattered.
+Corner: the measured embedding (seed 0, k = 36) drawn as a constellation, no card: tangle -> ring -> star {113/36},
+  in step with what the bird does. The viewer sees it closing in on the ring long before the bird can use it.
+Duration; format: about 74 s; 16:9, 1920 x 1080, 24 fps. Look: pencil with flat colour; night by multiply and glow.
+Cast: postbird (whole-pose builder, mirrored for facing), mole with lamp. Drawing method: whole poses held on twos;
+  flight flaps on ones. Camera: locked wides, hard cuts to close-ups for faces and the porch.
+Hardest action: storm -> tumble -> notes lost -> down on the ice -> windows light in a ring -> the dark porch.
+Environmental force: two gusts from screen right drive snow, streaks, notes, the letter, the tumble and the fall.
+Measured vs declared: corner nail positions are measured (unit-RMS per checkpoint). Declared: the step each beat shows
+  (first day 0-1.5k, the letter 1.5-2.5k, seasons 2.5-19.6k, storm 19.6-22k, seeing 22-27k, after 27-40k). The pond,
+  the bird, the mole and the ending are story, not measurement.
+Beat sheet: firstday 9.5 | letter 9.5 | seasons 12 | storm 11 | seeing 9.5 | toolate 12.5 | after 10.5
+*/
+const { PC, H: HS, HOME, MOLE, spot, depth, sstep } = Stage, INKC = Cast.INK;
+const B = Cast.bird;
+const POSE = {
+  perch: B(), eager: B({ tilt: -.12, lift: 4, look: [.6, -.5], wing: .45, beak: .5, cap: -.08 }), read: B({ tilt: .2, look: [.3, 1], wing: .3 }),
+  fly: B({ tilt: -.35, wing: 1, legs: 0, look: [.7, 0], tail: .3, bag: .5 }), flyDown: B({ tilt: -.3, wing: -.25, wingLen: 1.15, legs: 0, look: [.7, 0], tail: .2, bag: .4 }),
+  knock: B({ tilt: .1, look: [.8, -.2], wing: .7, wingLen: 1.1, beak: .2 }), knockB: B({ tilt: .16, look: [.8, -.2], wing: .45, wingLen: 1.1 }), wrong: B({ tilt: -.05, squash: .95, eyes: 'wide', brow: 1, look: [.3, .2], cap: .2 }),
+  droop: B({ tilt: .22, squash: .9, legs: .7, eyes: 'sad', look: [.2, .9], wing: -.05, cap: .3, tail: -.3 }), set: B({ tilt: -.06, look: [.8, -.1], brow: -.7, wing: .2, cap: -.05 }),
+  clutch: B({ tilt: .3, squash: .92, eyes: 'closed', brow: -1, wing: .55, wingLen: .9, tear: 1, tail: .4, cap: .4, legs: 0 }), flat: B({ tilt: .5, squash: .78, legs: .2, eyes: 'closed', brow: -1, wing: -.2, tear: 1, cap: .5, tail: -.5 }),
+  alone: B({ tilt: .12, squash: .88, legs: .5, eyes: 'sad', look: [0, .6], wing: 0, tear: 1, cap: .35, tail: -.4 }), see: B({ tilt: -.2, eyes: 'wide', brow: .8, look: [.4, -.9], wing: .1, tear: 1, beak: .25, cap: .2 }),
+  look: B({ tilt: -.08, eyes: 'wide', brow: .4, look: [.9, -.2], wing: .1, tear: 1, cap: .2 }), wait: B({ tilt: -.1, look: [.5, -.9], wing: .1, tear: 1, cap: .2 }), waitDown: B({ tilt: .12, eyes: 'sad', look: [.4, .9], wing: .05, tear: 1, cap: .25 }),
+  late: B({ tilt: .2, squash: .9, legs: .8, eyes: 'sad', look: [.6, .7], wing: .4, tear: 1, cap: .3, tail: -.4 }), breezy: B({ tilt: -.1, look: [.7, -.2], wing: .3, beak: .3, cap: -.1 }),
+};
+const drawings = new Map();
+function poseDrawing(p) { const id = 'b/' + strokeSeed(JSON.stringify(p, (k, v) => typeof v === 'number' ? Math.round(v * 100) / 100 : v)); if (!drawings.has(id)) { if (drawings.size > 24) drawings.delete(drawings.keys().next().value); drawings.set(id, Cast.compile(id, Cast.buildBird(p))); } return drawings.get(id); }
+const moles = new Map();
+function moleDrawing(p) { const id = 'm/' + JSON.stringify(p, (k, v) => typeof v === 'number' ? Math.round(v * 20) / 20 : v); if (!moles.has(id)) { if (moles.size > 12) moles.delete(moles.keys().next().value); moles.set(id, Cast.compile(id, Cast.buildMole(p))); } return moles.get(id); }
+const twosT = t => Math.floor(t * 12 + 1e-6) / 12, onesT = t => Math.floor(t * 24 + 1e-6) / 24;
+
+// ---- choreography: a list of stays and flights over ground points; altitude is separate so shadows stay on the ground ----
+function track(segs, t) {
+  let s = segs[0]; for (const q of segs) if (q.a <= t) s = q;
+  if (s.to) { const u = clamp((t - s.a) / (s.b - s.a), 0, 1), e = (s.ease || easeIO)(u), te = onesT(t), flap = .5 - .5 * Math.cos(te * TAU * 4);
+    return { g: [lerp(s.from[0], s.to[0], e), lerp(s.from[1], s.to[1], e)], alt: (s.lift ?? 90) * 4 * e * (1 - e) + lerp(s.alt0 || 0, s.alt1 || 0, e), face: s.face ?? (s.to[0] >= s.from[0] ? 1 : -1), pose: { ...Cast.between(POSE.fly, POSE.flyDown, flap), ...(s.opts || {}) }, air: true }; }
+  const te = twosT(t), p = typeof s.pose === 'function' ? s.pose(te - s.a) : POSE[s.pose]; return { g: s.at, alt: 0, face: s.face ?? 1, pose: { ...p, ...(s.opts || {}) }, air: false };
+}
+function drawBird(c, st, { rot = 0, scaleMul = 1 } = {}) {
+  const s = depth(st.g[1]) * 1.25 * scaleMul; c.save(); c.globalAlpha = .16 * (1 - clamp(st.alt / 260, 0, .7)); c.fillStyle = '#2b3350'; c.beginPath(); c.ellipse(st.g[0], st.g[1] + 3, 50 * s, 8 * s, 0, 0, TAU); c.fill(); c.restore();
+  c.save(); c.translate(st.g[0], st.g[1] - st.alt); c.scale(st.face * s, s); if (rot) { c.translate(0, -60); c.rotate(rot); c.translate(0, 60); } Cast.draw(c, poseDrawing(st.pose)); c.restore();
+}
+function drawMole(c, m) { if (!m || !m.present) return null; const h = HS[MOLE], { w } = Stage.dims(MOLE), x = h.x - (w / 2 + 34) * h.s, y = h.y + 8, s = h.s * .55, d = moleDrawing(Cast.mole({ lamp: m.lamp, nod: m.nod || 0, eyes: m.eyes || 'open', lit: m.lit === 0 ? 0 : 1 }));
+  c.save(); c.translate(x, y); c.scale(s, s); Cast.draw(c, d); c.restore(); return [x + d.lampAt[0] * s, y + d.lampAt[1] * s]; }
+function paperBit(c, x, y, ang, s, flip = 1, letter = false) { c.save(); c.translate(x, y); c.rotate(ang); c.scale(s * flip, s); c.fillStyle = '#fbf7ee'; c.strokeStyle = INKC; c.lineWidth = 1.2;
+  if (letter) { c.fillRect(-11, -7, 22, 14); c.strokeRect(-11, -7, 22, 14); c.beginPath(); c.moveTo(-11, -7); c.lineTo(0, 1); c.lineTo(11, -7); c.stroke(); } else { c.fillRect(-7, -9, 14, 18); c.globalAlpha = .8; c.strokeRect(-7, -9, 14, 18); c.globalAlpha = .5; c.beginPath(); for (let r = 0; r < 3; r++) { c.moveTo(-4, -4 + r * 4); c.lineTo(3 - r, -4 + r * 4); } c.stroke(); } c.restore(); }
+
+// ---- one world, drawn in a fixed order ----
+function world(c, o) {
+  const { t, winter = 0, spring = 0, n = 0, lights = {}, flags = {}, mole = null, cam: cm = null, snowAmt = 0, wind = 0, leavesAmt = 0, doorLetter = 0, lampOnStep = 0, numerals = null } = o;
+  paper(c, '#f5f0e5', null, 87); if (cm) cam(c, cm[0], cm[1], cm[2]);
+  Stage.ground(c, { winter, spring });
+  const far = HS.filter(h => !h.near).sort((a, b) => a.y - b.y); let lampAt = null;
+  for (const h of far) { Stage.house(c, h.k, { winter, lit: (lights[h.k] ?? 1) * n, flag: flags[h.k] ?? -1, t, doorLetter: h.k === MOLE ? doorLetter : 0, lampOnStep: h.k === MOLE ? lampOnStep : 0 }); if (h.k === MOLE) lampAt = drawMole(c, mole); }
+  Stage.pond(c, { winter, spring });
+  if (o.onIce) o.onIce(c);
+  if (o.actors) o.actors(c);
+  for (const h of HS.filter(h => h.near).sort((a, b) => a.y - b.y)) Stage.house(c, h.k, { winter });
+  if (o.front) o.front(c);
+  Stage.night(c, n, Object.fromEntries(HS.map(h => [h.k, lights[h.k] ?? 1])), { moleLamp: mole && mole.present && mole.lit !== 0 ? (mole.glow ?? 1) : 0, moleLampAt: lampAt });
+  if (o.moon && n > .1) Stage.glow(c, o.moon[0], o.moon[1] - 50, 280, .34 * n, '200,215,255');
+  if (o.afterNight) { c.save(); c.globalAlpha = .92; o.afterNight(c); c.restore(); }
+  if (numerals) for (const [k, num, a] of numerals) { const h = HS[k], d = Stage.dims(k); Lettering.draw(c, String(num), h.x, h.y - (d.hh + d.rf + 12) * h.s, 11 * h.s, { align: 'center', material: 'ink', color: '#ffe9bd', weight: 1.6, opacity: a }); }
+  Stage.leaves(c, t, leavesAmt); resetT(c); Stage.snow(c, t + (o.tOff || 0), snowAmt, wind); Stage.streaks(c, t, wind);
+  Stage.constellation(c, { step: o.step, upTo: o.upTo ?? 113, n, alpha: cm && cm[2] > 1.5 ? .85 : 1 });
+}
+const CLOSE_HOME = [HS[HOME].x + 120, HS[HOME].y - 50, 2.9], CLOSE_MOLE = [HS[MOLE].x - 80, HS[MOLE].y - 45, 2.9];
+const at = (k, dx = 0) => { const p = spot(k); return [p[0] + dx, p[1]]; };
+
+// ---- 1. first day: learning doors by heart ----
+const D1 = 9.5, F1 = { 0: 5.5, 1: 7.0, 9: 7.8 };
+const T1 = [{ a: 0, at: at(HOME), pose: 'eager', opts: { letter: 1 } }, { a: 1.3, at: at(HOME), pose: 'read', opts: { letter: 1 } }, { a: 2.2, b: 3.4, from: at(HOME), to: at(10), lift: 150, opts: { letter: 1 } }, { a: 3.4, at: at(10), pose: 'wrong', opts: { letter: 1 } },
+  { a: 4.1, b: 4.95, from: at(10), to: at(0), lift: 50, opts: { letter: 1 } }, { a: 4.95, at: at(0), pose: t => (t < .35 ? POSE.knock : POSE.knockB), opts: { letter: 1 } }, { a: 5.5, at: at(0), pose: t => ({ ...POSE.eager, lift: 16 * Math.max(0, Math.sin(t * 9)) }) },
+  { a: 6.2, b: 6.95, from: at(0), to: at(1), lift: 60, opts: { bagFull: .6 } }, { a: 6.95, b: 7.75, from: at(1), to: at(9), lift: 80, opts: { bagFull: .8 } }, { a: 7.75, b: 8.7, from: at(9), to: at(HOME), lift: 110, opts: { bagFull: 1 } }, { a: 8.7, at: at(HOME), pose: 'breezy', opts: { bagFull: 1 }, face: 1 }];
+function firstDay(c, tau) { const st = track(T1, tau); world(c, { t: tau, flags: F1, leavesAmt: .5, step: 1500 * tau / D1, upTo: 113 * sstep(.5, 9, tau), mole: { present: false }, actors: cc => drawBird(cc, st) }); }
+
+// ---- 2. the letter it cannot deliver ----
+const D2 = 9.5;
+const T2 = [{ a: 0, at: at(HOME), pose: t => (t < .9 ? POSE.eager : t < 1.6 ? POSE.read : { ...POSE.wrong, look: [.9, -.1] }), opts: { letter: 1, bagFull: 1 } }, { a: 3.6, b: 4.8, from: at(HOME), to: at(1), lift: 150, opts: { letter: 1, bagFull: 1 } },
+  { a: 4.8, at: at(1), pose: t => (t < .3 ? POSE.knock : t < .6 ? POSE.knockB : t < 1 ? POSE.wait : POSE.wrong), opts: { letter: 1, bagFull: 1 } }, { a: 6.3, b: 7.1, from: at(1), to: at(3), lift: 110, opts: { letter: 1, bagFull: 1 } },
+  { a: 7.1, at: at(3), pose: t => (t < .3 ? POSE.knock : t < .6 ? POSE.knockB : t < 1.1 ? POSE.wait : POSE.droop), opts: { letter: 1, bagFull: 1 } }];
+function theLetter(c, tau) { const st = track(T2, tau), n = .2 + .45 * sstep(2, 9, tau), lampUp = sstep(2.1, 3.2, tau) * (1 - sstep(8.2, 9.2, tau));
+  world(c, { t: tau, n, leavesAmt: .4, step: lerp(1500, 2500, tau / D2), cam: tau < 2 ? CLOSE_HOME : tau < 3.6 ? CLOSE_MOLE : null, mole: { present: true, lamp: .15 + .78 * lampUp, glow: .4 + .6 * lampUp, nod: tau > 8.4 ? .6 : 0 }, actors: cc => drawBird(cc, st) }); }
+
+// ---- 3. seasons: every evening the lamp, every evening the wrong door ----
+const D3 = 12, TRY = [10, 3, 1], CYC_LEN = 4;
+function seasons(c, tau) { const cyc = Math.min(2, Math.floor(tau / CYC_LEN)), u = tau - cyc * CYC_LEN, k = TRY[cyc], winter = sstep(3.5, 9.5, tau), n = .15 + .6 * sstep(.6, 3.2, u) * (1 - sstep(3.7, 4, u) * (cyc < 2 ? 1 : 0));
+  const seg = [{ a: 0, at: at(HOME), pose: cyc ? 'droop' : 'set', opts: { letter: 1, bagFull: 1 } }, { a: .5, b: 1.5, from: at(HOME), to: at(k), lift: 130, opts: { letter: 1, bagFull: 1 } }, { a: 1.5, at: at(k), pose: t => (t < .25 ? POSE.knock : t < .5 ? POSE.knockB : t < .9 ? POSE.wait : POSE.droop), opts: { letter: 1, bagFull: 1 } }, { a: 2.9, b: 3.9, from: at(k), to: at(HOME), lift: 90 - cyc * 25, opts: { letter: 1, bagFull: 1 } }];
+  const st = track(seg, u), tired = cyc / 2, lampUp = sstep(.8, 1.6, u) * (1 - sstep(3.1, 3.8, u));
+  world(c, { t: tau, winter, n, leavesAmt: .7 * (1 - winter), snowAmt: .5 * sstep(5, 9, tau), step: lerp(2500, 19600, easeIO(tau / D3)), mole: { present: true, lamp: .15 + (.78 - .3 * tired) * lampUp, glow: .3 + .7 * lampUp, nod: tired * .9, eyes: cyc === 2 && u > 2.6 ? 'closed' : 'open' }, actors: cc => drawBird(cc, st) }); }
+
+// ---- 4. the storm ----
+const D4 = 11, gust = t => sstep(2.4, 3.3, t) * (1 - sstep(4.6, 5.2, t) * .45) * (1 - sstep(7.2, 9.4, t)) + .5 * sstep(5.3, 5.8, t) * (1 - sstep(6.2, 7, t));
+const C1 = [PC[0] + 120, PC[1] + 30], C2 = [PC[0] - 90, PC[1] + 10], C3 = [PC[0] - 340, PC[1] + 40], GR = [PC[0] - 210, PC[1] + 70], LPOS = [PC[0] + 60, PC[1] + 50];
+const NOTES = Array.from({ length: 24 }, (_, i) => ({ rel: 3.35 + hash(i, 1) * 1.5, vx: -(340 + hash(i, 2) * 520), vy: -(60 + hash(i, 3) * 260), spin: (hash(i, 4) - .5) * 16, ph: hash(i, 5) * TAU }));
+function birdStorm(t) {
+  if (t < 1.4) return { st: { g: at(HOME), alt: 0, face: 1, pose: { ...POSE.set, letter: 1, bagFull: 1 } }, rot: 0 };
+  if (t < 3.3) { const s = track([{ a: 1.4, b: 3.3, from: at(HOME), to: C1, lift: 60, alt1: 150, ease: easeOut, opts: { letter: 1, bagFull: 1 } }], t); s.g[1] += 0; s.alt += 14 * gust(t) * Math.sin(t * 19); return { st: s, rot: -.25 * gust(t) }; }
+  if (t < 4.3) { const u = (t - 3.3), e = easeOut(u); return { st: { g: [lerp(C1[0], C2[0], e), lerp(C1[1], C2[1], e)], alt: 150 + 40 * Math.sin(u * Math.PI), face: 1, pose: { ...POSE.clutch, bagFull: 1 - u } }, rot: -TAU * e * 1.0 }; }
+  if (t < 5.6) { const s = track([{ a: 4.3, b: 5.6, from: C2, to: C3, lift: 20, alt0: 150, alt1: 120, opts: { tear: 1, bagFull: 0, eyes: 'wide', brow: 1, beak: .5 } }], t); return { st: s, rot: 0 }; }
+  if (t < 6.5) { const u = (t - 5.6) / .9, e = easeIn(u); return { st: { g: [lerp(C3[0], GR[0], u), lerp(C3[1], GR[1], u)], alt: 120 * (1 - e), face: -1, pose: { ...POSE.clutch, bagFull: 0 } }, rot: TAU * .6 * u }; }
+  const te = twosT(t), p = te < 7.1 ? POSE.flat : te < 8 ? Cast.between(POSE.flat, POSE.alone, sstep(7.1, 8, te)) : POSE.alone; return { st: { g: GR, alt: 0, face: te < 9.6 ? -1 : 1, pose: { ...p, bagFull: 0, tear2: te > 9.2 ? 1 : 0 } }, rot: 0 };
+}
+function letterAt(t) { const r = 3.5; if (t < r) return null; const u = t - r, p0 = [C1[0] - 40, C1[1] - 150], fall = Math.min(u / 1.7, 1), e = easeIn(fall); const x = lerp(p0[0], LPOS[0] + 60, fall) - 80 * Math.sin(fall * Math.PI), y = lerp(p0[1], LPOS[1], e); const slide = sstep(1.7, 2.6, u);
+  return { x: x - 60 * slide, y, ang: fall < 1 ? u * 7 : .3, s: depth(LPOS[1]) * .9, flip: fall < 1 ? Math.max(.2, Math.abs(Math.cos(u * 6))) : 1 }; }
+function storm(c, tau) { const t = tau, g = gust(t), b = birdStorm(t), L = letterAt(t), lampGlow = 1 - sstep(6.2, 7.6, t);
+  world(c, { t, moon: [b.st.g[0], b.st.g[1] - b.st.alt], winter: 1, n: .84, lights: Object.fromEntries(HS.map(h => [h.k, .1])), snowAmt: .6 + .4 * g, wind: g, step: lerp(19600, 22000, sstep(2.5, 10, t)), cam: t > 8.6 ? [GR[0], GR[1] - 60, 3] : null,
+    mole: { present: t < 7.6, lamp: .78 - .6 * sstep(5.6, 7.4, t), glow: lampGlow * (.75 - .35 * g), nod: .9, eyes: 'closed' }, lampOnStep: t >= 7.6 ? 1 : 0,
+    actors: cc => drawBird(cc, b.st, { rot: b.rot }),
+    afterNight: cc => { if (L && t > 5.2) paperBit(cc, L.x, L.y, L.ang, L.s, 1, true);
+      for (const nt of NOTES) { if (t < nt.rel) continue; const u = t - nt.rel, p0 = birdStorm(nt.rel).st, x = p0.g[0] + nt.vx * u - 260 * u * u, y = p0.g[1] - p0.alt - 30 + nt.vy * u + 130 * u * u - 30 * Math.sin(u * 6 + nt.ph); if (x < -60) continue; paperBit(cc, x, y, nt.spin * u, 1.5, Math.max(.2, Math.abs(Math.cos(u * 5 + nt.ph)))); }
+      if (L && t <= 5.2) paperBit(cc, L.x, L.y, L.ang, L.s, L.flip, true); } }); }
+
+// ---- 5. seeing it: the windows come on in a ring ----
+const D5 = 9.5, ORDER = [8, 9, 10, 0, 1, 2, 3, 4, 5, 6, 7], LIT0 = 1.2, LITDT = .42, litAt = i => LIT0 + i * LITDT;
+function seeing(c, tau) { const t = tau, lights = {}, nums = []; ORDER.forEach((k, i) => { const a = sstep(litAt(i), litAt(i) + .3, t); lights[k] = k === MOLE ? 0 : .1 + .9 * a; if (a > 0) nums.push([k, i + 1, a * (1 - sstep(7.4, 8.6, t)) * .9]); });
+  const i = clamp(Math.floor((t - LIT0) / LITDT), 0, 10), hk = HS[ORDER[i]], te = twosT(t), face = te < LIT0 + .4 ? -1 : hk.x >= GR[0] ? 1 : -1;
+  const pose = te < 1 ? POSE.alone : te < 7.2 ? { ...POSE.see, look: [.5, hk.near ? .5 : -.9], tilt: hk.near ? .02 : -.2 } : POSE.look;
+  world(c, { t, moon: GR, winter: 1, n: .92, lights, numerals: nums, snowAmt: .35, tOff: 40, step: lerp(22000, 27000, sstep(1.2, 6.2, t)), cam: t > 5.9 && t < 7.6 ? [GR[0], GR[1] - 60, 3] : null, mole: { present: false }, lampOnStep: 1,
+    afterNight: cc => paperBit(cc, LPOS[0], LPOS[1], .3, depth(LPOS[1]) * .9, 1, true), actors: cc => drawBird(cc, { g: GR, alt: 0, face: te >= 7.2 ? 1 : face, pose: { ...pose, bagFull: 0, tear: 1 } }) }); }
+
+// ---- 6. too late ----
+const D6 = 12.5, LITALL = Object.fromEntries(HS.map(h => [h.k, h.k === MOLE ? 0 : 1])), DOOR = at(MOLE, -46);
+const T6 = [{ a: 0, at: GR, pose: 'look', opts: { bagFull: 0, tear: 1 } }, { a: .7, b: 1.5, from: GR, to: [LPOS[0] - 34, LPOS[1] + 4], lift: 40, opts: { bagFull: 0, tear: 1 } }, { a: 1.5, at: [LPOS[0] - 34, LPOS[1] + 4], pose: t => (t < .4 ? POSE.read : POSE.set), opts: { bagFull: 0, tear: 1, letter: 1 } },
+  { a: 2.3, b: 3.6, from: [LPOS[0] - 34, LPOS[1] + 4], to: DOOR, lift: 70, opts: { bagFull: 0, tear: 1, letter: 1 } },
+  { a: 3.6, at: DOOR, opts: { bagFull: 0, tear: 1 }, pose: t => { const L = t < 4.7 ? 1 : 0, p = t < .7 ? POSE.wait : t < .95 ? POSE.knock : t < 1.2 ? POSE.knockB : t < 1.9 ? POSE.wait : t < 2.15 ? POSE.knock : t < 2.4 ? POSE.knockB : t < 3.6 ? POSE.wait : t < 4.2 ? POSE.waitDown : t < 5.2 ? POSE.late : POSE.droop; return { ...p, letter: L }; } }];
+function tooLate(c, tau) { const t = tau, st = track(T6, t), knock = (t > 4.3 && t < 4.75) || (t > 5.5 && t < 5.95);
+  world(c, { t, moon: st.g, winter: 1, n: .92, lights: LITALL, snowAmt: .4, tOff: 80, step: lerp(27000, 30000, t / D6), cam: t >= 3.6 && t < 11 ? CLOSE_MOLE : null, mole: { present: false }, lampOnStep: 1, doorLetter: t > 8.3 ? 1 : 0,
+    afterNight: cc => { if (t < 1.9) paperBit(cc, LPOS[0], LPOS[1], .3, depth(LPOS[1]) * .9, 1, true); },
+    actors: cc => drawBird(cc, st), front: cc => { if (!knock) return; const h = HS[MOLE], d = Stage.dims(MOLE); cc.save(); cc.strokeStyle = INKC; cc.lineWidth = 1.2; cc.globalAlpha = .7; for (let k = 0; k < 3; k++) { const a = -1 + k * .5; cc.beginPath(); cc.moveTo(h.x + (d.w * .1 + 20) * h.s + Math.cos(a) * 8, h.y - 30 * h.s + Math.sin(a) * 8); cc.lineTo(h.x + (d.w * .1 + 20) * h.s + Math.cos(a) * 17, h.y - 30 * h.s + Math.sin(a) * 17); cc.stroke(); } cc.restore(); } }); }
+
+// ---- 7. afterwards ----
+const D7 = 10.5, ROUND = [9, 10, 0, 1, 3, 7], LEG = .78, F7 = {}, T7 = [{ a: 0, at: at(HOME), pose: 'breezy', opts: { bagFull: 0 } }];
+ROUND.forEach((k, i) => { const a = .5 + i * (LEG + .22), from = i ? at(ROUND[i - 1]) : at(HOME); T7.push({ a, b: a + LEG, from, to: at(k), lift: 60, opts: { bagFull: 0 } }, { a: a + LEG, at: at(k), pose: 'breezy', opts: { bagFull: 0 } }); F7[k] = a + LEG + .05; });
+T7.push({ a: .5 + 6 * (LEG + .22), b: 8.2, from: at(7), to: [2150, 500], lift: 40, alt1: 240, opts: { bagFull: 0 } });
+function after(c, tau) { const t = tau, st = track(T7, t), close = t >= 6.4, a1 = sstep(7.6, 8.6, t);
+  world(c, { t, spring: 1, step: 40000, flags: F7, cam: close ? CLOSE_MOLE : null, mole: { present: false }, lampOnStep: 1, doorLetter: 1, actors: cc => { if (st.g[0] < 2050) drawBird(cc, st);
+    const h = HS[MOLE]; cc.save(); cc.translate(h.x + 26 * h.s, h.y + 6); cc.strokeStyle = '#6f8f5a'; cc.lineWidth = 1.4; cc.beginPath(); cc.moveTo(0, 0); cc.quadraticCurveTo(-2, -8, 1, -15); cc.stroke(); cc.fillStyle = '#e9d27a'; cc.beginPath(); cc.arc(1, -16, 3, 0, TAU); cc.fill(); cc.restore(); } });
+  if (a1 > 0) { Lettering.draw(c, '(a + b) mod 113', 1240, H - 150, 40, { weight: 2.8, opacity: a1, material: 'ink' }); Lettering.draw(c, 'top right is measured,  seed 0,  k = 36,  step 40,000', 1242, H - 96, 19, { weight: 1.9, opacity: a1 * .9, material: 'ink' }); } }
+
+// ---- score ----
+const TS = [0, D1, D1 + D2, D1 + D2 + D3, D1 + D2 + D3 + D4, D1 + D2 + D3 + D4 + D5, D1 + D2 + D3 + D4 + D5 + D6];
+function score(ac, t0, out) {
+  const m = ac.createGain(); m.gain.value = .9; m.connect(out); const pl = (t, o, s, g = .1, d = .6) => note(ac, m, pentHz(o, s, 196), t0, t, d, 'triangle', g), lo = (t, f, d, g = .12) => note(ac, m, f, t0, t, d, 'sine', g), knock = t => { noiseBurst(ac, m, t0, t, .07, .22, 3); noiseBurst(ac, m, t0, t + .16, .07, .2, 4); };
+  [5.5, 7.0, 7.8].forEach((t, i) => { pl(t, 0, i * 2, .12); pl(t + .12, 0, i * 2 + 2, .1); }); pl(3.5, -1, 1, .08);
+  knock(TS[1] + 4.85); lo(TS[1] + 5.8, 110, 1.4); knock(TS[1] + 7.15); lo(TS[1] + 8.2, 98, 1.6);
+  for (let cy = 0; cy < 3; cy++) { knock(TS[2] + cy * CYC_LEN + 1.55); lo(TS[2] + cy * CYC_LEN + 2.4, 98 - cy * 6, 1.5, .1); pl(TS[2] + cy * CYC_LEN + .9, 0, 2, .05, 1.2); }
+  const sr = ac.sampleRate, buf = ac.createBuffer(1, Math.ceil(sr * D4), sr), ch = buf.getChannelData(0), r = rng(77); for (let i = 0; i < ch.length; i++) ch[i] = r() * 2 - 1;
+  const src = ac.createBufferSource(), bp = ac.createBiquadFilter(), wg = ac.createGain(); src.buffer = buf; bp.type = 'bandpass'; bp.Q.value = .8; wg.gain.value = 0;
+  for (let k = 0; k <= D4 * 20; k++) { const t = k / 20, g = gust(t); wg.gain.setValueAtTime(.03 + g * g * .5, t0 + TS[3] + t); bp.frequency.setValueAtTime(240 + 760 * g + 120 * Math.sin(t * 5), t0 + TS[3] + t); } src.connect(bp); bp.connect(wg); wg.connect(m); src.start(t0 + TS[3]);
+  ORDER.forEach((k, i) => { if (k !== MOLE) pl(TS[4] + litAt(i), Math.floor(i / 5) - 1, i % 5, .11, 1.4); });                        // one note per window; the dark house is a rest
+  knock(TS[5] + 4.35); knock(TS[5] + 5.55); lo(TS[5] + 8.3, 98, 3.5, .1);
+  ROUND.forEach((k, i) => pl(TS[6] + F7[k], Math.floor(i / 5) - 0, i % 5, .1, .7)); lo(TS[6] + 6.5, 98, 3.8, .1); pl(TS[6] + 7.2, -1, 0, .06, 3);
+}
+defineFilm({ palette: { ...PALETTES.pencilMinimal, paper: '#f5f0e5' }, format: { ar: '16:9', width: 1920 }, fps: 24, score, timeline: [
+  { name: 'firstday', dur: D1, fn: firstDay }, { name: 'letter', dur: D2, fn: theLetter }, { name: 'seasons', dur: D3, fn: seasons }, { name: 'storm', dur: D4, fn: storm },
+  { name: 'seeing', dur: D5, fn: seeing }, { name: 'toolate', dur: D6, fn: tooLate }, { name: 'after', dur: D7, fn: after }] });
+</script>

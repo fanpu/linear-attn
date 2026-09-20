@@ -1,0 +1,19 @@
+<!doctype html><meta charset="utf-8"><title>cast sheet</title><canvas id="c"></canvas>
+<script src="core.js"></script><script src="studio.js"></script><script src="cels.js"></script><script src="lettering.js"></script><script src="cast.js"></script>
+<script>
+'use strict';
+const B = Cast.bird, POSES = {
+  perch: B(), eager: B({ tilt: -.12, lift: 4, look: [.6, -.5], wing: .45, beak: .5, letter: 1, cap: -.08 }), read: B({ tilt: .2, look: [.3, 1], letter: 1, wing: .3 }),
+  fly: B({ tilt: -.35, wing: 1, legs: 0, lift: 30, look: [.7, 0], tail: .3, bag: .5 }), flyDown: B({ tilt: -.3, wing: -.25, wingLen: 1.15, legs: 0, lift: 30, look: [.7, 0], tail: .2, bag: .4 }),
+  knock: B({ tilt: .1, look: [.8, -.2], wing: .7, wingLen: 1.1, beak: .2 }), wrong: B({ tilt: -.05, squash: .95, eyes: 'wide', brow: 1, look: [.3, .2], cap: .2 }),
+  droop: B({ tilt: .22, squash: .9, legs: .7, eyes: 'sad', look: [.2, .9], wing: -.05, cap: .3, tail: -.3, bagFull: 1 }), clutch: B({ tilt: .3, squash: .92, eyes: 'closed', brow: -1, wing: .55, wingLen: .9, bagFull: 1, tear: 1, tail: .4, cap: .4 }),
+  alone: B({ tilt: .12, squash: .88, legs: .5, eyes: 'sad', look: [0, .6], wing: 0, bagFull: 0, tear: 1, cap: .35, tail: -.4 }), see: B({ tilt: -.2, eyes: 'wide', brow: .8, look: [.4, -.9], wing: .1, bagFull: 0, tear: 1, beak: .25 }),
+  late: B({ tilt: .16, squash: .9, legs: .8, eyes: 'sad', look: [.6, .5], wing: .35, bagFull: 0, tear: 1, letter: 1, cap: .3, tail: -.4 }),
+};
+const D = Object.fromEntries(Object.entries(POSES).map(([n, p]) => [n, Cast.compile('s/' + n, Cast.buildBird(p))]));
+const M = { wait: Cast.compile('m/wait', Cast.buildMole(Cast.mole({ lamp: .9 }))), tired: Cast.compile('m/tired', Cast.buildMole(Cast.mole({ lamp: .15, nod: 1, eyes: 'closed' }))) };
+function sheet(c) { paper(c, '#f5f0e5', null, 87);
+  Object.keys(D).forEach((n, k) => { const col = k % 6, row = Math.floor(k / 6); c.save(); c.translate(170 + col * 300, 330 + row * 340); c.scale(1.7, 1.7); Cast.draw(c, D[n]); c.restore(); c.fillStyle = '#6b6258'; c.font = '20px monospace'; c.fillText(n, 120 + col * 300, 380 + row * 340); });
+  Object.keys(M).forEach((n, k) => { c.save(); c.translate(500 + k * 320, 1030); c.scale(1.5, 1.5); Cast.draw(c, M[n]); c.restore(); }); }
+defineFilm({ palette: { ...PALETTES.pencilMinimal, paper: '#f5f0e5' }, format: { ar: '16:9', width: 1920 }, fps: 24, timeline: [{ name: 'sheet', dur: 1 / 24, fn: sheet }] });
+</script>

@@ -15,7 +15,7 @@ from phases import phases
 ap = argparse.ArgumentParser()
 ap.add_argument("--seed", type=int, default=0)
 ap.add_argument("--styles", type=str, default="nocturne,plotter,plate")
-ap.add_argument("--layout", type=str, default="grid", choices=["grid", "overlay", "seeds"])
+ap.add_argument("--layout", type=str, default="grid", choices=["grid", "overlay", "seeds", "specimen"])
 ap.add_argument("--size", type=int, default=1080)
 ap.add_argument("--fps", type=int, default=24)
 ap.add_argument("--max_frames", type=int, default=0)
@@ -32,12 +32,27 @@ tag = f"seed{int(A['init_seeds'][s])}"
 # frame schedule (declared time warp): every checkpoint early, every 20 steps through the transition,
 # every 100 steps once test accuracy has been at 100% for 3000 steps
 t_slow = (ph["t_done"] if ph["t_done"] > 0 else steps[-1]) + 3000
+if args.layout == "specimen":   # all seeds share the real step clock, so slow down only after the last seed has grokked
+    t_slow = max(phases(A, i)["t_done"] if phases(A, i)["t_done"] > 0 else steps[-1] for i in range(len(A["init_seeds"]))) + 3000
 sel = [i for i, t in enumerate(steps) if t <= 1000 or t <= t_slow and t % 20 == 0 or t % 100 == 0]
 if args.max_frames:
     sel = sel[:: max(1, len(sel) // args.max_frames)]
 ev = A["ev_steps"]; te = A["te_loss"][:, s]; tr = np.maximum(A["tr_loss"][:, s], 1e-12)
 R = A["R"][:, s][:, order]
 rings = A["ring"][:, s][:, order]
+
+
+def specimen_items():
+    """(k, seed index, key index) for every key-frequency star of every seed, ordered as in the specimen sheet."""
+    items = []
+    for i in range(len(A["init_seeds"])):
+        for j in range(int(A["nkeys"][i])):
+            k = int(A["keys"][i, j])
+            items.append((min(k, P - k), i, j))
+    return sorted(items)
+
+
+LOCK_R = 0.9   # declared: a star counts as "locked" once its ring order parameter R exceeds this
 
 
 def phase_name(t):
@@ -97,6 +112,21 @@ def build(style):
                     lc = LineCollection(np.zeros((P, 2, 2)), colors=st["ink"], linewidths=0.35, alpha=0.85)
                 ax.add_collection(lc); lcs.append((i, j, lc))
             rtexts.append(ax.text(0, -1.7, "", ha="center", va="bottom", fontsize=8, color=st["muted"]))
+    elif args.layout == "specimen":
+        items = specimen_items()
+        cols = int(np.ceil(np.sqrt(len(items)))); rows = int(np.ceil(len(items) / cols))
+        cw = 0.97 / cols; chh = 0.915 / rows
+        for n, (k, i, j) in enumerate(items):
+            r, c = divmod(n, cols)
+            ax = fig.add_axes([0.015 + c * cw, 0.94 - (r + 1) * chh + 0.018, cw, chh - 0.018]); ax.set_facecolor(st["bg"])
+            ax.set_xlim(-1.6, 1.6); ax.set_ylim(-1.6, 1.6); ax.set_aspect("equal"); ax.axis("off")
+            if style == "nocturne":
+                lc = LineCollection(np.zeros((P, 2, 2)), colors=st["cyclic"](np.arange(P) / P), linewidths=0.4, alpha=0.9)
+            else:
+                lc = LineCollection(np.zeros((P, 2, 2)), colors=st["ink"], linewidths=0.3, alpha=0.9)
+            ax.add_collection(lc); lcs.append((i, j, lc))
+            rtexts.append(fig.text(0.015 + (c + 0.5) * cw, 0.94 - (r + 1) * chh + 0.004, f"{{113/{k}}}  s{int(A['init_seeds'][i])}",
+                                   ha="center", va="bottom", fontsize=6.5, color=st["muted"], family="DejaVu Sans Mono"))
     else:
         ax = fig.add_axes([0.1, 0.24, 0.8, 0.72 * 0.98]); ax.set_facecolor(st["bg"])
         ax.set_xlim(-1.65, 1.65); ax.set_ylim(-1.65, 1.65); ax.set_aspect("equal"); ax.axis("off")
@@ -109,6 +139,8 @@ def build(style):
     # header
     title = fig.text(0.04, 0.975, "", fontsize=15, color=st["ink"], va="top", style="italic" if style == "plate" else "normal")
     sub = fig.text(0.96, 0.975, "", fontsize=12, color=st["muted"], va="top", ha="right")
+    if args.layout == "specimen":   # no curve strip: 12 loss curves under 46 cells is clutter
+        return fig, lcs, rtexts, title, sub, None
     # curve strip
     cax = fig.add_axes([0.08, 0.05, 0.86, 0.15]); cax.set_facecolor(st["bg"])
     if args.layout == "seeds":
@@ -146,7 +178,13 @@ def render_range(job):
     fig, lcs, rtexts, title, sub, cur = build(style)
     for fi, ti in idxs:
         t = int(steps[ti])
-        if args.layout == "seeds":
+        if args.layout == "specimen":
+            st = STYLES[style]; locked = 0
+            for (i, j, lc), tx in zip(lcs, rtexts):
+                lc.set_segments(star_segments(normalize(A["ring"][ti, i, j].astype(np.float64))))
+                on = A["R"][ti, i, j] > LOCK_R; locked += on
+                tx.set_color(st["ink"] if on else st["muted"]); lc.set_alpha(0.9 if on else 0.55)
+        elif args.layout == "seeds":
             for (i, j, lc) in lcs:
                 lc.set_segments(star_segments(normalize(A["ring"][ti, i, j].astype(np.float64))))
             for i, tx in enumerate(rtexts):
@@ -158,10 +196,14 @@ def render_range(job):
             lcs[j].set_segments(star_segments(z))
             if rtexts:
                 rtexts[j].set_text(f"R = {R[ti, j]:.2f}")
-        title.set_text(f"step {t:>6,d}   ·   {phase_name(t)}" if args.layout != "seeds" else f"step {t:>6,d}")
+        title.set_text(f"step {t:>6,d}   ·   {phase_name(t)}" if args.layout not in ("seeds", "specimen") else f"step {t:>6,d}")
         tei = min(np.searchsorted(ev, t), len(ev) - 1)
-        sub.set_text(f"test acc {A['te_acc'][tei, s] * 100:5.1f}%" if args.layout != "seeds" else "* = different train split")
-        cur.set_xdata([t, t])
+        if args.layout == "specimen":
+            sub.set_text(f"{locked} / {len(lcs)} stars locked (R > {LOCK_R})")
+        else:
+            sub.set_text(f"test acc {A['te_acc'][tei, s] * 100:5.1f}%" if args.layout != "seeds" else "* = different train split")
+        if cur is not None:
+            cur.set_xdata([t, t])
         arr = fig_to_array(fig)
         Image.fromarray(arr).save(f"{outdir}/{fi:05d}.png", compress_level=1)
     plt.close(fig)
@@ -171,7 +213,7 @@ def render_range(job):
 if __name__ == "__main__":
     os.makedirs("gallery", exist_ok=True)
     for style in args.styles.split(","):
-        name = f"film_{args.layout}_{tag}_{style}" if args.layout != "seeds" else f"film_seeds_{style}"
+        name = f"film_{args.layout}_{tag}_{style}" if args.layout not in ("seeds", "specimen") else f"film_{args.layout}_{style}"
         outdir = f"cache/frames_{name}"
         shutil.rmtree(outdir, ignore_errors=True); os.makedirs(outdir)
         items = list(enumerate(sel))

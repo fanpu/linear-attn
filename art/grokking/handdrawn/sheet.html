@@ -1,0 +1,29 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>winder · pose sheet</title>
+<style>body{margin:0;background:#242321}canvas{max-width:100vw;max-height:100vh}</style>
+<canvas id="c"></canvas>
+<script src="core.js"></script>
+<script src="studio.js"></script>
+<script src="cels.js"></script>
+<script src="winder.js"></script>
+<script src="lettering.js"></script>
+<script src="poses.js"></script>
+<script>
+'use strict';
+// Design review only: every authored key at one scale, plus a 240 px silhouette check row.
+const names = Object.keys(POSES), D = Object.fromEntries(names.map(n => [n, Winder.compile('sheet/' + n, POSES[n])]));
+function sheet(c) {
+  paper(c, '#f5f0e5', null, 87);
+  names.forEach((n, k) => {
+    const col = k % 8, row = Math.floor(k / 8);
+    c.save(); c.translate(130 + col * 236, 320 + row * 340); c.scale(.95, .95);
+    c.strokeStyle = 'rgba(60,54,47,.35)'; c.lineWidth = 1; c.beginPath(); c.moveTo(-90, 0); c.lineTo(90, 0); c.stroke();
+    Winder.draw(c, D[n]); c.restore();
+    c.fillStyle = '#6b6258'; c.font = '22px ui-monospace,monospace'; c.fillText(n + (D[n].reachError > .5 ? '  REACH ' + D[n].reachError.toFixed(1) : ''), 70 + col * 236, 350 + row * 340);
+  });
+  Lettering.draw(c, '(a + b) mod 113 = grokking {113/36}', 60, 1040, 26);
+  Lettering.draw(c, 'step 0123456789, seed k test train z ?', 900, 1040, 20);
+}
+defineFilm({ palette: { ...PALETTES.pencilMinimal, paper: '#f5f0e5' }, format: { ar: '16:9', width: 1920 }, fps: 24, timeline: [{ name: 'sheet', dur: 1 / 24, fn: sheet }] });
+</script>

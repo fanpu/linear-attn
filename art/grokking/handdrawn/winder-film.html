@@ -1,0 +1,251 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>The Winder · grokking, drawn by hand</title>
+<style>body{margin:0;background:#242321;display:grid;place-items:center;min-height:100vh}canvas{max-width:100vw;max-height:92vh;object-fit:contain}.bar{color:#ddd;font:12px ui-monospace,monospace}</style>
+<canvas id="c"></canvas>
+<script src="core.js"></script>
+<script src="studio.js"></script>
+<script src="cels.js"></script>
+<script src="data.js"></script>
+<script src="winder.js"></script>
+<script src="lettering.js"></script>
+<script src="poses.js"></script>
+<script src="board.js"></script>
+<script>
+'use strict';
+/* FILM BRIEF
+Subject and beat: a small winder has strung one thread through 113 nails in counting order, 0 -> 1 -> ... -> 112.
+  It is a tangle, so every answer hangs on a paper tag (memorisation). A wind (weight decay) takes the tags;
+  underneath, the nails have crept into a ring and the same thread pulls taut into the star polygon {113/36}.
+Duration; format: 46.5 s in five shots; 1:1, 1080 x 1080, 24 fps.
+Drawing reference: picture-book pencil figure, big head, bell coat. Material: graphite on warm paper, one red
+  coloured pencil shared by the thread and the scarf.
+Look: pencil. Techniques: whole cels on an exposure sheet; measured data drives the nails.
+Palette/bindings: paper #f5f0e5 (screen), graphite #3d362f (figure, board, tags), red #a63d2f (thread, scarf).
+Mark language: tapered contour gestures, shadow hatching on the back of the coat only, quiet face.
+Cast: the winder, right-facing three-quarter view only; replacement eyes (open / wide / closed), mouths, brows.
+Drawing method: every exposed drawing is a whole pose built once (winder.js) and held with its marks.
+Hardest action: gust lands -> shoved back on the heels (ones) -> step back and brace -> three skids -> wind drops,
+  scarf swings through and settles -> peek -> straighten, head back: the star.
+Contacts: held tag = mitten grip point until release frame 37; boots slide only during the three authored skids.
+Exposure: twos; ones for the tag release (1.5-1.875 s) and the hit (3.5-4.0 s). Nails, thread, tags, wind on ones.
+Camera: locked.
+Environmental force: two authored gusts from screen right. Gust drives board lean, thread belly, tag pendulums
+  and releases (right side of the board first), streaks, scarf, hair, coat hem, the brace and the skids.
+Measured vs declared: nail positions are seed 0's W_E(t) projected on the final k = 36 plane, unit-RMS per
+  checkpoint (as in ../render_film.py). Declared: the film-time -> training-step map below (19.6k -> 27k),
+  thread slack, tags, wind and the figure are metaphor, not measurement.
+Beat sheet (start, dur, focus, action, camera):
+   0.0  8.0 winding   thread goes 0 -> 1 -> ... -> 112 through the nails; numbers flash as it passes. Tuck spool, "hmm". Locked.
+   8.0  8.5 memorize  tags flicked onto 30% of the nails like cards; proud. "?" at two untagged nails; empty hands; shrug. Locked.
+  16.5  8.0 night     dissolve; step counter races 1,500 -> 19,600; nails creep (measured); winder dozes; one tag drops. Locked.
+  24.5 13.5 cleanup   the wind shot (hardest action, above). Locked.
+  38.0  8.5 coda      push in on {113/36}; numbers darken: neighbours differ by 22 = 1/36 mod 113; lettering. Push-in.
+Delivery: winder-film.html + modules, out/winder-film.mp4, contact sheet.
+*/
+const FIG_SCALE = 1.75, ROOT_X = 262;
+const { sstep, FLOOR, NP } = Board;
+const FLAT = () => 0;
+
+// ---------- figure: whole drawings, cached by pose so a held pose holds its marks ----------
+const round = v => Array.isArray(v) ? v.map(round) : typeof v === 'number' ? Math.round(v * 100) / 100 : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, round(x)])) : v;
+const drawings = new Map();
+function drawingOf(pose) {
+  const p = round(pose), id = 'w/' + strokeSeed(JSON.stringify(p));
+  if (!drawings.has(id)) { if (drawings.size > 12) drawings.delete(drawings.keys().next().value); drawings.set(id, { d: Winder.compile(id, p), sprites: new Map() }); }
+  return drawings.get(id);
+}
+const BOX = [-300, -340, 520, 400];                               // figure-local sprite bounds
+function figureSprite(e) {
+  const key = String(S); if (e.sprites.has(key)) return e.sprites.get(key);
+  const k = FIG_SCALE * S, cv = document.createElement('canvas'); cv.width = Math.ceil(BOX[2] * k); cv.height = Math.ceil(BOX[3] * k);
+  const g = cv.getContext('2d'); g.scale(k, k); g.translate(-BOX[0], -BOX[1]); Winder.draw(g, e.d); e.sprites.set(key, cv); return cv;
+}
+function drawFigure(c, e, x) { const sp = figureSprite(e); c.drawImage(sp, x + BOX[0] * FIG_SCALE, FLOOR + BOX[1] * FIG_SCALE, sp.width / S, sp.height / S); }
+const toWorld = (p, x) => [x + p[0] * FIG_SCALE, FLOOR + p[1] * FIG_SCALE];
+// keyed acting: [time, poseName, ease]; each segment is spaced by its own ease
+function acting(K, ACT, t) {
+  let k = 1; while (k < ACT.length - 1 && ACT[k][0] <= t) k++;
+  const [t0, a] = ACT[k - 1], [t1, b, ease = easeIO] = ACT[k];
+  return Winder.between(K[a], K[b], ease(clamp((t - t0) / (t1 - t0), 0, 1)), .5);
+}
+
+// ---------- the stage every shot shares ----------
+const N1500 = Board.nailsAt(1500), finalNails = Board.nailsAt(27000);
+const ALL_TAGS = Board.makeTags({ finalNails });
+// the tag that drops in the night is the one the winder holds at dawn: lowest-left of the memorised tangle
+const FALLEN = ALL_TAGS.filter(t => !t.stubborn).reduce((m, t) => (N1500[t.a][1] - N1500[t.a][0] > N1500[m.a][1] - N1500[m.a][0] ? t : m));
+const TAGS = ALL_TAGS.filter(t => t !== FALLEN);
+const UNTAGGED = Array.from({ length: NP }, (_, a) => a).filter(a => !ALL_TAGS.some(t => t.a === a));
+function stage(c, { nails, step, slack = 1, gust = 0, t = 0, upTo = NP, labelAlpha = () => .3, sway = 0 }) {
+  c.drawImage(Board.floor(), 0, 0, W, H);
+  Board.drawChart(c, step, gust, t);
+  Lettering.draw(c, 'step ' + (Math.round(step / 100) * 100).toLocaleString('en-US'), 128, 270, 15, { align: 'center', weight: 1.5, opacity: .9 });
+  c.save(); c.translate(Board.CXB, FLOOR); c.rotate(sway); c.translate(-Board.CXB, -FLOOR);
+  c.drawImage(Board.panel(), 0, 0, W, H);
+  Board.drawLabels(c, nails, labelAlpha);
+  const head = Board.drawThread(c, nails, { slack, gust, t, upTo });
+  Board.drawNails(c, nails);
+  c.restore(); return head;
+}
+const hangAng = (tag, t) => tag.base + .04 * Math.sin(t * 2.2 + tag.ph);
+
+// ---------- shot 1: winding ----------
+const D1 = 8, windU = t => 113 * easeIO(clamp((t - .8) / 5.4, 0, 1));
+const ACT1 = [[0, 'feedA'], [6.2, 'feedA'], [6.65, 'tuck', easeIO], [7.0, 'tuck'], [7.45, 'hmm', easeIO], [D1 + 1, 'hmm']];
+const exp2 = exposureTrack([{ at: 0, on: 2 }]);
+function pose1(t) {
+  if (t < .8 || t >= 6.2) return acting(POSES, ACT1, t);
+  const bob = .5 - .5 * Math.cos((t - .8) * TAU / (16 / 24)), p = Winder.between(POSES.feedA, POSES.feedB, bob);
+  const h = N1500[Math.min(NP - 1, Math.floor(windU(t)))], dx = h[0] - ROOT_X, dy = h[1] - (FLOOR - 360), d = Math.hypot(dx, dy) || 1;
+  p.look = [clamp(dx / d, .2, 1) * .8, clamp(dy / d, -1, .4)]; p.tilt += clamp(dy / d, -1, .3) * .12; return p;   // eyes follow the thread's free end
+}
+function winding(c, tau) {
+  paper(c, Winder.PAPER, null, 87);
+  const t = tau, u = windU(t), head = stage(c, { nails: N1500, step: 1500 * sstep(.3, 6.4, t), upTo: u, t,
+    labelAlpha: a => .3 + .6 * clamp(1 - (u - a) / 9, 0, 1) * (u >= a ? 1 : 0) });
+  const e = drawingOf(pose1(exp2(t))), grip = toWorld(e.d.gripB, ROOT_X);
+  drawFigure(c, e, ROOT_X);
+  if (t < 6.5) { if (u < 113 && t > .5) Board.drawFeed(c, [grip[0] + 4, grip[1] - 8], head, 30 + 10 * Math.sin(t * 9)); Board.drawSpool(c, grip[0] + 2, grip[1] - 4, 1 - .75 * u / 113); }
+}
+
+// ---------- shot 2: memorise ----------
+const D2 = 8.5, CYC = 8 / 24, NCYC = 13, FL0 = .6;
+const ACT2 = [[0, 'hmm'], [.5, 'windup', easeIO], [FL0, 'windup'], [5.0, 'windup'], [5.45, 'proud', easeIO], [5.95, 'proud'], [6.25, 'point', easeOut], [6.7, 'point'], [6.95, 'point2', easeIO], [7.3, 'point2'],
+  [7.65, 'lookdown', easeIO], [7.95, 'lookdown'], [8.2, 'shrug', easeOut], [D2 + 1, 'shrug']];
+function pose2(t) {
+  if (t < FL0 || t >= FL0 + NCYC * CYC) return acting(POSES, ACT2, t);
+  const ph = ((t - FL0) / CYC) % 1, u = ph < .25 ? easeOut(ph / .25) : ph < .5 ? 1 : 1 - easeIO((ph - .5) / .5);
+  return Winder.between(POSES.windup, POSES.flick, u);
+}
+const FLICK_GRIP = toWorld(Winder.build(POSES.flick).gripB, ROOT_X);
+const launchOf = k => FL0 + (Math.floor(k * NCYC / ALL_TAGS.length) + .25) * CYC + (k % 3) / 24;
+function pinnedTag(c, tag, k, t) {
+  const n = N1500[tag.a], tl = launchOf(k), fly = .42; if (t < tl) return false;
+  if (t < tl + fly) { const u = (t - tl) / fly, e = easeOut(u), x = lerp(FLICK_GRIP[0], n[0], e), y = lerp(FLICK_GRIP[1], n[1], e) - 90 * Math.sin(Math.PI * u) * (1 - .5 * u);
+    Board.drawTag(c, x, y - 12 * (1 - u), tag.spin * .9 * (1 - u) * 2 + tag.base, { flip: Math.max(.25, Math.abs(Math.cos(u * 7 + tag.ph))), seed: tag.a }); return true; }
+  const s = t - tl - fly; Board.drawTag(c, n[0], n[1], hangAng(tag, t) + .7 * Math.exp(-3.2 * s) * Math.cos(10 * s + tag.ph), { seed: tag.a }); return true;
+}
+const Q = [UNTAGGED.reduce((m, a) => (N1500[a][1] - N1500[a][0] * .6 > N1500[m][1] - N1500[m][0] * .6 ? a : m)), UNTAGGED.reduce((m, a) => (-N1500[a][1] - N1500[a][0] * .3 > -N1500[m][1] - N1500[m][0] * .3 ? a : m))];
+function memorise(c, tau) {
+  paper(c, Winder.PAPER, null, 87);
+  const t = tau; stage(c, { nails: N1500, step: 1500, t });
+  let flown = 0; ALL_TAGS.forEach((tag, k) => { if (pinnedTag(c, tag, k, t)) flown++; });
+  [[Q[0], 6.2], [Q[1], 6.9]].forEach(([a, t0]) => { if (t < t0) return; const n = N1500[a], pop = 1 + .35 * Math.exp(-9 * (exp2(t) - t0)) ;
+    c.save(); c.translate(n[0] - 26, n[1] - 6); c.scale(pop, pop); Lettering.draw(c, '?', -7, 12, 30, { weight: 2.4, material: 'ink', color: Winder.GRAPHITE });
+    c.restore(); c.save(); c.strokeStyle = Winder.GRAPHITE; c.globalAlpha = .7; c.lineWidth = 1.4; c.beginPath(); c.ellipse(n[0], n[1], 10, 9, .3, .4, TAU + .1); c.stroke(); c.restore(); });
+  const e = drawingOf(pose2(exp2(t))); drawFigure(c, e, ROOT_X);
+  if (t > .45 && flown < ALL_TAGS.length) { const g = toWorld(e.d.gripA, ROOT_X), left = Math.ceil((ALL_TAGS.length - flown) / 7);   // the stack in the far hand thins out
+    for (let k = left; k >= 0; k--) Board.drawTag(c, g[0] + 6 + k * 2.5, g[1] - 26 - k * 2, .25 + k * .06, { seed: 300 + k }); }
+}
+
+// ---------- shot 3: the long night ----------
+const D3 = 8, SIT_X = 196, stepNight = t => lerp(1500, 19600, easeIO(clamp((t - .6) / 6.9, 0, 1)));
+const expDoze = exposureTrack([{ at: 0, on: 4 }]);
+const FALL_T = 5.6;
+function nightTint(c, a) { if (a <= 0) return; c.save(); resetT(c); c.globalCompositeOperation = 'multiply'; c.globalAlpha = a; c.fillStyle = '#8f98b8'; c.fillRect(0, 0, W, H); c.restore(); }
+function night(c, tau, { tint = 1 } = {}) {
+  paper(c, Winder.PAPER, null, 87);
+  const t = tau, step = stepNight(t), nails = Board.nailsAt(step); stage(c, { nails, step, t });
+  for (const tag of TAGS) Board.drawTag(c, nails[tag.a][0], nails[tag.a][1], hangAng(tag, t), { seed: tag.a });
+  const drop = { ...FALLEN, stubborn: true, release: FALL_T }, s = Board.tagState(drop, t, FLAT, t2 => Board.nailsAt(stepNight(t2))[FALLEN.a]);
+  Board.drawTag(c, s.x, s.y, s.attached ? hangAng(FALLEN, t) : s.ang, { seed: FALLEN.a });
+  const te = expDoze(t), e = drawingOf(Winder.between(POSES.doze, POSES.doze2, .5 - .5 * Math.cos(te * TAU / 2.6))); drawFigure(c, e, SIT_X);
+  const hc = toWorld(e.d.headCentre, SIT_X);
+  for (let k = 0; k < 3; k++) { const ph = ((exp2(t) / 2.6 + k / 3) % 1), x = hc[0] + 50 + ph * 46 + 8 * Math.sin(ph * 9 + k), y = hc[1] - 60 - ph * 120;   // z z z
+    Lettering.draw(c, 'z', x, y, 12 + ph * 16, { weight: 1.6, opacity: Math.sin(Math.PI * ph) * .8 }); }
+  nightTint(c, .5 * tint);
+}
+
+// ---------- shot 4: cleanup (the wind) ----------
+const D4 = 13.5;
+const gustAt = t => .42 * sstep(1.0, 1.55, t) * (1 - sstep(1.75, 2.6, t)) + sstep(3.0, 4.1, t) * (1 - sstep(7.9, 9.3, t)) * (.86 + .14 * Math.sin(t * 2.3 + 1));
+// declared time map: film seconds -> training step
+const stepWind = t => t < 3.6 ? lerp(19600, 20440, t / 3.6) : t < 8.8 ? 20440 + 3560 * sstep(3.6, 8.8, t) : 24000 + 3000 * easeOut(clamp((t - 8.8) / 4.7, 0, 1));
+const slackAt = t => 1 - sstep(4.2, 8.4, t);
+const nailWorld = a => t => Board.toWorld(Board.nailsAt(stepWind(t))[a], Board.swayOf(gustAt(t)));
+const K4 = { ...POSES };
+K4.gone2 = Winder.pose({ ...K4.gone, look: [-1, -.75], tilt: -.34 });
+K4.dip = Winder.between(K4.peek, K4.rest, .35); K4.dip.pelvis = [-3, -74]; K4.dip.look = [.6, -.8]; K4.dip.eyes = 'wide';
+const ACT4 = [[0, 'offer'], [.9, 'offer'], [1.3, 'strain', easeIO], [1.5, 'strain'], [1.75, 'gone', easeOut], [2.5, 'gone2', easeIO], [2.95, 'uhoh', easeIO], [3.5, 'uhoh'],
+  [3.75, 'hit', easeOut], [3.92, 'hit'], [4.5, 'brace', easeIO], [8.4, 'brace'], [9.2, 'peek', easeIO], [9.8, 'peek'], [10.05, 'dip', easeIO], [10.3, 'stepIn', easeIO], [10.6, 'wonder', easeOut], [12.4, 'wonder'], [12.9, 'smile', easeIO], [D4 + 1, 'smile']];
+const SLIPS = [[4.9, 5.2], [5.95, 6.2], [6.95, 7.25]];
+const skidAt = t => SLIPS.reduce((s, [a, b]) => s + sstep(a, b, t), 0) / SLIPS.length;
+const exp4 = exposureTrack([{ at: 0, on: 2 }, { at: 1.5, on: 1 }, { at: 1.875, on: 2 }, { at: 3.5, on: 1 }, { at: 4, on: 2 }]);
+function pose4(t) {
+  const p = acting(K4, ACT4, t);
+  // wind reaches the figure a beat after the board; cloth follows the wind, not the keys
+  const g = gustAt(t - .07), swing = t > 9 ? .3 * Math.exp(-2.2 * (t - 9)) * Math.sin((t - 9) * 7) : 0;
+  p.scarf = { angle: 1.85 + 1.4 * clamp(g * 1.25, 0, 1) - swing, wave: .2 + .4 * g, phase: g > .02 ? t * 13 : 2, len: 78 + 10 * g };
+  p.hair = -g; p.hem = -12 * g; p.flare = 8 * g;
+  const slipping = SLIPS.some(([a0, b0]) => t >= a0 && t <= b0 + .1);
+  if (t > 4.5 && t < 8.4) { p.lean += .035 * Math.sin(t * 4.1) * g - (slipping ? .09 : 0); p.pelvis = [p.pelvis[0] - (slipping ? 5 : 0), p.pelvis[1] + 2 * Math.sin(t * 4.1 + 1)]; }
+  return p;
+}
+const rootAt = te => ROOT_X - 52 * skidAt(te);
+const gripWorld4 = t => { const te = exp4(t); return toWorld(drawingOf(pose4(te)).d.gripB, rootAt(te)); };
+const HELD = { a: -1, release: 37 / 24, base: .1, vx: -250, vy: -420, spin: -5.5, ph: 1.3, front: true };
+function cleanup(c, tau, { step = null, labels = .3 } = {}) {
+  if (step === null) paper(c, Winder.PAPER, null, 87);
+  const t = tau, g = gustAt(t), st = step ?? stepWind(t), nails = Board.nailsAt(st), sway = Board.swayOf(g);
+  const states = TAGS.map(tag => ({ tag, s: Board.tagState(tag, t, gustAt, nailWorld(tag.a)) }));
+  stage(c, { nails, step: st, slack: slackAt(t), gust: g, t, sway, labelAlpha: () => labels });
+  for (const { tag, s } of states) if (s.attached || !tag.front) Board.drawTag(c, s.x, s.y, s.ang + (s.attached ? sway : 0), { flip: s.flip, seed: tag.a });
+  const te = exp4(t), e = drawingOf(pose4(te)), x = rootAt(te);
+  c.save(); c.strokeStyle = Winder.GRAPHITE; c.lineWidth = 1.2; c.lineCap = 'round';                      // skid scuffs stay where the boots were
+  SLIPS.forEach(([a, b], k) => { const age = t - a; if (age < 0 || age > 1.6) return; const from = ROOT_X - 52 * k / 3, to = ROOT_X - 52 * (k + sstep(a, b, t)) / 3; c.globalAlpha = .5 * (1 - age / 1.6);
+    for (const [off, dy] of [[72, -2], [60, -5], [-110, -2]]) { c.beginPath(); c.moveTo(from + off, FLOOR + dy); c.lineTo(to + off + 4, FLOOR + dy + .5); c.stroke(); } });
+  c.restore();
+  drawFigure(c, e, x);
+  for (const { tag, s } of states) if (!s.attached && tag.front) Board.drawTag(c, s.x, s.y, s.ang, { flip: s.flip, seed: tag.a });
+  const h = Board.tagState(HELD, t, t2 => gustAt(t2 - .07) * 1.5, gripWorld4);
+  if (h.x > -80 && h.y > -80) Board.drawTag(c, h.x, h.y, h.ang, { flip: h.flip, seed: FALLEN.a });
+  Board.drawStreaks(c, t, g);
+}
+
+// ---------- shot 5: coda ----------
+const D5 = 8.5;
+function coda(c, tau) {
+  paper(c, Winder.PAPER, null, 87);
+  const u = easeIO(clamp((tau - .6) / 4.2, 0, 1)), z = lerp(1, 1.85, u);
+  cam(c, lerp(W / 2, Board.CXB, u), lerp(H / 2, Board.CYB, u), z);
+  cleanup(c, D4 - 1 / 24, { step: lerp(27000, 40000, clamp(tau / 5, 0, 1)), labels: lerp(.3, .95, u) });
+  resetT(c);
+  const a1 = sstep(5.0, 5.8, tau), a2 = sstep(5.9, 6.7, tau);
+  if (a1 > 0) Lettering.draw(c, '(a + b) mod 113', W / 2, 74, 36, { align: 'center', weight: 2.6, opacity: a1 });
+  if (a2 > 0) { Lettering.draw(c, 'one thread, 0 to 112, on measured nails', W / 2, H - 64, 22, { align: 'center', weight: 1.9, opacity: a2 });
+    Lettering.draw(c, 'seed 0,  k = 36,  step 40,000', W / 2, H - 28, 18, { align: 'center', weight: 1.7, opacity: a2 * .9 }); }
+}
+
+// ---------- dissolves: time passing on a locked camera ----------
+const LB = layer();
+function dissolve(c, drawA, drawB, u) { drawA(c); if (u <= 0) return; const g = LB.getContext('2d'); g.save(); drawB(g); g.restore(); c.save(); resetT(c); c.globalAlpha = u; blit(c, LB); c.restore(); }
+const X = .9;
+const sceneNight = (c, tau) => tau < X ? dissolve(c, cc => memorise(cc, D2 - 1 / 24), cc => night(cc, tau), sstep(0, X, tau)) : night(c, tau);
+const sceneCleanup = (c, tau) => tau < X ? dissolve(c, cc => night(cc, D3 - 1 / 24), cc => cleanup(cc, tau), sstep(0, X, tau)) : cleanup(c, tau);
+
+// ---------- score: scattered plucks while the order is memorised, the same plucks in order once it is understood ----------
+const T = [0, D1, D1 + D2, D1 + D2 + D3, D1 + D2 + D3 + D4];
+function score(ac, t0, out) {
+  const master = ac.createGain(); master.gain.value = .9; master.connect(out);
+  const pluck = (t, o, s, g = .1, d = .5) => note(ac, master, pentHz(o, s, 196), t0, t, d, 'triangle', g);
+  for (let a = 0; a < NP; a += 2) { let lo = .8, hi = 6.2; for (let k = 0; k < 20; k++) { const m = (lo + hi) / 2; windU(m) < a ? lo = m : hi = m; }   // when the thread reaches nail a
+    pluck(T[0] + lo, Math.floor(hash(a, 5) * 3) - 1, Math.floor(hash(a, 6) * 5), .07, .35); }
+  ALL_TAGS.forEach((tag, k) => noiseBurst(ac, master, t0, T[1] + launchOf(k) + .42, .05, .12, 40 + k));
+  pluck(T[1] + 6.2, 1, 3, .12, .5); pluck(T[1] + 6.32, 1, 4, .12, .7); pluck(T[1] + 6.9, 1, 3, .12, .5); pluck(T[1] + 7.02, 2, 0, .12, .7); note(ac, master, 98, t0, T[1] + 8.2, 1.2, 'sine', .16);
+  for (let k = 0; k < 3; k++) { note(ac, master, 98, t0, T[2] + .8 + k * 2.6, 2.4, 'sine', .1); note(ac, master, 147, t0, T[2] + 2.1 + k * 2.6, 2.2, 'sine', .06); }
+  noiseBurst(ac, master, t0, T[2] + FALL_T + 2.6, .06, .1, 9);
+  // wind: filtered noise that follows the authored gust envelope
+  const sr = ac.sampleRate, buf = ac.createBuffer(1, Math.ceil(sr * D4), sr), ch = buf.getChannelData(0), r = rng(77); for (let i = 0; i < ch.length; i++) ch[i] = r() * 2 - 1;
+  const src = ac.createBufferSource(), lp = ac.createBiquadFilter(), wg = ac.createGain(); src.buffer = buf; lp.type = 'bandpass'; lp.Q.value = .8; wg.gain.value = 0;
+  for (let k = 0; k <= D4 * 20; k++) { const t = k / 20, g = gustAt(t); wg.gain.setValueAtTime(g * g * .5, t0 + T[3] + t); lp.frequency.setValueAtTime(260 + 700 * g + 120 * Math.sin(t * 5), t0 + T[3] + t); }
+  src.connect(lp); lp.connect(wg); wg.connect(master); src.start(t0 + T[3]);
+  [[7.4, 0, 0], [8.1, 0, 2], [8.8, 0, 4], [10.6, 1, 0]].forEach(([t, o, s]) => note(ac, master, pentHz(o, s, 196), t0, T[3] + t, 3.2, 'sine', .09));
+  for (let k = 0; k < 30; k++) pluck(T[4] + .6 + k * .14, Math.floor(k / 5) % 3 - 1, k % 5, .08, .45);                       // the same notes, now in order
+  [[0, 0], [0, 2], [0, 4], [1, 0]].forEach(([o, s]) => note(ac, master, pentHz(o, s, 196), t0, T[4] + 5.0, 3.2, 'sine', .08));
+}
+
+defineFilm({ palette: { ...PALETTES.pencilMinimal, paper: Winder.PAPER }, format: { ar: '1:1', width: 1080 }, fps: 24, score, timeline: [
+  { name: 'winding', dur: D1, fn: winding }, { name: 'memorise', dur: D2, fn: memorise }, { name: 'night', dur: D3, fn: sceneNight },
+  { name: 'cleanup', dur: D4, fn: sceneCleanup }, { name: 'coda', dur: D5, fn: coda }] });
+</script>
