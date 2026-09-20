@@ -2,6 +2,8 @@
 
 Every piece renders a measured or exactly computed quantity; aesthetic choices are declared in each project README. Proposals: [ml-art-directions.md](ml-art-directions.md), [ml-art-fractals.md](ml-art-fractals.md), [../hardware/hw-art-directions.md](../hardware/hw-art-directions.md), [ml-art-3d.md](ml-art-3d.md). Palettes: [color-research](color-research/). Process log: [PROGRESS.md](PROGRESS.md).
 
+**Display and curation:** [display-directions.md](display-directions.md) — how this work should be presented (physical show and feed), researched against modern/contemporary practice. [THE-EDIT.md](THE-EDIT.md) — the 15-work selection, with reasoning and print feasibility.
+
 ## ML phenomena
 
 | Project | What it is | Highlights |
