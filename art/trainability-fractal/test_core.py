@@ -30,11 +30,14 @@ print('early', time.time()-t)
 for k in range(mT_ex.shape[0]):
     a, b = mT_ex[k], mT_ee[k]
     print('cp', k, 'sign flips', int(((a<0)!=(b<0)).sum()), 'max rel', float(np.max(np.abs(a-b)/np.abs(a))))
-# separate short runs must equal checkpoints
+# separate short runs must equal checkpoints (same engine on both sides: the
+# checkpoint path is torch-only, so the standalone run has to be torch too)
 for k, T in enumerate(cps):
-    mT = tf.run_grid(prob, e0, e1, steps=T, early_exit=False, verbose=False)
+    mT = tf.run_grid(prob, e0, e1, steps=T, early_exit=False, verbose=False, engine='torch')
     print('T', T, 'checkpoint vs standalone max rel', float(np.max(np.abs(mT - mT_ex[k])/np.abs(mT))))
 # compare with old eager toy at 128 (first 64? different grid) -> recompute toy 128 exact check against file
+# cache/toy_128_tanh.npy was computed by the eager torch engine; the default engine
+# is now the fused CUDA kernel, so a handful of boundary-pixel flips is expected here
 toy = np.load('cache/toy_128_tanh.npy')
 e0, e1 = tf.log_grid(1.5, 1.5, 4.5, 128)
 m128 = tf.run_grid(prob, e0, e1, steps=500, verbose=False)

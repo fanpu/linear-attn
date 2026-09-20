@@ -332,12 +332,34 @@ def log_grid(c0, c1, half_w, res, dev='cuda'):
     return EX.reshape(-1).to(dev), EY.reshape(-1).to(dev)
 
 
+def pick_trainer(prob, engine='auto', **kw):
+    """Choose the compute engine. 'fused' is the CUDA kernel in cuda/tfkernel.cu (one
+    warp per network, whole 500-step loop on-chip); 'torch' is the batched (N, P*n)
+    GEMM loop in this file. 'auto' takes the fused kernel whenever it can serve the
+    call (width 16, float64, cuda, full batch, single T) and falls back otherwise."""
+    special = {'quadratic': train_chunk_quadratic, 'liu': train_chunk_liu}
+    if prob['nonlin'] in special:
+        return special[prob['nonlin']]
+    if engine in ('auto', 'fused'):
+        try:
+            import tfast
+        except ImportError:
+            tfast = None
+        if tfast is not None and tfast.available(prob, **kw):
+            return tfast.train_chunk
+        if engine == 'fused':
+            raise RuntimeError('fused engine unavailable for this call')
+    return train_chunk
+
+
 def run_grid(prob, h0, h1, steps=500, chunk=32768, trainer=None, verbose=True,
-             checkpoints=None, **kw):
+             checkpoints=None, engine='auto', **kw):
     """h0,h1: flat (P,) hyperparameter tensors (eta0, eta1). Extra (P,) tensors in kw
     (sigma0, sigma1, wd) are chunked alongside. Returns numpy float64 measure (P,), or
     (measure, measure_T (K,P) float32) if checkpoints is given."""
-    trainer = trainer or {'quadratic': train_chunk_quadratic, 'liu': train_chunk_liu}.get(prob['nonlin'], train_chunk)
+    trainer = trainer or pick_trainer(prob, engine, checkpoints=checkpoints, **kw)
+    if trainer is not train_chunk and 'compiled' in kw:
+        kw.pop('compiled')
     P = h0.numel()
     out = np.empty(P, dtype=np.float64)
     outT = None
