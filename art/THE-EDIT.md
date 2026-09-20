@@ -64,10 +64,10 @@ The room that teaches the viewer to look closely, so Movement II can land.
 
 | # | Work | File | Max print | Why |
 |---|---|---|---|---|
-| 1 | **The Ruler** | `hardware/float-ruler/gallery/specimen_engraved.png` | 0.84 m | The best single object in the repo. Six number formats as physical combs of ticks on cream — int4, int8, FP4 E2M1, FP8 E5M2, float16, bfloat16. Reads instantly as a specimen sheet; rewards a minute; is exactly true. **Engrave it in brass** and it stops being an image. |
+| 1 | **The Ruler** | `hardware/float-ruler/gallery/specimen_engraved.png` | 0.84 m | The best single object in the repo. Seven number formats as physical combs of ticks on cream — int4, int8, FP4 E2M1, FP8 E5M2, FP8 E4M3FN, float16, bfloat16. Reads instantly as a specimen sheet; rewards a minute; is exactly true. **Engrave it in brass** and it stops being an image. |
 | 2 | **Circuit Formation** | `art/grokking/gallery/specimen_plotter.png` | 0.42 m | Rows of circles becoming star polygons {113/k}, ordered by k. Pure Becher typology, already executed. The one case in ML where a network converges on a shape a Greek geometer would recognise, and it is drawn like a botanical plate. **Plot it.** |
 | 3 | **Filix ouroborum, Pl. VII** | `art/ouroboros/gallery/fern_sheet_sepia_ink.png` | 0.43 m | A fern disintegrating across generations of self-training, presented as a 19th-century botanical plate with a plate number. The conceit and the content are the same joke and it is a good one. Model collapse has never looked like this. |
-| 4 | **Specimen: 64 Bayer tiles** | `hardware/posterize/gallery/bayer_specimen8_riso.png` | 0.66 m | Pink and blue halftone tiles in a 64-cell grid. **Must be risograph** — a piece about quantisation, printed by a quantiser. The material argument is free here. |
+| 4 | **Specimen: 65 Bayer tiles** | `hardware/posterize/gallery/bayer_specimen8_riso.png` | 0.66 m | Pink and blue halftone tiles, every tone of the 8 × 8 matrix: 64 thresholds give 65 reachable tones, 0/64 … 64/64. **Must be risograph** — a piece about quantisation, printed by a quantiser. The material argument is free here. |
 | 5 | **Every orbit ends in a cycle** | `hardware/precision-divergence/gallery/graph_float16_plotter.png` | 0.98 m | The plotter variant, not the fire one. Branching river systems in pencil-grey converging on a small closed polygon — the 40-cycle every float16 orbit eventually falls into. Quiet, strange, and the largest true-detail render in the repo. |
 | 6 | **Where the heads look** | `art/attention-textile/gallery/overlay_sierpinski-doubling_indigo.png` | — | Induction-head attention on a self-similar sequence, drawn as a triangular text field in indigo on cream. Typographic, almost a concrete poem. Small, hung at 1 m. |
 
@@ -79,7 +79,7 @@ Three works, three walls. Unglazed, dibond-mounted, bench at 40 cm. One law elem
 |---|---|---|---|---|
 | 7 | **Cascade** | `art/gd-bifurcation/gallery/hero_dark_fire.png` | 0.93 m | The bifurcation cascade of gradient descent in red and gold on black. This is the emotional centre of the show and the best pure image in the archive — it reads as a form at 10 m and dissolves into filament at 30 cm. Re-render at 13,000 px for a 1.5 m hang. |
 | 8 | **Cascade (riso)** | `art/gd-bifurcation/gallery/hero_riso_lyapunov.png` | 0.97 m | The *same computation* in blue on cream with the pink Lyapunov trace beneath. Hung directly opposite #7. This pairing is the LeWitt argument made visible: one instruction, two executions, neither the original. It also quietly proves the colour work in `color-research/` was not decoration. |
-| 9 | **Not Whether, But Which** | `art/trainability-fractal/gallery/hero_deep_swirl_spectral_print.png` | **0.24 m** ⚠ | The sunset-over-ocean plane where every pixel is a separate network trained 500 steps. Best one-sentence reveal in the repo. **Currently 2048 px — this is a 24 cm object.** It is in the show only if it is re-rendered at ~13,000 px. That is the one piece of compute the show requires. |
+| 9 | **Not Whether, But Which** | `art/trainability-fractal/gallery/hero_deep_swirl_spectral_print.png` | **0.12 m** ⚠ | The sunset-over-ocean plane where every pixel is a separate network trained 500 steps. Best one-sentence reveal in the repo. **Currently a native 1024² grid — this is a 12 cm object.** The 2048 px gallery file is an integer nearest-neighbour upscale (`render_hero.py:41`), so it holds no detail the 1024² computation did not. It is in the show only if it is re-rendered at ~13,000 px. That is the one piece of compute the show requires. |
 
 ### Movement III — Forms (objects, and the dark room)
 
@@ -87,7 +87,7 @@ Three works, three walls. Unglazed, dibond-mounted, bench at 40 cm. One law elem
 |---|---|---|---|---|
 | 10 | **Same weights, one activation apart** | `art/rough-skin/gallery/diptych_heaviside_L1_vs_relu_cutaway.png` | 0.48 m | Two solids side by side: one crumpled to D = 2.426 ± 0.031 against theory 2.5, one a smooth piecewise-linear fold. **Cast both from the STLs.** As objects on a plinth this is the most immediately legible piece in the show — you can see the difference with your hands. |
 | 11 | **Terminal Phase** | `art/neural-collapse/gallery/stl/terminal_phase_{I,II,III,IV,V}.stl` | — | Five printed solids, epochs 0 → 250, a cloud resolving into a regular tetrahedron. A five-object Becher typology in three dimensions, and it already exists as five STLs nobody has printed. |
-| 12 | **One Basin, by width** | `art/invariant-tori/gallery/tori_glow.png` + `film_eps_sweep.mp4` | 0.28 m | Nested tori as glowing filament on black; the film's vortex frame is extraordinary. Show as a small print beside a looping projection — the only moving image in the room. |
+| 12 | **Invariant Tori** | `art/invariant-tori/gallery/tori_glow.png` + `film_eps_sweep.mp4` | 0.28 m | Nested tori as glowing filament on black; the film's vortex frame is extraordinary. Show as a small print beside a looping projection — the only moving image in the room. |
 | 13 | **Filter-Normalized** | `art/loss-landscape/gallery/hachure_dark_resnet56_noshort_g101.png` | 0.30 m | The no-shortcut ResNet-56 loss surface as a hachured survey engraving — concentric, moiré, genuinely odd. **Mill it as a relief** from `gallery/stl/resnet56_noshort_g101.stl` and hang the print beside the object. |
 | 14 | **Dither** | `hardware/dither/gallery/audio/*.flac` + `hero_sd_idle_zoom_riso.png` | 0.48 m | A dark alcove, good speakers, int2 → int4 undithered → int4 TPDF on a loop. The only work in the repo that is complete in a non-visual medium and has never been played to anyone. The radiating-line riso print is the wall piece; the sound is the work. |
 | 15 | **Progressive Sharpening** | `art/edge-of-stability/gallery/plotter_eta80.svg` | — | **A plotter running for the duration of the show**, in the entrance, drawing 40,000 steps of oscillation against the single straight line at 2/η. The oscillation is genuinely at pen-stroke frequency. This is the certificate executing, and it is the piece people will photograph. |
@@ -132,7 +132,7 @@ Joy Division quote does the talking and the ridgelines stop being about ESDs.
 | printable at ≥0.8 m today | #1, #5, #7, #8 |
 | printable at 0.4–0.7 m today | #2, #3, #4, #6, #10, #14 |
 | **object, no print needed** | #11, #13, #15 |
-| **needs re-render before it can hang** | **#9 only** (2048 → ~13,000 px) |
+| **needs re-render before it can hang** | **#9 only** (native 1024² → ~13,000 px, 161× the pixels) |
 
 So the show is **one compute job away from being physically possible**, plus a plotter, a
 resin printer, a riso run and a mill. That is a much smaller gap than 1,474 files suggests.
@@ -141,6 +141,12 @@ resin printer, a riso run and a mill. That is a much smaller gap than 1,474 file
 
 ## Next
 
-Labels. Fifteen tombstones and fifteen 50–100 word texts, per `display-directions.md` §3.4 —
-each of which is simultaneously the wall label, the alt text, the post caption and the catalogue
-entry. Say the word and I'll draft them.
+Labels: **done** — [LABELS.md](LABELS.md). Fifteen tombstones and fifteen 50–100 word texts,
+per `display-directions.md` §3.4, each doubling as wall label, alt text, post caption and
+catalogue entry. Every entry also names its **proof element**, and every dimensions line is
+derived from the pixel line at 8,600 px/m rather than chosen.
+
+After that, per `display-directions.md` §VII: plot the 15 SVGs and print the 10 STLs (25 objects
+that exist as files and have never been made), play the FLACs to someone, add the 440 px
+silhouette metric to `twitter_pipeline.py`, and — last, because it is the only expensive item —
+re-render #9.
