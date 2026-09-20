@@ -4,10 +4,13 @@ after zoology/model.py (`_compute_state_size`, which sums each mixer's
 `state_size(sequence_length)` over layers). Used as the x-axis of the
 recall-versus-state-size plot in `experiments/day4_mqar/plot.py`.
 """
+
 from __future__ import annotations
 
 
-def state_elements(mixer: str, d_model: int, num_heads: int, n_layers: int, seq_len: int) -> int:
+def state_elements(
+    mixer: str, d_model: int, num_heads: int, n_layers: int, seq_len: int
+) -> int:
     """Total numbers a model must hold to continue generating after `seq_len` tokens.
 
     Args:
@@ -24,4 +27,7 @@ def state_elements(mixer: str, d_model: int, num_heads: int, n_layers: int, seq_
         mixers, per layer one `head_dim x head_dim` matrix per head. Summed
         over layers. Counts of numbers, not bytes.
     """
-    raise NotImplementedError
+    if mixer == "attn":
+        return n_layers * 2 * seq_len * d_model
+    if mixer == "linattn" or mixer == "deltanet" or mixer == "gdn":
+        return n_layers * num_heads * (d_model // num_heads) ** 2

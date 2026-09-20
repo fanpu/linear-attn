@@ -55,16 +55,18 @@ def test_chunk_delta_rule_matches_naive(B, T, H, D, dtype):
 @gpu
 @pytest.mark.gpu
 def test_chunk_delta_rule_grads_match_naive():
-    """Gradients w.r.t. q, k, v, beta, each checked separately (fp32 inputs so the
-    reference is not the bottleneck; fp32 inside Triton runs as TF32, so 1e-2)."""
-    q, k, v, beta = (t.float().requires_grad_(True) for t in inputs(1, 256, 2, 64, torch.float32))
+    """Gradients w.r.t. q, k, v, beta, each checked separately. fla's chunk kernel only
+    accepts bf16/fp16, so it gets bf16 leaves; the reference gets fp32 copies of the same
+    rounded values. Checked by relative RMSE (as in fla/tests), since bf16 grads scale with |o|."""
+    q, k, v, beta = (t.requires_grad_(True) for t in inputs(1, 256, 2, 64, torch.bfloat16))
     o, _ = chunk_delta_rule(q, k, v, beta, None)
-    grads = torch.autograd.grad(o.square().sum(), (q, k, v, beta))
-    q2, k2, v2, b2 = (t.detach().clone().requires_grad_(True) for t in (q, k, v, beta))
+    grads = torch.autograd.grad(o.float().square().sum(), (q, k, v, beta))
+    q2, k2, v2, b2 = (t.detach().float().requires_grad_(True) for t in (q, k, v, beta))
     o2, _ = run_naive_delta_rule(q2, k2, v2, b2, None)
     grads_ref = torch.autograd.grad(o2.square().sum(), (q2, k2, v2, b2))
     for name, g, gr in zip("qkv beta".split(), grads, grads_ref):
-        torch.testing.assert_close(g, gr, atol=1e-2, rtol=1e-2, msg=f"grad {name}")
+        err = (g.float() - gr).pow(2).mean().sqrt() / gr.pow(2).mean().sqrt()
+        assert err < 1e-2, f"grad {name}: relative RMSE {err:.2e}"
 
 
 @gpu

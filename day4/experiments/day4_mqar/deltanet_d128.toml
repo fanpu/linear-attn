@@ -16,15 +16,15 @@ attn_dropout = 0.1        # Zoology: dropout on the attention weights (attention
 vocab_size = 8192
 input_seq_len = 512
 num_kv_pairs = 64
-num_train = 20000
+num_train = 100000         # 20k let every mixer memorize the train set instead of learning recall
 num_test = 3000
 power_a = 0.01
 random_non_queries = false
 data_seed = 123           # the same examples for every run of the day
 
 [training]
-max_epochs = 32
-batch_size = 128
+max_epochs = 64
+batch_size = 512
 test_batch_size = 256
 lr = 1e-3
 weight_decay = 0.1

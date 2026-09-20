@@ -10,6 +10,7 @@ from __future__ import annotations
 import numpy as np
 import torch
 
+from testbed.analysis.state_elements import state_elements
 from testbed.ops.delta_rule.naive import naive_delta_rule
 from testbed.ops.linear_attn.naive import naive_linear_attn
 from testbed.analysis.seed_stats import seed_stats
@@ -77,4 +78,4 @@ def run_state_elements(
     mixer: str, d_model: int, num_heads: int, n_layers: int, seq_len: int
 ) -> int:
     """Call your `testbed.analysis.state_elements.state_elements` and return the count."""
-    raise NotImplementedError
+    return state_elements(mixer, d_model, num_heads, n_layers, seq_len)

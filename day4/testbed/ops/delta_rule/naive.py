@@ -61,7 +61,7 @@ def naive_delta_rule(
             k_t,
             "b h v, b h k -> b h k v",
         )
-        S += einsum(beta[:, t].float(), S_update, "b h, b h k v -> b h k v")
+        S = S + einsum(beta[:, t].float(), S_update, "b h, b h k v -> b h k v")
         o[:, t] = einsum(S, scale * q_t, "b h k v, b h k -> b h v")
 
     return (o, S)

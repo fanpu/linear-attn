@@ -57,8 +57,9 @@ class LinearAttention(nn.Module):
         k = F.silu(self.k_proj(x))
         v = F.silu(self.v_proj(x))
         q, k, v = (rearrange(t, "b t (h d) -> b t h d", d=self.head_dim) for t in (q, k, v))
-        q = F.normalize(q, p=2, dim=-1)
-        k = F.normalize(k, p=2, dim=-1)
+        # F.normalize runs in fp32 under autocast; cast back so q/k/v share a dtype for fla's kernels
+        q = F.normalize(q, p=2, dim=-1).to(v.dtype)
+        k = F.normalize(k, p=2, dim=-1).to(v.dtype)
 
         if self.rule == "additive":
             fn = linear_chunk.chunk_linear_attn if self.impl == "chunk" else linear_naive.naive_linear_attn
