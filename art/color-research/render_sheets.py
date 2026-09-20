@@ -186,7 +186,7 @@ SPEC = ["crameri_batlow", "crameri_lajolla", "cet_bmy", "ironbow", "synthwave", 
 def sheet_spectrogram():
     d = S.sigma_delta_idle(3)
     x = d["x"]
-    v = np.clip((x + 110) / 110, 0, 1)
+    v = np.clip((x + 120) / 80, 0, 1)   # dB window [-120, -40]: the idle tones live here
     names = SPEC
     tiles = []
     for nm in names:
@@ -198,7 +198,7 @@ def sheet_spectrogram():
     sheet(tiles, "sequential_spectrum.png",
           "Sequential schemes: sigma-delta idle-tone spectrum",
           "Real data: 1-bit sigma-delta output spectrum vs DC input, golden-ratio zoom level 3 (hardware/dither sdzoom_deep), "
-          "dB clipped to [-110, 0].",
+          "dB clipped to [-120, -40] so the idle-tone lattice fills the ramp.",
           footer="Measured: spectral power in dB. Aesthetic: colormap only. e-ink 16 shows 16 deliberate bands.")
 
 

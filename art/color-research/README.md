@@ -2,6 +2,10 @@
 
 The Sohl-Dickstein Spectral split generalises well beyond Spectral. Any two ramps that start dark at the boundary and end pale, with different hues on the two sides, draw a fractal edge as a dark seam.
 
+- **Does it survive being posted?** [PIPELINE.md](PIPELINE.md) measures every scheme through a
+  social-media image pipeline (resize + JPEG 4:2:0). Codec damage tracks how much contrast a scheme
+  puts in chroma rather than lightness (r = 0.88 over the 14 splits), which makes the Sohl-Dickstein
+  Spectral split the *worst* performer of the catalogue at dE00 8.7.
 - **Catalogue:** [COLOR_SCHEMES.md](COLOR_SCHEMES.md) lists hex stops, type, measured CAM02-UCS lightness, uniformity and CVD diagnostics, what each scheme suits, and its lineage and sources. It also analyses why the Spectral split works.
 - **Module:** [palettes.py](palettes.py). Tests are in `test_palettes.py`: CIEDE2000 against Sharma test pairs, and a reproduction of Sohl-Dickstein's `cdf_img` plus Spectral to within 4/255.
 
@@ -29,7 +33,17 @@ P.metrics('cyanotype'); P.simulate_cvd(rgb); P.rgb_to_cam02ucs(rgb)
 
 *Random deep-network field on a sphere patch, from depth-roughness. Eleven diverging maps use a centred linear norm. The last four tiles are rank splits at f=0, which turn the zero level set into a seam.*
 
-Rebuild the sheets with `python render_sheets.py split_train split_lyap diverging`. The script can also render `split_basin`, `sequential`, `spectrogram`, `cyclic`, `categorical`, `riso` and `profiles`. I rendered those once, but the scope was cut, so they were not reviewed or iterated and are not shipped in `gallery/`. The spectrogram sheet in particular needs a tighter dB window, around [-120, -40], or the chirp spectrogram `spec_int3`.
+<img src="gallery/riso_inks_basins.png" width="100%">
+
+*Twelve spot-ink pairs, halftone overprint of the same signed GD basin field. Ink 1 = converged, ink 2 = diverged; dot area = closeness to the boundary. See [PIPELINE.md](PIPELINE.md) for why the flat riso split posts better than this halftone does.*
+
+<img src="gallery/categorical_basins.png" width="100%">
+
+*Which minimum does GD reach? Fourteen categorical palettes on the five outcome classes.*
+
+Rebuild the sheets with `python render_sheets.py all`, which renders all ten: `split_train`, `split_basin`, `split_lyap`, `sequential`, `spectrogram`, `diverging`, `cyclic`, `categorical`, `riso`, `profiles`.
+
+Nine are reviewed and shipped. **`spectrogram` (`sequential_spectrum.png`) is still not usable.** Its dB window has been corrected from [-110, 0] to [-120, -40], which fixes the muddiness, but the tiles remain near-flat for a reason the window cannot fix: the sigma-delta idle tones are 1 px line structure, and the sheet downsamples the full spectrum into 440 px tiles, so the lattice falls below Nyquist and disappears. It needs a native-resolution crop instead of a resize — the same lesson [PIPELINE.md](PIPELINE.md) measures for posting. Until then, use `hardware/dither`'s own full-size renders.
 
 ## Recommendations
 
