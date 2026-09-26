@@ -1,0 +1,49 @@
+{
+ "cond": "mnist_adam_norm_rw0",
+ "seed": 0,
+ "round": 19,
+ "holes": 3390,
+ "sheet_mm": 368.0,
+ "cell_mm": 12.0,
+ "hole_mm": 0.34,
+ "test_acc_es": 0.9775999784469604,
+ "max_holes_per_cell": 17,
+ "walls": [
+  {
+   "name": "sharp",
+   "src_mm": 2.0,
+   "a_m": 0.6,
+   "b_m": 1.2,
+   "magnification": 3.0,
+   "wall_width_m": 1.23648,
+   "source_blur_mm": 4.0,
+   "hole_image_mm": 1.02,
+   "diffraction_fwhm_mm": 1.9994117647058824,
+   "px": 3000
+  },
+  {
+   "name": "medium",
+   "src_mm": 8.0,
+   "a_m": 0.6,
+   "b_m": 1.2,
+   "magnification": 3.0,
+   "wall_width_m": 1.23648,
+   "source_blur_mm": 16.0,
+   "hole_image_mm": 1.02,
+   "diffraction_fwhm_mm": 1.9994117647058824,
+   "px": 3000
+  },
+  {
+   "name": "soft",
+   "src_mm": 20.0,
+   "a_m": 0.6,
+   "b_m": 1.2,
+   "magnification": 3.0,
+   "wall_width_m": 1.23648,
+   "source_blur_mm": 40.0,
+   "hole_image_mm": 1.02,
+   "diffraction_fwhm_mm": 1.9994117647058824,
+   "px": 3000
+  }
+ ]
+}
