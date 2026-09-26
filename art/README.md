@@ -28,6 +28,20 @@ Every piece renders a measured or exactly computed quantity; aesthetic choices a
 | [Trainability: the fractal edge of gradient descent](trainability-fractal/README.md) | Every pixel is a separate neural network trained for 500 steps. Colour says whether it learned, and how quickly. The line between learning and blowing up is jagged at every… | [hero_deep_swirl_spectral_print.png](trainability-fractal/gallery/hero_deep_swirl_spectral_print.png)<br>[zoom_zoomAB_spectral.mp4](trainability-fractal/gallery/zoom_zoomAB_spectral.mp4) |
 | [Weight Spectrum: a matrix learning to be less random](weight-spectrum/README.md) | Every eigenvalue of a weight matrix, printed while it trains: it starts as textbook random-matrix noise and grows a tail. | [ridgeline_mlp_bs16_s1_FC1_sv_joy_logtime.png](weight-spectrum/gallery/ridgeline_mlp_bs16_s1_FC1_sv_joy_logtime.png)<br>[ridge_film_mlp_bs16_s1_FC1_joy.mp4](weight-spectrum/gallery/ridge_film_mlp_bs16_s1_FC1_joy.mp4) |
 
+## New approaches (2026-09-26)
+
+Small networks, language models as dynamical systems, physical scale and typography. Overnight log with every number and null: [OVERNIGHT-2026-09-26.md](OVERNIGHT-2026-09-26.md).
+
+| Project | What it is | Highlights |
+|---|---|---|
+| [The Ticket's Shadow](ticket-shadow/README.md) | Prune a small MNIST net to its lottery ticket and count surviving connections per input pixel. Three optimisers give three shadows of the same data: SGD a soft core, Adam a plateau over every pixel ever lit, Signum only the rim. Cut as perforated sheets. | [followup_triptych_plate.png](ticket-shadow/gallery/followup_triptych_plate.png)<br>[followup_dial_r15.png](ticket-shadow/gallery/followup_dial_r15.png) |
+| [Drainage](drainage/README.md) | Qwen3-0.6B decoded greedily from every token in its vocabulary: 31,128 repetition loops, reached through a 62-word neck that post-training built (the base model has 3,087). | [watershed.png](drainage/gallery/watershed.png)<br>[followup_watershed_diptych.png](drainage/gallery/followup_watershed_diptych.png) |
+| [Unsayable](unsayable/README.md) | The tokens a model has but cannot repeat, set as a type specimen with its failed replies: Qwen3-0.6B answers 526 of them with a lone apostrophe. The set is pre-training's; the replies are post-training's. | [instead_qwen3-0.6b.png](unsayable/gallery/instead_qwen3-0.6b.png)<br>[concordance_qwen3.png](unsayable/gallery/concordance_qwen3.png) |
+| [To Scale](to-scale/README.md) | Massive activations drawn at true relative height (a 39 m bar over a 1 mm median), present in some linear-attention models with no softmax at all; Qwen3-1.7B's single super weight against 0.6B's committee of six. | [superweight_detail_1.7b.png](to-scale/gallery/superweight_detail_1.7b.png)<br>[committee.png](to-scale/gallery/committee.png) |
+| [Palimpsest](palimpsest/README.md) | A coordinate net draws one Latin page, then another across it. Nothing of the first survives in the image, but it survives in the weights, and restarting Adam brings it back mid-training. | [followup_restart_ff32_w256.png](palimpsest/gallery/followup_restart_ff32_w256.png)<br>[palimpsest_slit_siren_n512.png](palimpsest/gallery/palimpsest_slit_siren_n512.png) |
+| [The Same Sentence](same-sentence/README.md) | UDHR Article 1 in 161 languages, each line stretched to exactly its token cost: English 33 tokens, Maldivian 539. | [detail_gpt2_head.png](same-sentence/gallery/detail_gpt2_head.png)<br>[plate_qwen3_full.png](same-sentence/gallery/plate_qwen3_full.png) |
+| [One Road](one-road/README.md) | A function-space (InPCA) atlas of 64+ small networks across architectures and tasks: a shared road with per-architecture lanes; the apparent three-way fork on held-out CIFAR did not survive five seeds. | [one_road_atlas_tr.png](one-road/gallery/one_road_atlas_tr.png)<br>[followup_fork_study.png](one-road/gallery/followup_fork_study.png) |
+
 ## Three dimensions
 
 Pieces from [ml-art-3d.md](ml-art-3d.md), rendered with the shared torch renderer [`_shared/r3d`](_shared/r3d/README.md).
