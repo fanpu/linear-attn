@@ -11,7 +11,7 @@ Shared brief: [_shared/OVERNIGHT-BRIEF.md](_shared/OVERNIGHT-BRIEF.md).
 | 1 | [one-road](one-road/) | function-space (InPCA) atlas: do all architectures take one road from ignorance to truth? | done |
 | 2 | [drainage](drainage/) | greedy decoding's repetition loops as a river basin over the whole vocabulary | done |
 | 2 | [palimpsest](palimpsest/) | does a network retrained on page B keep A's fine detail under B's broad strokes? | done |
-| 3 | [to-scale](to-scale/) | massive activations at true scale; the one weight that breaks the model | running |
+| 3 | [to-scale](to-scale/) | massive activations at true scale; the one weight that breaks the model | done |
 | 3 | [unsayable](unsayable/) | under-trained tokens as a type specimen, with the model's failed attempts to say them | running |
 
 ## Results
@@ -67,3 +67,17 @@ erases A 100–300× faster than it writes B; SGD erases at the rate it writes. 
 `palimpsest/gallery/resurface_ff32_w256.png`, `palimpsest/gallery/palimpsest_slit_siren_n512.png`,
 `palimpsest/gallery/uv_relearn_ff32_w256.png`. Open question: is A's return an Adam-restart artefact
 (zeroed moment estimates)? Next: carry optimiser state over / warm-up / AdamW.
+
+### to-scale — a 39-metre bar, no softmax needed, and a committee instead of a super weight
+
+Qwen3-0.6B layer 2: the first token's dim 35 is **43,691× the median** activation (1.7B: 54,117×; 4B:
+38,346×; same model with random weights: 15×). At 1 mm per median, **that bar is 39.1 m** — a 16.6 cm × 4.71 m
+floor-to-ceiling strip at house print density. **Massive activations are not tied to softmax**: Gated
+DeltaNet (4,855×) and GLA (3,495×) have them with no softmax anywhere; DeltaNet (733×) and RWKV-7 (208×)
+don't; OLMo-2-1B, a softmax model, has neither massive activations (158×) nor an attention sink. **Qwen3-1.7B
+has a textbook super weight** ([1793, 1821] writes 99.8% of the activation; zeroing it: perplexity 16.6 →
+109.6). **Qwen3-0.6B has none — a committee of six** weights in one row; any one removed barely matters, all
+six → perplexity 1,562 (all 64 subsets measured). Random-weight nulls < 0.01. First-order fragility
+underestimates the 1.7B super weight 41×, so the maps show estimate as discs and measured ablation as rings.
+Best: `to-scale/gallery/superweight_detail_1.7b.png`, `to-scale/gallery/committee.png`,
+`to-scale/gallery/banner_film.mp4`, `to-scale/gallery/typology.png`.
