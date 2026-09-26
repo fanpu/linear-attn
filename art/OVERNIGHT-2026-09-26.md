@@ -34,7 +34,7 @@ pin it, then cut the pair as two perforated sheets.
 embedded per task with InPCA (Mao et al. 2024). On training examples every one of 309 cross-architecture
 pairs is closer at matched progress than a within-class-shuffled null (median ratio 0.48–0.69), and all
 untrained nets start at the uniform point. But architectures sit 1.6–2.5× further apart than seeds: lanes,
-not one road. **On held-out CIFAR the road forks into three valleys** (MLPs; CNN/GRU; ResNet/ViT).
+not one road. On held-out CIFAR the road *appeared* to fork into three valleys (MLPs; CNN/GRU; ResNet/ViT) — **refuted at 5 seeds, see follow-up below**.
 Shuffled-label runs leave ignorance in another direction; grokking runs on mod 97 walk away from truth on
 held-out pairs and come back. Caveat: the flattest-null picture depends on the metric (Bhattacharyya vs
 Hellinger); the numbers barely move. Best: `one-road/gallery/plate_roads_cifar_te.png`. Coordinator's
@@ -110,3 +110,17 @@ dead units: at step 5 the output is blank (std 0.004) but a linear readout of th
 recovers A at R² 0.86 — the output layer is cancelling A, and a fresh Adam's equal-size steps un-cancel it.
 Since real fine-tuning restarts Adam, the effect is the realistic case. Plate re-titled "Restart the optimiser,
 and the under-text comes back": `palimpsest/gallery/followup_restart_ff32_w256.png`.
+
+### follow-up: three shadows, and the fork that wasn't
+
+**ticket-shadow triptych** — SGD (core), Adam (plateau), Signum (rim), each exactly 8,275 surviving input
+weights (3.5%), so each laser-cut sheet has 8,275 holes. Shadows differ (SGD~Signum r −0.49). Accuracy does not
+match: Signum's ticket is worse (95.0% vs 97.7% dense), stated on the plate. Plate:
+`ticket-shadow/gallery/followup_triptych_plate.png`; sheets `followup_triptych_{sgd,adam,signum}.svg`; backlit
+simulation `followup_triptych_wall_src20mm.png`. The strongest single object of the night.
+
+**one-road, 5 seeds × 8 architectures on held-out CIFAR — the three valleys are not real.** Between-valley
+distance 0.220 vs within-valley 0.218 (ratio 1.01); the grouping ranks 35th of 210; clustering never recovers
+it. The third prong in the 2-D map is a projection effect. What survives: **MLPs vs everything else** (0.334 vs
+0.176) and per-architecture lanes (1.45–2.3× seed spread). No hero rendered; the null is documented in
+`one-road/gallery/followup_fork_study.png`.

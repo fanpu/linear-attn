@@ -183,3 +183,61 @@ Distances, embeddings and per-pair tables are in `cache/metrics_<task>[_H].json`
   - the within-class shuffle is one null among several possible ones;
   - a stronger null would keep each example's *difficulty*, meaning its correct-class trajectory, and scramble only the confusions. That would split the shared road into "same easy examples" and "same mistakes".
 - **Most promising next move:** the held-out fork. Run 5 seeds per architecture on CIFAR-10 held-out probes and test whether the three valleys (MLP, conv or recurrent, ResNet or ViT) are stable, separable lanes, for example by the seed-vs-architecture distance ratio per valley. Then draw that sheet as the second hero: *one road on what they were taught, three roads on what they were not.*
+
+## Follow-up (2026-09-26 night): do the held-out CIFAR roads really fork into three?
+
+<img src="gallery/followup_fork_study.png" width="960">
+
+**Verdict: not as three. No hero was rendered.** The proposed three valleys were MLPs; CNN and GRU; ResNet-8 and ViT. They do not survive 5 seeds per architecture in the full-dimensional distances. What does survive is **a two-way split** (the three MLPs against everything else), plus one lane per architecture that seeds reproduce. The 2D held-out map still *looks* like three prongs, but its top two components carry only 72% of the stress. In the 2D map, the GRU and logistic regression also ride other lanes' prongs at shorter lengths.
+
+**What was run.**
+- **Runs.** 5 seeds × 8 architectures on CIFAR-10, with the project's main setting: Adam lr 1e-3, batch 125, 30 epochs, 10k training subset, the same 1,000 + 1,000 probes and 74 checkpoints. Seeds 0–1 were reused where they existed. The 28 new runs used `followup_train.py`, which is `train.py` with output to `cache/runs_followup/`.
+- **Analysis** (`followup_fork.py`, CPU, about 2 min). The pipeline is `analyze.py` / `metrics.py` unchanged: intensive Bhattacharyya distance, progress s, d_traj at matched progress, and the within-class shuffle null.
+- **Pair categories.**
+  - *seed*: the same architecture;
+  - *valley*: the same proposed valley, different architecture;
+  - *between*: different valleys.
+- **Grouping tests.**
+  - average-linkage clustering cut at k = 3, scored by ARI against the proposed valleys;
+  - the silhouette of the proposed grouping, ranked against all 210 ways to split the 8 architectures 4 + 2 + 2.
+- **Robustness distances:** matched training step, the last third of checkpoints, and final checkpoints only.
+
+**Held-out probe** (medians, nats of d_B):
+
+| distance | seed | valley | between | between/valley | silhouette (rank of 210) | ARI, k=3 | null silhouette |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| d_traj (project metric) | 0.152 | 0.218 | 0.220 | **1.01** | 0.06 (35) | −0.06 | −0.17 |
+| matched step | 0.098 | 0.183 | 0.228 | 1.24 | 0.17 (9) | −0.04 | −0.12 |
+| last third of checkpoints | 0.194 | 0.326 | 0.410 | 1.26 | 0.22 (4) | 0.39 | −0.09 |
+| endpoint | 0.379 | 0.628 | 0.789 | 1.26 | 0.22 (3) | 0.15 | −0.07 |
+
+The training probe is the contrast. By d_traj it gives seed 0.093, valley 0.126, between 0.150 (1.19). On the late and endpoint distances the ratio is 0.82–0.97, so the grouping has no meaning on the training probe.
+
+- **Lanes are real.** Different architectures sit 1.45–2.3× further apart than seeds of one architecture, on both probes.
+- **The three-valley grouping adds almost nothing beyond "architectures differ".**
+  - By the project's own metric, between-valley ≈ within-valley (1.01).
+  - On late and endpoint distances, the grouping is among the better ones (rank 3–4 of 210), but it separates only 1.26×.
+  - Hierarchical clustering never recovers it (ARI ≤ 0.39). At k = 3 it isolates individual MLP 1×2048 seeds. Their early excursions make that architecture's own seeds 0.37 apart, as far apart as anything else.
+- **The valley that is not one: ResNet-8 and ViT** sit 0.22 apart. That is further than GRU–ViT (0.17) or CNN–ResNet (0.18).
+- **The pair that is one: CNN and GRU** (0.13, against 0.08 seed spread).
+- **Logistic regression** barely leaves ignorance on held-out examples. By d_traj it is close to everything (0.09–0.16), because the comparison only covers the shared, early progress range.
+- **What survives is a two-way split.**
+  - {MLP 1×256, 1×2048, 4×512} against the rest, by d_traj: between 0.334, within 0.176, seeds 0.152. Silhouette 0.34 ranks 3rd of 162 two-way splits; the two ahead are MLP 1×2048 alone and 1×2048 + 1×256. On the training probe the same split is 0.173 against 0.130.
+  - Under matched-step, late and endpoint distances, the *single best* two-way split of the 8 architectures is fully-connected (logistic regression + the three MLPs) against CNN, GRU, ResNet and ViT: silhouette 0.30–0.32, between/within 1.34–1.41×.
+  - Put simply, the nets with no spatial or sequential structure overfit away from the others on held-out images, while the structured nets fan out from each other in their own lanes.
+- **The null.** Every real pair is closer than the same pair with one run's examples shuffled within class: median ratio 0.28 for seeds, 0.43 for valley pairs and 0.57 for between-valley pairs, all at 100%. Every grouping signal vanishes in the null matrices (silhouette ≤ 0). The lanes, and the two-way split, are therefore example-level structure, not an artefact of loss curves.
+- **Test accuracy, mean of 5 seeds:** logistic regression 33.7%, MLP 1×256 43.3%, 1×2048 43.3%, 4×512 45.3%, CNN 62.3%, GRU 46.8%, ResNet-8 59.3%, ViT 49.9%.
+
+**Image.** `gallery/followup_fork_study.png` is a study, not a hero: the 40-road held-out map with every architecture named, beside the 8 × 8 d_traj matrix with the proposed valleys boxed in red. Declared: grey = distance, darker = further; it is the one grey-scale element. The map keeps the atlas's orientation and scale rules. No "three roads" sheet was drawn, as instructed for a failed hypothesis. The honest replacement title would be *one road on what they were taught, two on what they were not*. It would need its own check first, because the split is only 1.3–1.9× the within-family spread.
+
+**Next moves.**
+- Test the two-way split on MNIST and Fashion held-out probes, where the MLPs overfit less. If it is overfitting, the split should shrink there.
+- Replace d_traj's shared-progress window with a measure that also compares the parts of the road one run reaches and the other does not. d_traj is blind to "same road, one stops early" versus "different road", which is exactly the held-out question.
+
+**Compute.** pasar 899–926: 28 jobs, `--by art-fork`, tag `art-oneroad-seeds`, `--mem 3G`, all completed. Summed run time **0.66 GPU-h** (budget 1.5). CPU analysis: about 2 min.
+
+```
+cd art/one-road
+for each (arch, seed): pasar submit ... -- ../.venv/bin/python followup_train.py --task cifar --arch <a> --opt adam --epochs 30 --seed <s>
+../.venv/bin/python followup_fork.py && ../.venv/bin/python followup_render_fork.py study
+```

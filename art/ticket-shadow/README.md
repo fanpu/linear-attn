@@ -294,3 +294,45 @@ cd ticket-shadow && ../.venv/bin/python followup_dial.py 15 && ../.venv/bin/pyth
 - **Next:**
   - repeat the dial on standardised pixels, where Adam's plateau should not appear because never-lit pixels do get gradient;
   - check whether signum's rim ticket still "wins" against random re-init at the same mask.
+
+### Follow-up 2 (2026-09-26 night): *Three Shadows of the Same Data*, the triptych object
+
+<img src="gallery/followup_triptych_plate.png" width="960">
+
+<img src="gallery/followup_triptych_wall_src20mm.png" width="960">
+
+**What it is.** Three perforated sheets that differ only in the optimiser that trained the ticket: **SGD** (a soft core), **Adam** (a flat plateau over every pixel ever lit), and **signum** (only the rim survives). There is also one ink-on-cream plate in the diptych's register and a simulated backlit wall for each sheet, hung side by side. No new training was needed. Every mask was already cached (`followup_triptych.py`, CPU, about 15 s).
+
+| | source | seeds (plate / sheet) | holes in the sheet | ticket test, round 15 | dense test | lit 10–99× / >20k× | r(pixel std) | r(ever lit) |
+|---|---|---|---:|---:|---:|---|---:|---:|
+| SGD, lr 0.1 | job 728 | 3 / seed 0 | 8,275 | 97.9% (s0 97.94) | 97.9% | 3.5 / 19.4 | 0.93 | 0.31 |
+| Adam, lr 1.2e-3 | job 664 | 3 / seed 0 | 8,275 | 98.1% (s0 98.25) | 98.1% | 10.8 / 12.3 | 0.29 | 0.53 |
+| signum, lr 1e-4, β 0.9 | jobs 873 + 880 | 2 / seed 0 | 8,275 | **95.0%** (s0 95.18) | 97.7% | 31.9 / 0.9 | −0.51 | 0.17 |
+
+- **Matched sparsity is exact.** Pruning is layer-wise at a fixed rate, so every round-15 ticket keeps exactly 8,275 of 235,200 first-layer weights (3.5%). All three sheets have the same number of holes. Only where the holes are differs.
+- **Accuracy is not matched. Signum's is a worse ticket:** 95.0% against 97.7% dense and about 98% for the other two. The plate says so under its panel, in ink rather than grey. So the rim is the shadow of a ticket that has stopped winning.
+- **Seeds.** Signum has 2 seeds at lr 1e-4 (0 and 1); the other two have 3. The shadows are stable: the seed-0 sheet correlates with the seed mean at r 0.95 (SGD), 0.93 (Adam) and 0.99 (signum).
+- **The three are three different pictures, not one picture at three contrasts.** Correlations between the seed-mean shadows: SGD~Adam 0.35, SGD~signum −0.49, Adam~signum −0.26.
+
+**The sheets** (`gallery/followup_triptych_{sgd,adam,signum}.svg`, plus `_sheet.png` previews). The geometry is `render_object.py` unchanged: 368 mm square, 28 × 28 cells on a 12 mm pitch, 300 sunflower slots per cell, 0.34 mm holes, slots assigned by descending unit degree. The busiest cell holds 33 holes (SGD), 37 (Adam) or 91 (signum, on the rim). At 91 holes the slot pitch is still about 0.56 mm against a 0.34 mm hole, so it cuts like the others.
+
+**The wall render** (declared simulation, the same light model as the original object). A uniform disc source 0.6 m behind, the wall 1.2 m in front, pinhole plus Airy blur, and cos³ falloff. One change is declared: **one shared exposure for all three walls.** E0 is the 99.5th percentile of the three irradiance maps pooled, not per image, because in a real room one lamp and one wall light all three sheets. Every sheet passes the same total light (8,275 holes each). Signum concentrates it on the rim: the rim peaks at 2.7× E0, against 1.3× for the SGD core and the Adam plateau.
+- `followup_triptych_wall_src20mm.png` (20 mm source) is the preferred render.
+- `followup_triptych_wall.png` (8 mm source) resolves the pixel cells.
+- The single walls are in `cache/followup_triptych_walls/`.
+
+**Critique and iteration** (against CRITIQUE.md).
+- **Key.** Both registers commit. The plate's mean luminance is 0.87 (key 0.37). The 8 mm and 20 mm walls are 0.09 and 0.13 (key 0.41 and 0.37).
+- **Iteration 1: dot scale.** I first drew the plate on one shared dot scale, so each panel carries the same total ink (`followup_triptych_plate_sharedscale.png`, kept as a companion). On that scale the signum rim, at up to 88 connections per pixel, dominates, and the SGD core washes out to a grey stipple. *The subject was not the most visible thing in two panels of three.* The final plate uses the house convention (value ÷ panel max, as in the diptych and typologies). All three forms read at a glance: the core, the plateau and the rim.
+- **Iteration 1: colour.** My first draft printed "a worse ticket" in madder. Madder is reserved for negative values in this project, so the note is now in ink.
+- **Iteration 2: the wall.** At the 8 mm source, all three walls read as grids of pixel cells first and as shapes second. The 20 mm source merges the cells into a soft glow, and at that point the three read as three shadows: a lit disc, a lit square, a lit frame.
+- **Remaining weakness.** The SGD and Adam walls sit in the mid-tones at shared exposure. That is true to the physics (the same light, spread thinner), but they look quieter than the rim. The honest fix is in the hang (a darker room), not per-image exposure.
+
+**Next moves.**
+- Cut the 6 × 6-cell test tile from each SVG (the earlier next move), light it with one LED, and compare the photograph to the render.
+- A third signum seed would put all three panels at n = 3.
+- Whether signum's rim ticket beats random re-init at the same mask is still untested. If it does not, the right-hand sheet is the shadow of a mask, not of a ticket.
+
+**Prior art.** Covered by the searches above: no perforated or backlit rendering of a pruning mask was found, and no optimiser-comparison shadow.
+
+**Compute.** None on the GPU. CPU: `../.venv/bin/python followup_triptych.py && ../.venv/bin/python followup_triptych.py --src 20 && ../.venv/bin/python followup_triptych.py --no_objects --scale shared`.
