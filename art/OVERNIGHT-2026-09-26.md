@@ -94,3 +94,19 @@ are code identifiers and spam. **Each size fails in its own way**: 0.6B answers 
 `unsayable/gallery/instead_qwen3-0.6b.png` (a single madder apostrophe over 526 tokens — one of the night's
 strongest images), `concordance_qwen3.png`, `register_qwen3.png`. Caveats: chat checkpoints, not Base; the
 plates set real spam tokens verbatim (`_sexkontakte`, `_swingerclub`) — worth a curatorial decision before hanging.
+
+### follow-up: Adam explains both
+
+**ticket-shadow — Adam's per-weight normalisation causes the support plateau.** The ε dial is monotone
+(3 seeds): rare/common kept-connection ratio 0.84 → 0.66 → 0.43 → 0.12 → 0.03 for ε 1e-8 → 1e-3, r(pixel
+std) 0.33 → 0.92; beyond that it is SGD. AdamW is even flatter. Surprise: **Signum (sign of momentum)
+inverts SGD's shadow — only the rim survives** (rare/common 34, robust over 10× lr and 2 seeds). So three
+optimisers give three shadows of one dataset: core (SGD), plateau (Adam), rim (Signum). Plates:
+`ticket-shadow/gallery/followup_dial_r15.png`, `followup_mech_r15.png`.
+
+**palimpsest — the returning under-text is an optimiser-restart effect.** Carrying Adam's state into phase 2
+removes it (0.166/0.136 → 0.065/0.051, floor 0.047); warm-up, AdamW, larger ε don't. The blank page is not
+dead units: at step 5 the output is blank (std 0.004) but a linear readout of the last hidden layer still
+recovers A at R² 0.86 — the output layer is cancelling A, and a fresh Adam's equal-size steps un-cancel it.
+Since real fine-tuning restarts Adam, the effect is the realistic case. Plate re-titled "Restart the optimiser,
+and the under-text comes back": `palimpsest/gallery/followup_restart_ff32_w256.png`.

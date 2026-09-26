@@ -211,3 +211,86 @@ cd ticket-shadow
 2. **Test Adam's rim effect directly.** Two cheap runs would do it: Adam with a large ε (1e-3), which makes it behave like SGD for small gradients, and AdamW. If the plateau flattens back into a graded core, the mechanism is nailed down.
 3. **Run the paper's training length.** 50k iterations, 5 seeds, primary and Adam/raw: about 1 GPU-hour if run serially. This checks that the shadow statistics are stable to training length.
 4. **Cut a test tile.** A 6 × 6-cell tile of the SVG in card, lit with a real LED, would check the simulated blur model against a photograph before committing to the 37 cm sheet.
+
+## Follow-up (2026-09-26 evening): what Adam does to the shadow
+
+<img src="gallery/followup_dial_r15.png" width="960">
+
+**Verdict: the hypothesis holds, and the dial is monotone.** Adam's per-weight normalisation is what turns the shadow into MNIST's support. Turn ε up so that the normalisation stops acting, and the flat plateau melts, step by step, into SGD's graded core. Push the other way, to pure sign steps with momentum (signum), and the shadow *inverts*: only the rim of the support survives.
+
+**What was run** (`adam_dial.py`). The same protocol as `imp.py`: LeNet-300-100, raw [0,1] MNIST, batch 60, 20k steps per round, rewind to init. This run stops at round 15 (3.5% of layer 1). Many optimiser configurations train side by side as stacked independent MLPs, under one elementwise optimiser with per-model hyperparameters.
+- The optimiser was checked on the CPU against `torch.optim.Adam`, `AdamW` and `SGD`: they agree to 1e-7 over 20 steps.
+- Adam at ε 1e-8 reproduces job 664: rare/common 0.84 against 0.87, r(std) 0.33 against 0.29.
+- Metrics (`followup_dial.py`): the README's table bins; **rare/common** = connections kept by pixels lit in 10–99 of 55k images ÷ by pixels lit in >20k; r of the seed-mean shadow with pixel std and with "ever lit"; and the round-0 displacement mean|W_T − W_0| per pixel.
+- Renders: `render_dial.py`.
+
+**The ε dial** (Adam, lr 1.2e-3, 3 seeds each; per-seed rare/common in brackets):
+
+| ε | never lit | lit 10–99× | lit >20k× | rare/common | r(std) | round-0 displacement, rare/common | test |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 1e-8 | 0.0 | 10.6 | 12.6 | **0.84** (0.84, 0.84, 0.85) | 0.33 | 0.68 | 98.1 |
+| 1e-6 | 0.0 | 8.7 | 13.2 | 0.66 (0.69, 0.65, 0.64) | 0.41 | 0.53 | 98.0 |
+| 1e-5 | 0.0 | 6.2 | 14.3 | 0.43 (0.44, 0.40, 0.45) | 0.55 | 0.36 | 98.2 |
+| 1e-4 | 0.0 | 2.0 | 16.8 | 0.12 (0.13, 0.10, 0.13) | 0.76 | 0.19 | 98.1 |
+| 1e-3 | 0.3 | 0.6 | 20.6 | **0.03** (0.04, 0.03, 0.02) | **0.92** | 0.08 | 98.2 |
+| 1e-2 | 2.6 | 2.7 | 20.0 | 0.13 | 0.93 | 0.05 | 98.1 |
+| 1e-1 | 6.6 | 6.7 | 16.2 | 0.41 | 0.86 | 0.04 | 96.7 |
+| SGD lr 0.1 (job 728) | 3.4 | 3.5 | 19.4 | 0.18 | 0.93 | 0.04 | 97.9 |
+
+- **1e-8 to 1e-3.** The dial is monotone in every column, with tight seeds. Round-0 displacement is monotone all the way to SGD (0.68 → 0.04), and its correlation with pixel std rises from 0.53 to 0.97.
+- **1e-2 and 1e-1.** Here ε exceeds almost every weight's gradient RMS, so Adam is plain momentum-SGD at an effective lr of lr/ε. At 1e-1 that is 0.012, which under-trains (96.7%). Weights that barely moved then compete with init magnitudes, which lifts the never-lit floor (6.6) and so the ratio.
+- **Controls for that regime.** With lr ×10 at ε 0.1 (effective lr 0.12), the shadow *is* SGD's: rare/common 0.16, r(std) 0.89. SGD + momentum 0.9 at lr 0.01 gives the same (0.19, 0.89). The honest reading is a monotone dial from "support" to "variance" that saturates at SGD once ε exceeds the gradient scale.
+
+<img src="gallery/followup_mech_r15.png" width="720">
+
+**Which part of Adam** (`gallery/followup_mech_r15.png`):
+
+| optimiser | seeds | never / 10–99× / >20k× | rare/common | r(std) |
+|---|---:|---|---:|---:|
+| AdamW, wd 0.01 | 3 | 0.0 / 12.1 / 12.1 | 1.00 | 0.24 |
+| AdamW, wd 0.1 | 3 | 0.0 / 18.7 / 9.9 | **1.89** | −0.09 |
+| Adam β2 0.9 | 3 | 0.0 / 9.3 / 9.8 | 0.96 | 0.10 |
+| Adam β2 0.99 | 3 | 0.0 / 12.7 / 10.9 | 1.17 | 0.13 |
+| Adam β2 0.999 (default) | 3 | 0.0 / 10.6 / 12.6 | 0.84 | 0.33 |
+| Adam β2 0.9999 | 3 | 0.0 / 7.2 / 14.1 | 0.51 | 0.54 |
+| **signum** (sign of EMA momentum), lr 1e-4 | 2 | 0.0 / **31.9** / **0.9** | **34** (31, 38) | **−0.51** |
+| signum, lr 3e-5 / 3e-4 | 1 each | 0.0 / 27.0 / 2.4 ; 0.0 / 39.7 / 0.5 | 11 ; 77 | −0.45 ; −0.53 |
+| sign-SGD (no momentum), lr 1e-4 | 2 | 0.0 / 0.0 / 1.7 (lit 1k–5k×: 46.5) | 0.00 | −0.19 |
+| sign-SGD, lr 3e-5 / 3e-4 | 1 each | peak at 1k–5k× (28.5 ; 51.8) | 0.03 ; 0.00 | 0.13 ; −0.19 |
+| SGD + momentum 0.9, lr 0.01 | 1 | 3.7 / 3.6 / 19.3 | 0.19 | 0.89 |
+
+- **Every Adam variant keeps the hard edge** (never-lit pixels keep exactly 0) and a near-flat interior.
+  - A longer second-moment memory (β2 0.9999) grades it somewhat (0.51). The trend in β2 is not monotone (0.96, 1.17, 0.84, 0.51).
+  - Decoupled weight decay makes the support *more* uniform. At wd 0.1, rare pixels keep twice what common ones do, presumably because decay erodes the weights of noisy, sign-flipping common-pixel gradients faster than drift can hold them up. That explanation is not tested.
+- **The caller's prediction was half right.** "Sign-SGD should be the extreme support detector" holds only with momentum.
+  - **Signum** is more than a support detector: it *inverts* SGD's shadow. Pixels lit in 1–99 images keep 30–57 connections; the centre (>20k) keeps about 1. Round-0 displacement is 7.7× larger for rare pixels than common ones. This is robust across a 10× range of lr and 2 seeds (shadow r across seeds 0.97).
+  - The likely mechanism: after a rare pixel is lit, the sign of its momentum buffer persists, so its weights take full lr steps in a consistent direction on every step until an opposing hit. Common pixels' buffers flip sign and random-walk.
+  - **Plain sign-SGD** moves a weight only on steps where its pixel is lit. It keeps a **ring** of the pixels lit 100–5,000 times, the digits' outer strokes, and drops both the rare rim and the centre. It also trains badly (88.8% at round 15, 94.6% dense), so this ring is weaker evidence.
+- **The mechanism in one line.** Magnitude pruning keeps what training moved. SGD moves a weight in proportion to its gradient (pixel variance). Adam moves any weight that gets *some* gradient about as far as one that gets a lot (support). Signum moves rarely-driven weights *further*, because nothing cancels their momentum's sign (the rim).
+
+**The new image.** *The ε dial* (`gallery/followup_dial_r15.png`) is one strip of eight shadows, ink on cream, the house typology register. The plateau with its hard edge thins row by row into a soft core. The ε 1e-1 caveat is printed on the plate. The mechanism plate's signum and sign-SGD panels (a rim; a ring) are the most striking single shadows in the project, and the natural next physical piece is a **triptych of perforated sheets: SGD (core), Adam (plateau), signum (rim)**. Both follow-up plates replace the Adam-standardised typology and the class-null plate on `gallery/contact_sheet.png`.
+
+**Declared choices.**
+- Same dot-area convention (value ÷ panel max) and palette as the other typologies.
+- Seed-mean shadows; the seed count is printed on every panel.
+- Adam ε 1e-8 in the dial is this run's reproduction; in the mechanism plate it is job 664.
+
+**Prior art (brief search, 2026-09-26).**
+- Sign-descent readings of Adam are established: Balles & Hennig, *Dissecting Adam* (ICML 2018), and Bernstein et al., *signSGD / Signum* (ICML 2018), both cited from memory. So is Adam's rescaling of sparse gradients (Kingma & Ba 2015).
+- arXiv 2603.25325 reports that rarely-firing SAE features survive LLM weight pruning better than frequent ones. That is a related "rare survives" effect, seen only as a search snippet.
+- I found no image of how the optimiser, rather than the data, sets a pruning mask's input shadow, and no ε sweep of lottery-ticket masks.
+
+**Compute.** pasar 857 and 859 (smokes; 859 tested the compiled optimiser), 872 (ε dial, 21 models), 873 (mechanism + sign, 9 models), 879 (β2 / AdamW seeds 1–2), 880 (signum / sign-SGD lr and seed checks). All used `--by art-adam`, tag `art-adam-followup`, `--mem 3G`, and all completed. Summed run time: 30 + 51 + 1023 + 826 + 725 + 697 s = **0.93 GPU-h**. The palimpsest follow-up used the rest of the shared 1.5 h budget (0.46 h), for **1.40 GPU-h** in total.
+
+```
+cd art && pasar submit ... -- .venv/bin/python ticket-shadow/adam_dial.py --family eps          # mechsign --seeds 0; mech --seeds 1,2 --tag _s12; signlr --seeds 1
+cd ticket-shadow && ../.venv/bin/python followup_dial.py 15 && ../.venv/bin/python render_dial.py dial && ../.venv/bin/python render_dial.py mech && ../.venv/bin/python contact.py
+```
+
+**Honest limits and next moves.**
+- **One learning rate per optimiser family**, except the signum / sign-SGD lr sweep and the ε 0.1 lr×10 control.
+- **The protocol stops at round 15**, not 20.
+- **The signum rim costs accuracy.** Tickets fall from 97.7% dense to 95.0% at round 15, so it is a shadow of a worse ticket.
+- **Next:**
+  - repeat the dial on standardised pixels, where Adam's plateau should not appear because never-lit pixels do get gradient;
+  - check whether signum's rim ticket still "wins" against random re-init at the same mask.

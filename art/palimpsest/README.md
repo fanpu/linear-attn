@@ -205,3 +205,59 @@ Per-run numbers are in `cache/runs/table.txt`, `*_kick.txt` and `*_kernel*.txt` 
 5. the rendering of all this as a two-ink palimpsest.
 
 The literature already establishes that INRs forget catastrophically, that SIREN is especially susceptible, and that relearning is faster than learning ("savings", Ebbinghaus; common in continual learning). Those are not claimed as new.
+
+## Follow-up (2026-09-26 evening): is the returning under-text an Adam-restart artefact?
+
+<img src="gallery/followup_restart_ff32_w256.png" width="720">
+
+**Short answer: yes, the return of page A needs a restarted Adam, and the blank page is a readout cancellation, not dead units.** Carrying Adam's moment estimates over from phase 1 removes the resurfacing in both seeds. Warm-up, AdamW and a larger ε do not. The ghost is what happens under the usual fine-tuning recipe (a fresh optimiser on a trained network), so it is still worth showing, but it is a property of the restart and is now titled that way: *Restart the optimiser, and the under-text comes back* (`gallery/followup_restart_ff32_w256.png`).
+
+**What was run** (`adam_restart.py`; pasar 860–862). FF σ 32, width 256, the original phase 1 (Adam lr 3e-4, 2,000 steps on A, or on C for the control). Then 1,000 steps on B, branching from the *identical* phase-1 weights, once per optimiser variant. The measurements are taken at every step to 300, then at log-spaced steps:
+- the per-band ghost;
+- the output's spatial std, where a blank page is below 0.05 and B's is 0.33;
+- per ReLU unit, the fraction of pixels on which it is active (0 = dead on the whole page).
+
+**Metrics** (`followup_analyze.py`):
+- **A-specific ghost**: the mean over the 8–192 c/img bands of g(A) − mean g(decoys).
+- **Resurfacing**: the rise of that ghost after its trough in steps 1–30. A monotone fade scores 0. In the C→B control, which never saw A, it scores **0.047**, and in A→B runs the same measure for C scores 0.03–0.04. That is the noise floor.
+
+| phase 2 on B (FF σ32 w256) | seed 0 / seed 1: resurfacing of A | blank steps (≤300) | max dead units, layer 3 / 4 | PSNR(B) at 1k |
+|---|---|---|---|---|
+| **fresh Adam (original protocol)** | **0.166 / 0.136** (peak at step 98 / 89) | 61 / 31 | 1% / 15–20% | 43.5 / 45.4 |
+| **Adam state carried over** | **0.065 / 0.051** (noise floor) | 56 / 57 | **55% / 66%** | 41.3 / 39.5 |
+| warm-up, 100 steps linear | 0.129 / 0.101 (peak at step 46) | 17 / 17 | 1% / 9–16% | 43.5 / 43.8 |
+| lr/10 throughout | 0.074 / 0.057 (≈ floor) | 0 / 0 | 1% / 8–16% | 24.0 / 23.6 |
+| AdamW, wd 0.01 | 0.166 / 0.137 (same as fresh) | 61 / 31 | same as fresh | 45.5 / 45.4 |
+| Adam ε 1e-5 | 0.168 | 81 | 1% / 22% | 42.3 |
+| Adam ε 1e-4 | 0.155 / 0.123 | 206 / 105 | 1% / 42% | 36.3 / 36.4 |
+| Adam ε 1e-3 | 0.092 (B barely written) | 241 | 0% / 11% | 11.6 |
+| C→B: return of *C*, fresh / carried / warm-up / lr/10 | 0.171 / 0.081 / 0.141 / 0.070 | 30 / 43 / 20 / 0 | | |
+
+**Why, from a CPU re-run with a probe** (`followup_probe.py`, seed 0). At each step the probe fits the best linear readout of page A from the 256 units of the last hidden layer (ridge), and reports its R².
+- **Restarted Adam.** At step 5 the page is blank (std 0.004). Yet the layer still expresses A at **R² 0.86**, with only 9% of its units dead, against 0.17 for a decoy in A's hand and 0.004 for the network that held C. The layer's A content then decays smoothly (0.59 at step 20, 0.41 at step 80, 0.19 at step 150). The output's correlation with A runs 1.0 → −0.23 (step 5, an inverted ghost) → **+0.41 (step 80)** → 0.03 (step 150). So the first steps do not erase A from the representation. They cancel it in the readout, and the letters show through again while the readout is rebuilt for B, until B's features displace them.
+- **Carried state.** The first steps are **larger**, not smaller. Parameter displacement is 1.7× the fresh run's after one step and 2.5× after five, with single weights moving up to 22·lr by step 5, because v still holds phase 1's tiny converged gradients. The caller's premise ("a restarted Adam takes huge first steps because bias-corrected v is tiny") is backwards: a fresh Adam's first step is exactly lr·sign(g) on every weight. The larger carried steps kill **64%** of the last layer's units by step 20, and they stay dead. The layer's A content collapses to R² 0.07, so nothing is left to come back. B is written *faster* by the survivors (std 0.235 at step 80 vs 0.105), to a lower final PSNR.
+- **The "dead units, then revived" hypothesis is refuted for the original run.** The blank page has ≥85% of every layer alive. The only run with mass unit death (carried state) is the one where A does *not* return.
+
+**What each other variant does:**
+- **Warm-up** shortens the blank page (17 steps instead of 31–61) but still scrapes A and brings it back (0.13 / 0.10).
+- **lr/10** never blanks the page and only barely resurfaces (at the floor), but in 1,000 steps it writes B to only 24 dB.
+- **Larger ε** makes the blank page *longer* (61 → 81 → 206 → 241 steps) and keeps the return until B stops being learned.
+- **AdamW** at the default decay is indistinguishable from Adam here (lr·wd = 3e-6 per step).
+
+**Honest limits.**
+- Two seeds for fresh / carry / warm-up / lr/10 / AdamW, one for ε 1e-5 and 1e-3, one for the C control.
+- The probe re-runs phase 2 on the CPU from the saved phase-1 state. That trajectory differs numerically from the GPU run, but it shows the same blank and return (output–A correlation peaks at step 80).
+- The readout is fitted *to* A, so it is an upper bound on what the layer holds. The decoy and C-control R² values are its nulls.
+- Carrying state changes two things at once: the moment estimates, and the resulting larger steps and unit death. I have not separated them, e.g. with carried state at lr/3.
+
+**Prior art (brief search).** Probing work on continual learning already shows that representations keep old-task information that the output has lost. Davari et al., *Probing Representation Forgetting* (CVPR 2022), is cited from memory, not re-checked. Resetting Adam's state at a stage boundary, and warm-up as a fix for unstable early fine-tuning steps, are common practice. I found no account of an old *output* resurfacing mid-training because a restarted Adam cancels and then rebuilds the readout.
+
+**Compute.** pasar 860, 861, 862 (`--by art-adam`, tag `art-adam-followup`, `--mem 3G`): 624 + 577 + 471 s = **0.46 GPU-h** summed (run concurrently). The probe and the step-size measurement ran on the CPU (~15 min).
+
+```
+cd art && pasar submit ... -- .venv/bin/python palimpsest/adam_restart.py --first A --seed 0   # (and --seed 1; --first C)
+cd palimpsest && ../.venv/bin/python followup_analyze.py
+CUDA_VISIBLE_DEVICES= ../.venv/bin/python followup_probe.py --first A --variant fresh   # carry; --first C
+../.venv/bin/python followup_plate.py && ../.venv/bin/python contact.py <names>
+```
+The contact sheet now shows this plate in place of `scraped_ff32_w256.png`, the typology whose mid-grey panels the iteration notes above flagged as weak.

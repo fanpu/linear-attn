@@ -5,8 +5,8 @@ items = [("diptych_adam_vs_sgd_r15.png", "Two shadows of the same data (Adam vs 
          ("typology_mnist_adam_raw_rw0_s0_panel.png", "Typology, 20 rounds, Adam, raw pixels"),
          ("object_mnist_adam_raw_rw0_s0_r15_wall_medium.png", "Simulated backlit sheet, 8,275 holes"),
          ("plate_nulls_r15.png", "Null controls at 3.5% of input weights"),
-         ("typology_mnist_adam_norm_rw0_s0_panel.png", "Typology, 20 rounds, Adam, standardised pixels"),
-         ("plate_classes_r15.png", "One mask, ten classes (a null)")]
+         ("followup_dial_r15.png", "Follow-up: the ε dial, Adam to SGD"),
+         ("followup_mech_r15.png", "Follow-up: same data, eight optimisers")]
 T = 900; pad = 50; lab = 60
 W = 3 * T + 4 * pad; H = 2 * (T + lab) + 3 * pad
 im = Image.new("RGB", (W, H), CREAM); d = ImageDraw.Draw(im)
