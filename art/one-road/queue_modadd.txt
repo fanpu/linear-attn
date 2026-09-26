@@ -1,0 +1,10 @@
+6m 3G --task modadd --arch tf1 --opt adamw --wd 1 --steps 20000 --K 120 --seed 1
+6m 3G --task modadd --arch tf2 --opt adamw --wd 1 --steps 20000 --K 120 --seed 0
+6m 3G --task modadd --arch tf2 --opt adamw --wd 1 --steps 20000 --K 120 --seed 1
+6m 3G --task modadd --arch mlp --opt adamw --wd 1 --steps 20000 --K 120 --seed 0
+6m 3G --task modadd --arch mlp --opt adamw --wd 1 --steps 20000 --K 120 --seed 1
+6m 3G --task modadd --arch logreg --opt adam --steps 20000 --K 120 --seed 0
+6m 3G --task modadd --arch tf1 --opt adam --steps 20000 --K 120 --seed 0
+6m 3G --task modadd --arch mlp --opt adam --steps 20000 --K 120 --seed 0
+6m 3G --task modadd --arch tf1 --opt adam --labels shuf --steps 20000 --K 120 --seed 0
+6m 3G --task modadd --arch mlp --opt adam --labels shuf --steps 20000 --K 120 --seed 0

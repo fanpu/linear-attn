@@ -1,0 +1,48 @@
+4m 3G --task mnist --arch logreg --opt adam --epochs 20 --seed 0
+4m 3G --task mnist --arch mlp_256 --opt adam --epochs 20 --seed 0
+4m 3G --task mnist --arch mlp_2048 --opt adam --epochs 20 --seed 0
+4m 3G --task mnist --arch mlp_deep --opt adam --epochs 20 --seed 0
+4m 3G --task mnist --arch cnn --opt adam --epochs 20 --seed 0
+4m 3G --task mnist --arch resnet --opt adam --epochs 20 --seed 0
+4m 3G --task mnist --arch vit --opt adam --epochs 20 --seed 0
+4m 3G --task mnist --arch gru --opt adam --epochs 20 --seed 0
+4m 3G --task mnist --arch mlp_256 --opt adam --epochs 20 --seed 1
+4m 3G --task mnist --arch cnn --opt adam --epochs 20 --seed 1
+4m 3G --task mnist --arch resnet --opt adam --epochs 20 --seed 1
+4m 3G --task mnist --arch vit --opt adam --epochs 20 --seed 1
+4m 3G --task mnist --arch mlp_256 --opt sgd --epochs 20 --seed 0
+4m 3G --task mnist --arch cnn --opt sgd --epochs 20 --seed 0
+8m 3G --task mnist --arch mlp_2048 --opt adam --labels shuf --epochs 60 --seed 0
+8m 3G --task mnist --arch cnn --opt adam --labels shuf --epochs 60 --seed 0
+4m 3G --task fashion --arch logreg --opt adam --epochs 20 --seed 0
+4m 3G --task fashion --arch mlp_256 --opt adam --epochs 20 --seed 0
+4m 3G --task fashion --arch mlp_2048 --opt adam --epochs 20 --seed 0
+4m 3G --task fashion --arch mlp_deep --opt adam --epochs 20 --seed 0
+4m 3G --task fashion --arch cnn --opt adam --epochs 20 --seed 0
+4m 3G --task fashion --arch resnet --opt adam --epochs 20 --seed 0
+4m 3G --task fashion --arch vit --opt adam --epochs 20 --seed 0
+4m 3G --task fashion --arch gru --opt adam --epochs 20 --seed 0
+4m 3G --task fashion --arch mlp_256 --opt adam --epochs 20 --seed 1
+4m 3G --task fashion --arch cnn --opt adam --epochs 20 --seed 1
+4m 3G --task fashion --arch resnet --opt adam --epochs 20 --seed 1
+4m 3G --task fashion --arch vit --opt adam --epochs 20 --seed 1
+4m 3G --task fashion --arch mlp_256 --opt sgd --epochs 20 --seed 0
+4m 3G --task fashion --arch cnn --opt sgd --epochs 20 --seed 0
+8m 3G --task fashion --arch mlp_2048 --opt adam --labels shuf --epochs 60 --seed 0
+8m 3G --task fashion --arch cnn --opt adam --labels shuf --epochs 60 --seed 0
+4m 3G --task cifar --arch logreg --opt adam --epochs 30 --seed 0
+4m 3G --task cifar --arch mlp_256 --opt adam --epochs 30 --seed 0
+4m 3G --task cifar --arch mlp_2048 --opt adam --epochs 30 --seed 0
+4m 3G --task cifar --arch mlp_deep --opt adam --epochs 30 --seed 0
+4m 3G --task cifar --arch cnn --opt adam --epochs 30 --seed 0
+4m 3G --task cifar --arch resnet --opt adam --epochs 30 --seed 0
+4m 3G --task cifar --arch vit --opt adam --epochs 30 --seed 0
+4m 3G --task cifar --arch gru --opt adam --epochs 30 --seed 0
+4m 3G --task cifar --arch mlp_256 --opt adam --epochs 30 --seed 1
+4m 3G --task cifar --arch cnn --opt adam --epochs 30 --seed 1
+4m 3G --task cifar --arch resnet --opt adam --epochs 30 --seed 1
+4m 3G --task cifar --arch vit --opt adam --epochs 30 --seed 1
+4m 3G --task cifar --arch mlp_256 --opt sgd --epochs 30 --seed 0
+4m 3G --task cifar --arch cnn --opt sgd --epochs 30 --seed 0
+8m 3G --task cifar --arch mlp_2048 --opt adam --labels shuf --epochs 60 --seed 0
+8m 3G --task cifar --arch cnn --opt adam --labels shuf --epochs 60 --seed 0
