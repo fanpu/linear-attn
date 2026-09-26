@@ -12,6 +12,8 @@ Shared brief: [_shared/OVERNIGHT-BRIEF.md](_shared/OVERNIGHT-BRIEF.md).
 | 2 | [drainage](drainage/) | greedy decoding's repetition loops as a river basin over the whole vocabulary | done |
 | 2 | [palimpsest](palimpsest/) | does a network retrained on page B keep A's fine detail under B's broad strokes? | done |
 | 3 | [to-scale](to-scale/) | massive activations at true scale; the one weight that breaks the model | done |
+| 4 | [same-sentence](same-sentence/) | UDHR Article 1 in 161 languages, each line set at a length equal to its token cost | done |
+| 4 | [first-learned](first-learned/) | do different architectures learn the same MNIST digits first? | running |
 | 3 | [unsayable](unsayable/) | under-trained tokens as a type specimen, with the model's failed attempts to say them | done |
 
 ## Results
@@ -143,3 +145,17 @@ Plate: `unsayable/gallery/followup_instead_qwen3-0.6b-base.png`.
 Post-training makes the model more fragile to losing them (1.7B: 14.1 → 86.8 chat vs 9.9 → 20.6 Base). No
 size trend; 4B and 8B barely break because a later layer regrows the activation. Plate:
 `to-scale/gallery/followup_committee_or_single.png`.
+
+### same-sentence — equal in dignity, unequal in tokens (CPU only)
+
+UDHR Article 1 (eric-muller/udhr @588b3f4; Unicode stopped hosting it in 2024), 527 texts × 8 tokenizers, 161
+shown. English costs 33 tokens everywhere. **Qwen3: median tax 2.24×, max 16.3× (Maldivian, 539 tokens)**;
+61% of languages pay more than double; simplified Chinese is cheapest (0.82×). GPT-2: median 2.70×, max 22×
+(Burmese). Null: UTF-8 byte length explains R² 0.80, but the 104 Latin-script languages cost English's bytes
+(1.03×) and still pay 2.00× — that part is vocabulary. Bigger vocabularies help Korean (3.6×) and Chinese
+(3.2×) most and Thaana/Gurmukhi least (~1.08×). Form: each line shaped with HarfBuzz and its letterforms
+condensed/extended so its length is exactly tokens × 3.5 mm; tokens alternate black/madder; a token boundary
+inside a glyph cuts the glyph (GPT-2 splitting Han characters into bytes). Best:
+`same-sentence/gallery/detail_gpt2_head.png`, `plate_qwen3_full.png` (1.94 × 0.96 m master),
+`diptych_gpt2_qwen3.png`. Weak at thumbnail; made for 1:1. Measurements repeat Petrov et al. 2023 / Ahia et
+al. 2023; the typographic object is the new part.
