@@ -10,9 +10,9 @@ Shared brief: [_shared/OVERNIGHT-BRIEF.md](_shared/OVERNIGHT-BRIEF.md).
 | 1 | [ticket-shadow](ticket-shadow/) | lottery-ticket input mask as a perforated sheet that casts where the data lives | done |
 | 1 | [one-road](one-road/) | function-space (InPCA) atlas: do all architectures take one road from ignorance to truth? | done |
 | 2 | [drainage](drainage/) | greedy decoding's repetition loops as a river basin over the whole vocabulary | done |
-| 2 | [palimpsest](palimpsest/) | does a network retrained on page B keep A's fine detail under B's broad strokes? | running |
+| 2 | [palimpsest](palimpsest/) | does a network retrained on page B keep A's fine detail under B's broad strokes? | done |
 | 3 | [to-scale](to-scale/) | massive activations at true scale; the one weight that breaks the model | running |
-| 3 | unsayable | under-trained tokens as a type specimen, with the model's failed attempts to say them | queued |
+| 3 | [unsayable](unsayable/) | under-trained tokens as a type specimen, with the model's failed attempts to say them | running |
 
 ## Results
 
@@ -53,3 +53,17 @@ landscape, but `0000…` is the biggest sea there too. Best: `drainage/gallery/w
 `drainage/gallery/census.png`. Coordinator's note: `Qwen/Qwen3-0.6B` is the post-trained model, so
 "Question"/"Instructions" is very likely instruction-tuning showing through. Next: the same census on
 Qwen3-0.6B-Base (needs download) and Qwen3-4B.
+
+### palimpsest — no ghost at convergence; a real one on the way, and a hidden one in the weights
+
+Coordinate networks trained on page A (Latin, italic), then on page B (bold, turned 90°); nulls C→B and
+B-from-scratch. **At convergence nothing of A is left** on the pixel grid (<0.003 per band, same as controls).
+On the way: **SIREN** does the hypothesised thing briefly — B's broad strokes land in 1–4 steps while A's
+fine letters remain (overlap 0.34–0.49 vs 0.16–0.21 reversed). **Fourier features + Adam**: the page goes
+blank for ~40 steps, then **A comes back** (amplitude 0.19–0.34 around step 100) before fading; C→B brings
+back C, never A. After B, that network still responds to A's finest detail 4–8× more than B's, and relearns A
+to 26.3 dB in 150 steps vs 13 dB for controls — the under-text survives in the weights, not the image. Adam
+erases A 100–300× faster than it writes B; SGD erases at the rate it writes. Best:
+`palimpsest/gallery/resurface_ff32_w256.png`, `palimpsest/gallery/palimpsest_slit_siren_n512.png`,
+`palimpsest/gallery/uv_relearn_ff32_w256.png`. Open question: is A's return an Adam-restart artefact
+(zeroed moment estimates)? Next: carry optimiser state over / warm-up / AdamW.
