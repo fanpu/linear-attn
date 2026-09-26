@@ -12,7 +12,7 @@ Shared brief: [_shared/OVERNIGHT-BRIEF.md](_shared/OVERNIGHT-BRIEF.md).
 | 2 | [drainage](drainage/) | greedy decoding's repetition loops as a river basin over the whole vocabulary | done |
 | 2 | [palimpsest](palimpsest/) | does a network retrained on page B keep A's fine detail under B's broad strokes? | done |
 | 3 | [to-scale](to-scale/) | massive activations at true scale; the one weight that breaks the model | done |
-| 3 | [unsayable](unsayable/) | under-trained tokens as a type specimen, with the model's failed attempts to say them | running |
+| 3 | [unsayable](unsayable/) | under-trained tokens as a type specimen, with the model's failed attempts to say them | done |
 
 ## Results
 
@@ -81,3 +81,16 @@ six → perplexity 1,562 (all 64 subsets measured). Random-weight nulls < 0.01. 
 underestimates the 1.7B super weight 41×, so the maps show estimate as discs and measured ablation as rings.
 Best: `to-scale/gallery/superweight_detail_1.7b.png`, `to-scale/gallery/committee.png`,
 `to-scale/gallery/banner_film.mp4`, `to-scale/gallery/typology.png`.
+
+### unsayable — the words a model has but cannot say, and what each size says instead
+
+Land & Bartolo's indicator (top 2% of tokens) plus three repeat prompts; unsayable = p < 0.01 in all three.
+Qwen3 0.6B/1.7B/4B/8B: 743/703/860/1,105 unsayable (72/69/84/38% of candidates); OLMo-2-1B 349 (18%).
+**Null** (random ordinary tokens, same test): 0.10–0.17% fail for Qwen3, 0.86% for OLMo-2. 696 tokens are
+unsayable at all four Qwen3 sizes (Jaccard 0.61–0.74), mostly rare Hangul, then Han/Arabic/Hebrew; OLMo-2's
+are code identifiers and spam. **Each size fails in its own way**: 0.6B answers 526 of them with a lone `'`
+(0 of 1,029 random tokens); 1.7B with "The string '" (365; 0 random); 4B with its own `<tool_call>` token
+(207; 4 random); 8B with `</think>` loops (693; 13 of 2,906 random). Best:
+`unsayable/gallery/instead_qwen3-0.6b.png` (a single madder apostrophe over 526 tokens — one of the night's
+strongest images), `concordance_qwen3.png`, `register_qwen3.png`. Caveats: chat checkpoints, not Base; the
+plates set real spam tokens verbatim (`_sexkontakte`, `_swingerclub`) — worth a curatorial decision before hanging.
