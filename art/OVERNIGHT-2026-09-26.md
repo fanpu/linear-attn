@@ -9,9 +9,9 @@ Shared brief: [_shared/OVERNIGHT-BRIEF.md](_shared/OVERNIGHT-BRIEF.md).
 |---|---|---|---|
 | 1 | [ticket-shadow](ticket-shadow/) | lottery-ticket input mask as a perforated sheet that casts where the data lives | done |
 | 1 | [one-road](one-road/) | function-space (InPCA) atlas: do all architectures take one road from ignorance to truth? | done |
-| 2 | [drainage](drainage/) | greedy decoding's repetition loops as a river basin over the whole vocabulary | running |
+| 2 | [drainage](drainage/) | greedy decoding's repetition loops as a river basin over the whole vocabulary | done |
 | 2 | [palimpsest](palimpsest/) | does a network retrained on page B keep A's fine detail under B's broad strokes? | running |
-| 3 | to-scale / super-weight | massive activations at true scale; the one weight that breaks the model | queued |
+| 3 | [to-scale](to-scale/) | massive activations at true scale; the one weight that breaks the model | running |
 | 3 | unsayable | under-trained tokens as a type specimen, with the model's failed attempts to say them | queued |
 
 ## Results
@@ -40,3 +40,16 @@ held-out pairs and come back. Caveat: the flattest-null picture depends on the m
 Hellinger); the numbers barely move. Best: `one-road/gallery/plate_roads_cifar_te.png`. Coordinator's
 note: the framed-plot plates read as figures; the CIFAR fork is the image. Next: 5 seeds on held-out CIFAR
 to test whether the three valleys are stable.
+
+### drainage — an hourglass, not a basin
+
+Qwen3-0.6B, greedy, no template, from all 151,643 ordinary tokens (256-token cap). 48.8% fall into a
+loop; **31,128 distinct loops**, rank–size slope −0.93 (Zipf-like); the biggest are `0000…` (7,311 starts),
+` \frac{1}{2} \left(` and ` 2^2 +`. The surprise: the whole vocabulary first funnels through **62 first
+words** (`Question` 40%, ` Instructions` 25%) before fanning back out into the loops. 30% of pre-loop text is
+shared token-for-token with other runs, so the rivers are real. Null (one token of memory): 4 terminal
+states. bf16 vs fp32 changes ~a quarter of individual assignments but not the census. Qwen3-1.7B: a different
+landscape, but `0000…` is the biggest sea there too. Best: `drainage/gallery/watershed.png`,
+`drainage/gallery/census.png`. Coordinator's note: `Qwen/Qwen3-0.6B` is the post-trained model, so
+"Question"/"Instructions" is very likely instruction-tuning showing through. Next: the same census on
+Qwen3-0.6B-Base (needs download) and Qwen3-4B.
