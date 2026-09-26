@@ -182,3 +182,66 @@ python render_fragility.py; python render_fragility.py 1.7b; python contact_shee
 1. **Print the 4.71 m strip** at 8,600 px/m and hang it floor to ceiling. It is the one object here that needs to be seen physically.
 2. **Committee vs single weight across the Qwen3 family.** 4B/8B/14B are cached, and each is one short job. Does the committee appear only in the smallest model? That is the most promising scientific follow-up.
 3. **The attention-sink ↔ massive-activation link in GLA.** GLA has a BOS outlier but no softmax, so what reads it? Measure GLA's gate and state-decay response at the BOS position.
+
+## Follow-up (2026-09-26 evening): committee or single weight across sizes, and Base vs post-trained
+
+The same locate-and-ablate recipe (`followup_superweight.py`, a lean one-job-per-model version of `superweight.py`) was run on seven checkpoints:
+- Qwen3-0.6B, 1.7B, 4B, 8B and 14B (post-trained, cached);
+- `Qwen3-0.6B-Base` and `Qwen3-1.7B-Base`, downloaded from the Hub.
+
+Method:
+- The massive-activation ratio is top-1 |h| / median |h| at the peak layer, over the same 16 fineweb-edu pages as `measure.py`.
+- The spike in the first spiking `down_proj` is decomposed into its per-weight contributions W[row, c]·x_c. k95 is the fewest weights that together write ≥ 95 % of it.
+- Held-out perplexity is on 8 pages.
+- Null: 100 random weights from the same |w| band as the top weight (the band rule of `superweight.py`), 30 zeroed one at a time and all 100 together.
+
+Everything is fp32 except 14B, which is bf16 so that it fits on the GB10.
+
+| model | ratio (peak layer) | spiking weight row | k95 | top weight writes | ppl base → top one zeroed → k95 zeroed | null: 30 singly / 100 together |
+|---|---:|---|---:|---:|---|---|
+| Qwen3-0.6B-Base | 40,913 (L2) | L2 row 35 | **6** | 29.6 % | 12.44 → 12.82 → **441** | 12.438–12.440 / 12.442 |
+| Qwen3-0.6B | 43,507 (L2) | L2 row 35 | **6** | 29.4 % | 18.36 → 19.30 → **1,269** | 18.350–18.360 / 18.363 |
+| Qwen3-1.7B-Base | 49,729 (L2) | L2 row 1793 | **1** | 99.6 % | 9.86 → **20.56** → 20.56 | 9.861–9.862 / 9.862 |
+| Qwen3-1.7B | 54,110 (L2) | L2 row 1793 | **1** | 99.7 % | 14.13 → **86.8** → 86.8 | 14.133–14.134 / 14.142 |
+| Qwen3-4B | 38,088 (L6) | L6 row 4 | **4** | 51.6 % | 12.08 → 13.20 → 13.52 | 12.082–12.085 / 11.965 |
+| Qwen3-8B | 47,649 (L6) | L6 row 2276 | **3** | 71.5 % | 9.80 → 10.28 → 11.03 | 9.803–9.804 / 9.771 |
+| Qwen3-14B (bf16) | 59,487 (L6) | L6 row 731 | **1** | 97.2 % | 8.58 → **14.37** → 14.37 | 8.562–8.582 / 8.576 |
+
+**Findings**
+- **Post-training does not change the writer.** The Base and post-trained checkpoints have the same row, the same columns and nearly the same weights. 0.6B-Base already has the committee of six (columns 55, 128, 1489, 321, 46, 646, the six largest |w| in the matrix). 1.7B-Base already has the single super weight [1793, 1821] = −0.820. Post-training does make the model *more fragile* to losing it:
+  - 0.6B: +3.57 nats (Base) vs +4.23 nats (post-trained);
+  - 1.7B: +0.73 vs +1.82.
+
+  This agrees with Sun et al. (2024), who report that massive activations keep their values and positions through instruction tuning.
+- **No trend with size.** The results alternate: single weight (1.7B, 14B), committee of 6 (0.6B), 4 (4B), 3 (8B, where one weight writes 72 %). A committee is not a small-model phenomenon.
+- **The larger models do not break.** Zeroing the committee costs 4B only +0.11 nats and 8B +0.12 nats (14B: +0.52 for its single weight), against +4.2 nats in 0.6B. A cheap diagnostic (`followup_regrow.py`, jobs 928, 930, 931, 934) forwards 4 pages with the top-8 contributors zeroed and tracks the largest |h| at position 0 through every layer:
+  - In **8B**, dim 2276 falls from 12,412 to under 2,800 at layer 6, then is **rewritten by a later layer**: it is back at 11,716 by layer 18.
+  - In **4B**, dim 4 is partly regrown (3,860 at layer 16 vs 10,278 intact).
+  - In **0.6B**, dim 35 stays down (≤ 1,284 until the last layer).
+  - In **1.7B**, dim 1793 goes away, but a second massive dim, 1999, fed by the same huge input channel 1821, stays at about 8,700.
+
+  So the bigger models have a backup writer. That, not the committee, is what decides fragility.
+- **Nulls.** Same-magnitude random weights change perplexity by at most 0.02. Zeroing 100 of them together in 4B and 8B slightly *lowers* perplexity (by 1 % and 0.3 %). The smallest committee effect (+0.11 nats in 4B) is still more than ten times the largest null shift (0.01 nats).
+
+**Image.** `gallery/followup_committee_or_single.png` has one row per checkpoint:
+- **Bar:** the massive activation, on a common scale, cut into the weights that write it (measured). A single weight is one slab; a committee is several.
+- **Discs:** area ∝ held-out loss rise (measured, common scale) for the top weight alone (open), the k95 set (filled), and the 100-weight null (grey, floored at a 4 px dot).
+- **Colour** (declared): ink = post-trained, madder = Base.
+
+Critique and iteration:
+- The first render drew a hairline bracket over each bar that struck through the caption. It was removed.
+- "writes 100 %" was rounded from 99.6 %, so shares now carry one decimal.
+- The null was a fixed dot; it is now on the measured scale, floored.
+- The picture's subject, slabs versus one bar, is the most visible thing. The loss discs tell the second story: huge in 0.6B, nearly nothing in 4B and 8B.
+
+**Compute.** Whole-GPU jobs, **20.2 min** in total:
+- 893–898: 0.6B-Base 43 s, 1.7B-Base 85 s, 4B 188 s, 8B 297 s, 0.6B 43 s, 1.7B 85 s;
+- 932: 14B, 297 s;
+- 927: the first 14B attempt, 226 s, which crashed at the null step on a bf16 → numpy bug (fixed);
+- 928/930/931/934: regrow diagnostics, 66 s;
+- 929 and 933: CUDA-context OOMs, 26 s.
+
+**Limits**
+- Perplexity is on 8 held-out pages, not the 16 used above, so the base perplexities differ from the main table.
+- 14B is bf16.
+- The regrow diagnostic records only the single largest |h| at position 0 per layer, not every dim.

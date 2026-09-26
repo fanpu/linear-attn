@@ -176,3 +176,44 @@ cd art/drainage
 3. **Print**, at 84 × 119 cm:
    - the census and *The Watershed* as a diptych;
    - the six-seas typology as six framed plates hung as a Becher block.
+
+## Follow-up (2026-09-26 evening): the Base checkpoint
+
+*Is the hourglass made by post-training?* The whole census was rerun on `Qwen/Qwen3-0.6B-Base`, downloaded from the Hub, with exactly the production engine and settings: every one of the 151,643 ordinary tokens as the whole context, bf16 body with fp32 logits, B = 1024, 256-token cap, p ≤ 80, 32-token confirmation (jobs 881–888, one per shard). Nothing else changed.
+
+**Answer: yes. The 62-word neck is a post-training artefact; the `0000…` sea is not.**
+
+| | Qwen3-0.6B (post-trained) | Qwen3-0.6B-Base |
+|---|---:|---:|
+| entered a loop within 256 tokens | 74,049 (48.8 %) | 54,475 (35.9 %) |
+| emitted end-of-text | 7 | **39,371 (26.0 %)** |
+| still talking at token 256 | 77,587 (51.2 %) | 57,797 (38.1 %) |
+| distinct loops | 31,128 | 30,196 |
+| loops that drain exactly one start | 27,148 | 27,743 |
+| loops holding half the looped runs | 598 | 2,958 |
+| rank–size slope, ranks 10–3000 (loops only) | −0.93 | −0.76 |
+| **distinct first words (the neck)** | **62** | **3,087** |
+| share of starts taken by the six commonest first words | 96 % | 48 % |
+| commonest first words | `Question` 40.0 %, ` Instructions` 24.6 %, `otional` 11.0 %, `licants` 10.8 %, `*` 4.7 %, ` Answer` 4.6 % | `,` 17.8 %, ` =` 10.0 %, ¶ 8.1 %, `:` 4.6 %, `的` 3.9 %, `，` 3.6 %, ` of` 3.4 % |
+| largest sea | `0` repeated: 7,311 (9.9 % of looped runs) | **`0` repeated: 12,202 (22.4 % of looped runs)** |
+| median entry time / period | 23 / 10 tokens | 9 / 8 tokens; 24 % single-token loops |
+| one-token-memory null (Markov-1 map) | 4 cycles, 99.7 % into ` Instructions` | 177 cycles, 65.5 % into `9` |
+
+- **The neck.** Without post-training, a lone token is simply continued: it gets punctuation, ` =`, a newline, ` of`, ` the`, or its Chinese particle, which is what a document model does with a fragment. The whole-vocabulary collapse onto exam and instruction headers (`Question`, ` Instructions`, ` Answer`) and onto the two fragment-completions `otional` and `licants` does not exist in the Base model. Only 0.23 % of starts get the same first word from both checkpoints.
+- **`0000…` is still the biggest sea**, and relatively bigger: 22 % of the Base model's looped runs, against 10 %. It is the one loop that survives the change of checkpoint and model size (it was also 1.7B's largest). Next in the Base model come `1.` (2,092), ` 1.` (365) and `, 0` (348), then *is the one that is not. The first one…* and *I was wearing a long, dark coat and a long, dark hat…*. The post-trained seas made of exam and assistant boilerplate (`\frac{1}{2} \left(`, ` the user's query. The response should be in the same language as`) are absent.
+- **The Base model ends documents.** A quarter of all starts end in `<|endoftext|>`, mostly right after `.` or `。` (16,024 and 9,979 runs pass through those two tokens on their way out). The post-trained model almost never stops (7 starts). This is the biggest single change in the terminal states.
+- **Overlap of seas.** 267 loops exist in both censuses (Jaccard 0.004 of the loop sets). They hold 23 % of the post-trained model's looped runs and 31 % of the Base model's, almost all of it the `0` sea. Top-10 overlap: 2 (`0`, `1.`). Per start, where both loop, they reach the same loop 2.7 % of the time.
+- **Null.** The one-token-memory null has 177 cycles for the Base model, against 30,196 loops with full context, so context still multiplies the attractors about 170-fold. The post-trained model's null is far more collapsed (4 cycles). That is the neck again: its map from one token to the next already funnels everything into ` Instructions`.
+
+### Images
+- `gallery/followup_watershed_base.png`: *The Watershed* for the Base model, at 2880 px, from the 7200 × 10200 master `cache/followup_hourglass_base_full.png`. It is rendered with the identical treatment, line weight and opacity (`--lw 0.5 --alpha 0.14`), by `followup_render_hourglass.py`. That file is `render_hourglass.py` with one addition: the end-of-text column is filled with `<|endoftext|>` in ink like a loop column and captioned "ended the text". In the post-trained model that column is 7 runs wide, so it is invisible there and the original master is unchanged.
+- `gallery/followup_watershed_diptych.png`: Base (left, before post-training) beside the post-trained model (right), the same size and treatment, to hang as a pair. The gallery copy is at 60 % (3672 × 2640) to keep `gallery/` near its size budget; it is 68 MB in total now.
+- `gallery/followup_watershed_necks.png`: the two necks cropped at full master resolution, one above the other. At gallery size the Base neck's 3,087 words read only as striations. In the crop, `,` `=` ¶ `:` `的` `of` `the` are legible beside a wide `others` column, against the six big words of the post-trained model.
+- **Critique.** The pair works because the declared neck width (20 % of the sheet) is the same in both. The eye then compares *what fills the neck*: six reversed-out words, or a comb of hairline columns and `others`. The Base plate's bottom band has a new light-grey block, the end-of-text column, which is correct but reads like a fourth loop column. A caption at hanging size is needed. Key commitment is unchanged (clearly light).
+
+### Compute
+Jobs 881–888: 8 × 7.6 min = 61 min of whole-GPU time. That is faster per shard than the post-trained run (8.7 min) because a quarter of the rows stop early at end-of-text. Analysis and rendering were CPU only: `analyze.py`, `stats.py`, `nulls.py`, `compare_runs.py cache/q06b cache/followup_q06b_base`, `followup_compare_base.py` (→ `cache/followup_compare_base.json`), `followup_render_hourglass.py`, `followup_diptych.py`.
+
+### Limits
+- Same caveats as the main run: bf16, a 256-token cap, and textual confluence only.
+- `stats.py`'s power-law fits and "loops holding half" count the end-of-text basin as a sea, which matters only for the Base model. The table's slope and "half" figures are recomputed on loops alone.

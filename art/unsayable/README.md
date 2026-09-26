@@ -215,3 +215,44 @@ pasar submit ... -- .venv/bin/python unsayable/verify.py --model qwen3-0.6b --se
 - `look.py`, `typeset.py`: frame, inks, transcription, font fallback
 - `render_instead.py`, `render_register.py`, `render_concordance.py`, `render_census.py`, `contact_sheet.py`
 - `cache/fonts/` (Noto, from google/fonts, OFL) and `cache/jigmo/` (Jigmo, from kamichikoichi.github.io/jigmo) are needed to re-render and are gitignored. Re-download them before rendering on a fresh checkout.
+
+## Follow-up (2026-09-26 evening): the Base checkpoints
+
+*Is the unsayable set a pre-training absence and the failure reply a post-training reflex?* `Qwen/Qwen3-0.6B-Base` and `Qwen/Qwen3-1.7B-Base` were downloaded from the Hub and put through the identical test (`followup_verify.py`, a copy of `verify.py` that loads the Base weights but takes the token ids and the prompt text from the chat model). They were tested on:
+- the union of all Qwen3 candidate sets (3,033 tokens), which contains each model's own candidate set;
+- the chat model's own random-ordinary-token control.
+
+Jobs 889–892; analysis in `followup_analyze_base.py` → `cache/followup_base_summary.json`.
+
+**Answer: yes to both.** The set is inherited from pre-training; the characteristic replies are not.
+
+| | Qwen3-0.6B | 0.6B-Base | Qwen3-1.7B | 1.7B-Base |
+|---|---:|---:|---:|---:|
+| unsayable among the chat model's candidates (p < 0.01) | 743 / 1,029 | **601** | 703 / 1,024 | **415** |
+| … of which also unsayable in the other checkpoint | 601 | **601 (all)** | 415 | **415 (all)** |
+| unsayable, random control | 1 / 1,029 | 0 | 1 / 1,024 | 0 |
+| unsayable in the 3,033-token union | 1,194 | 801 | 743 | 418 |
+| characteristic chat reply among its unsayable tokens | `'` 526 / 743 | **0 / 601** | `The string '` 365 / 703 | **0 / 415** |
+
+- **The set stays.** Every token the Base model cannot say, the post-trained model cannot say either: 601 of 601 and 415 of 415. The Base sets have Jaccard 0.81 (0.6B) and 0.59 (1.7B) with the chat sets. So the unsayable core is pre-training absence. Post-training *adds* tokens: 142 (0.6B) and 288 (1.7B). These are marginal in the Base model, with a median p_max of 0.035 and 0.060, just above the 1 % line, and post-training pushes them under it. It never rescues one.
+- **The reply changes completely.** The lone `'` (0.6B) and the broken-off `The string '` (1.7B) occur for **none** of the Base models' unsayable tokens, under either prompt. The replies the post-trained models give to the plain prompt change too: 627 of 0.6B's 743 contain its own `<think>` tags, and 1.7B apologises (*I'm sorry, but I can't repeat the string…*). The Base models answer the plain prompt `User: Please repeat the string '‹token›'.↵Assistant:` by confidently repeating **a different string**:
+  - 0.6B-Base: 531 of 601 replies are *The string '‹something else›' is …*. The commonest by far is *The string '.languages' is repeated.*, given verbatim for 93 different unsayable tokens, then `MethodManager` (32), `riculum` (20), `ultureInfo` (18), `.getConfig` (16).
+  - 1.7B-Base: substitutes `.compile`, `paque`, `مفاوضات`, `.AutoScaleMode`, `أشك`.
+  - The Base models' substitution words are themselves odd sub-word tokens, much like the post-trained models' substitutions in the main run.
+- **The chat template is not a fair probe of a Base model.** Given the chat template, 0.6B-Base fails to say 1,024 of 1,029 *ordinary* random tokens (it emits ` ⚇ ⚇ ⚇ …` for 305 of them), and 1.7B-Base answers `>Password: >Password: …`. So the chat-template replies of the Base models are template artefacts and are not used. The plain prompt is still discriminating for Base: 0.6B-Base fails to repeat 764 of 1,029 candidates against 178 of 1,029 random tokens.
+- In short: *which* tokens cannot be said was fixed in pre-training. *What the model says instead* (the quote, the broken sentence, the apology, the think tags) was taught by post-training. Before post-training, the model confabulates a different token and says it confidently.
+
+### Plate
+`gallery/followup_instead_qwen3-0.6b-base.png`: the *Instead* plate for Qwen3-0.6B-Base, to hang beside `instead_qwen3-0.6b.png`. Its reply is *␣The string '.languages' is repeated.↵*, set in madder above the 93 tokens that drew it. `followup_render_instead_base.py` is `render_instead.py` with three changes:
+- it reads the Base table, restricted to the chat model's candidates;
+- it uses the plain prompt;
+- a sentence reply is set as ragged running text, word by word, at the largest size that fits the 1,500 px band.
+
+**Critique and iteration.** The first render used the original layout rule. That rule sets a multi-line reply one *model line* per item, so the one-line sentence was set at 1,300 px and overflowed: only "␣The" showed. It was replaced with word-wise running text. The subject, the confident wrong sentence, is now the most visible thing. The plate has the same key and register as the chat plates. Beside the `'` plate the pair reads as *before: a wrong answer, stated; after: a quote mark and silence*.
+
+### Compute
+Jobs 889–892, whole GPU: 134 + 53 + 227 + 91 s = **8.4 min**.
+
+### Limits
+- The random control for each Base model is the chat model's own random draw, reused so the null is identical.
+- Base candidates were not re-derived from the Base weights' own indicator. The Base models were tested on the chat models' candidate and union sets, so tokens that only the Base indicator would flag are not covered.

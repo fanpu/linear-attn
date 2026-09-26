@@ -124,3 +124,22 @@ distance 0.220 vs within-valley 0.218 (ratio 1.01); the grouping ranks 35th of 2
 it. The third prong in the 2-D map is a projection effect. What survives: **MLPs vs everything else** (0.334 vs
 0.176) and per-architecture lanes (1.45–2.3× seed spread). No hero rendered; the null is documented in
 `one-road/gallery/followup_fork_study.png`.
+
+### follow-up: base models — what post-training did
+
+**drainage** (Qwen3-0.6B-Base, all 151,643 starts, same engine): **the 62-word neck is made by
+post-training** — 3,087 distinct first words in Base; top six take 48% (chat 96%); Base's commonest first
+words are `,` `=` newline `:`. **`0000…` is still the biggest sea** (12,202 starts, 22.4% of looped runs), so
+the zeros are pre-training's. Seas barely overlap otherwise (267 shared loops, Jaccard 0.004). Pair:
+`drainage/gallery/followup_watershed_diptych.png`.
+
+**unsayable** (Base 0.6B/1.7B): **the set of unsayable tokens is pre-training's** — every token Base can't say,
+chat can't either (601/601, 415/415); **the replies are post-training's** — the lone `'` and "The string '"
+appear 0 times in Base, which instead confidently names another token ("The string '.languages' is repeated.").
+Plate: `unsayable/gallery/followup_instead_qwen3-0.6b-base.png`.
+
+**to-scale** (fp32, a different eval text from the first pass, so absolute perplexities differ): weights writing
+≥95% of the massive activation — 0.6B 6, 1.7B 1, 4B 4, 8B 3, 14B 1; the same rows/columns in Base models.
+Post-training makes the model more fragile to losing them (1.7B: 14.1 → 86.8 chat vs 9.9 → 20.6 Base). No
+size trend; 4B and 8B barely break because a later layer regrows the activation. Plate:
+`to-scale/gallery/followup_committee_or_single.png`.
