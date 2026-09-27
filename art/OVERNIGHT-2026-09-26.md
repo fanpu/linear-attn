@@ -13,7 +13,7 @@ Shared brief: [_shared/OVERNIGHT-BRIEF.md](_shared/OVERNIGHT-BRIEF.md).
 | 2 | [palimpsest](palimpsest/) | does a network retrained on page B keep A's fine detail under B's broad strokes? | done |
 | 3 | [to-scale](to-scale/) | massive activations at true scale; the one weight that breaks the model | done |
 | 4 | [same-sentence](same-sentence/) | UDHR Article 1 in 161 languages, each line set at a length equal to its token cost | done |
-| 4 | [first-learned](first-learned/) | do different architectures learn the same MNIST digits first? | running |
+| 4 | [first-learned](first-learned/) | do different architectures learn the same MNIST digits first? | done |
 | 3 | [unsayable](unsayable/) | under-trained tokens as a type specimen, with the model's failed attempts to say them | done |
 
 ## Results
@@ -159,3 +159,16 @@ inside a glyph cuts the glyph (GPT-2 splitting Han characters into bytes). Best:
 `same-sentence/gallery/detail_gpt2_head.png`, `plate_qwen3_full.png` (1.94 × 0.96 m master),
 `diptych_gpt2_qwen3.png`. Weak at thumbnail; made for 1:1. Measurements repeat Petrov et al. 2023 / Ahia et
 al. 2023; the typographic object is the new part.
+
+### first-learned — two groups, not one road
+
+All 60,000 MNIST training digits, first-learned and stably-learned step, for linear, MLP, CNN, ResNet-8 and ViT
+(3 seeds each, one SGD recipe, full-pass evaluation at 156 steps). **Linear, MLP and CNN agree with each other
+about as well as seeds do** (Spearman MLP↔CNN 0.71 vs MLP seeds 0.72); **ResNet-8 and ViT are self-consistent
+(0.82, 0.75) but reach the first group only at 0.51–0.64** — the same split holds within class. Nulls: class-only
+0.38; shuffled-label order −0.09. Much of the shared order is trivial: a pixel-space nearest-class-mean margin
+correlates 0.78 with the CNN's. The shared *tail* is not: architectures share 16–38% of their last-learned 1%
+(chance 1%), the pixel score catches only 12–26%. Of the last 50, ~18 look mislabelled. Caught trap: ResNet-8
+evaluated with BatchNorm running stats looked inconsistent (0.70 → 0.82 with batch stats). Caveat: ViT under-
+trained (97.8% train), so the groups may partly be learning speed. Best: `first-learned/gallery/first_learned_hero.png`
+(the ones — `1` — are learned first and form a hatched band at the top), `specimen_first_last.png`.
