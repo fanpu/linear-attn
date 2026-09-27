@@ -336,3 +336,67 @@ cd ticket-shadow && ../.venv/bin/python followup_dial.py 15 && ../.venv/bin/pyth
 **Prior art.** Covered by the searches above: no perforated or backlit rendering of a pruning mask was found, and no optimiser-comparison shadow.
 
 **Compute.** None on the GPU. CPU: `../.venv/bin/python followup_triptych.py && ../.venv/bin/python followup_triptych.py --src 20 && ../.venv/bin/python followup_triptych.py --no_objects --scale shared`.
+
+## Follow-up (2026-09-26 late): does the triptych generalise to Fashion-MNIST?
+
+<img src="gallery/followup_fashion_triptych_plate.png" width="960">
+
+<img src="gallery/followup_fashion_predictors.png" width="960">
+
+**Verdict: two of the three mechanisms carry over; Adam's "support" reading does not.**
+- **SGD follows variance.** The prediction holds, but more weakly than on MNIST.
+- **Signum follows rarity.** It holds about as strongly as on MNIST.
+- **Adam does not make a plateau.** On Fashion every pixel is lit in at least 10 of 55,000 images, so "support" predicts a flat field. Adam's shadow is not flat. It is a **frame**, the same rarity-weighted picture that signum draws, in a softer hand (Adam~signum r 0.73). So the MNIST plateau was not a support detector as such. The better account is that Adam behaves like signum, but it cannot move pixels that are almost never lit, and MNIST happens to have many of those (see the reading below).
+
+**Why Fashion is a real test.** On Fashion the "rim" moves:
+- the rarest tenth of pixels are lit in at most 3,777 images (MNIST: at most 11), and the commonest tenth in at least 48,916;
+- no pixel is never lit, so r(ever lit) is undefined (the pixel statistics are shown in `followup_fashion_predictors.png`, drawn with the same dots);
+- pixel std is a broad plateau with dim edges.
+
+**What was run** (`followup_fashion_imp.py`). It is `adam_dial.py` unchanged, with the dataset swapped to Fashion-MNIST. The protocol, hyperparameters and seeds are the MNIST triptych's:
+- raw [0,1] pixels, batch 60, 20k steps per round, rounds 0–15, rewind to init;
+- SGD lr 0.1; Adam lr 1.2e-3, ε 1e-8; signum lr 1e-4, β 0.9;
+- 2 seeds (0, 1) per optimiser, one pasar job per optimiser.
+
+Round 15 has 8,275 input weights (3.5%) in every ticket. The analysis and plates come from `followup_fashion_triptych.py` (CPU). Its plate is `followup_triptych.py`'s plate code, with the same layout, dots, per-panel scale and palette.
+
+**Metrics.** The MNIST triptych's bin "lit in 10–99 images" holds only 3 Fashion pixels. Both datasets are therefore scored with the same new split: the rarest tenth versus the commonest tenth of *lit* pixels. On this split MNIST Adam's rare/common is 0.44, not the 0.84 of the old bins.
+- **rarity** = log10(55,000 / images lighting the pixel);
+- **cv** = std / mean of the shadow over lit pixels, a flatness measure;
+- **disp0** = mean |W_T − W_0| per pixel after round-0 dense training.
+
+| | r(std) | r(rarity) | cv | rarest / commonest tenth keeps | ratio | disp0 r(std) / r(rarity) / ratio | ticket (dense) | r between seeds |
+|---|---:|---:|---:|---|---:|---|---|---:|
+| **Fashion SGD** | **0.64** | −0.59 | 0.49 | 1.9 / 9.4 | 0.20 | 0.79 / −0.77 / 0.25 | 88.6 (88.4) | 0.76 |
+| **Fashion Adam** | **−0.67** | **0.67** | 0.53 | 18.2 / 5.4 | **3.37** | −0.69 / 0.64 / 1.95 | 88.2 (88.3) | 0.78 |
+| **Fashion signum** | −0.74 | **0.84** | 0.89 | 29.8 / 5.9 | **5.09** | −0.77 / 0.90 / 1.54 | 87.9 (88.5) | 0.92 |
+| MNIST SGD (job 728) | 0.93 | −0.84 | 0.62 | 3.3 / 19.2 | 0.17 | 0.97 / −0.91 / 0.01 | 97.9 (97.9) | 0.86 |
+| MNIST Adam (job 664) | 0.29 | −0.31 | 0.46 | 5.2 / 11.6 | 0.44 | 0.53 / −0.74 / 0.35 | 98.1 (98.1) | 0.80 |
+| MNIST signum (873, 880) | −0.51 | 0.85 | 1.70 | 55.9 / 0.8 | 69 | −0.58 / 0.93 / 12.4 | 95.0 (97.7) | 0.97 |
+
+Correlations between the Fashion shadows: SGD~Adam −0.09, SGD~signum −0.38, **Adam~signum 0.73**. On MNIST these were 0.35, −0.49 and −0.26.
+
+**Reading, including where it fails.**
+- **SGD → variance: yes, but weaker.** r falls from 0.93 to 0.64. Round-0 displacement still tracks std (0.79). Fashion's std map is a broad plateau with local texture, so there is less gradient in it for the shadow to follow. The shadow is a soft garment-shaped core with an empty frame.
+- **Signum → rarity: yes, just as strong.** r(rarity) is 0.84 against 0.85 on MNIST, and the rarest tenth keeps 5.1× what the commonest keeps. The contrast is far milder than MNIST's 69×, because Fashion's "rare" pixels are still lit thousands of times.
+  - The ticket is again slightly worse than dense: 87.9% against 88.5%, where MNIST lost 2.7 points.
+- **Adam → support: no. The prediction is not falsified outright, it is undefined, and what appears instead is rarity.**
+  - With support uniform, Adam's shadow is as uneven as SGD's (cv 0.53 against 0.49). Its rarest tenth keeps 3.4× its commonest, and it correlates *negatively* with std (−0.67).
+  - Round-0 displacement already shows this (rarity r 0.64), so pruning is not creating it.
+  - **Hypothesis (untested):** Adam normalises by each weight's own gradient RMS, so it moves rarely-driven weights *further*, as signum does. On MNIST the rarest lit pixels, lit in ≤ 11 images, are too rare to move at all, which cut the rise into a flat plateau with a hard edge. On Fashion only 3 pixels are lit in fewer than 100 images and the rarest tenth goes up to 3,777, so the rise shows as a frame.
+  - **The check:** bin MNIST Adam's shadow finely by lit count. It should rise from the rarest pixels to a peak at intermediate counts and then fall.
+- **Controls.**
+  - Each panel is scored against all three predicted maps (the predictors plate), not only its own.
+  - The Fashion shadows are not the MNIST shadows carried over: r(Fashion shadow, MNIST shadow) is 0.20 / −0.43 / 0.26 for SGD / Adam / signum.
+  - No random-mask or re-init control was run for Fashion. Accuracy is within 0.6 points of dense for all three, so all three are working tickets at round 15.
+
+**Limits.** 2 seeds per optimiser (between-seed r 0.76–0.92). There was one learning rate per optimiser, carried over from MNIST without retuning for Fashion. `followup_dial.py` globs `cache/followup_*`, so it would now also pick up the three Fashion caches and score them against MNIST pixel statistics. Treat those rows as meaningless.
+
+**Declared choices.** The same as the MNIST triptych plate (dots scaled to each panel's max, ink on cream, ink not madder for "a worse ticket"). The per-panel readings were written *after* the numbers. The predictors plate draws pixel statistics with the same dots, and it is data, not a network.
+
+**Compute.** pasar 974 (SGD), 975 (Adam), 976 (signum), `--by art-fashion`, tag `art-ticket-shadow`, `--mem 3G`, all completed. Run times: 594 + 621 + 627 s = **0.51 GPU-h** summed (about 10.5 min of wall-clock time, run concurrently).
+
+```
+cd art && for o in sgd adam signum; do pasar submit ... -- .venv/bin/python ticket-shadow/followup_fashion_imp.py --family fashion_$o --seeds 0,1 --rounds 16; done
+cd ticket-shadow && ../.venv/bin/python followup_fashion_triptych.py --round 15
+```

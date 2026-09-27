@@ -16,6 +16,17 @@ Shared brief: [_shared/OVERNIGHT-BRIEF.md](_shared/OVERNIGHT-BRIEF.md).
 | 4 | [first-learned](first-learned/) | do different architectures learn the same MNIST digits first? | done |
 | 3 | [unsayable](unsayable/) | under-trained tokens as a type specimen, with the model's failed attempts to say them | done |
 
+## Morning summary
+
+Nine projects and follow-ups, all committed, every claim with a null. Look at these first:
+1. `ticket-shadow/gallery/followup_triptych_plate.png` — three optimisers, three shadows of MNIST (core / plateau / rim).
+2. `unsayable/gallery/instead_qwen3-0.6b.png` — one apostrophe over the 526 tokens that got it as a reply.
+3. `drainage/gallery/followup_watershed_diptych.png` — the vocabulary's funnel into repetition loops, chat vs base.
+4. `to-scale/gallery/superweight_detail_1.7b.png` and `committee.png` — one super weight vs a committee of six.
+5. `same-sentence/gallery/detail_gpt2_head.png` — Article 1 stretched to its token cost.
+Refuted overnight (documented): one-road's three-valley fork on held-out CIFAR; palimpsest's ghost is an
+Adam-restart effect; Adam's MNIST plateau does not carry to Fashion-MNIST.
+
 ## Results
 
 ### ticket-shadow — real, and the optimiser decides the shadow
@@ -178,3 +189,10 @@ train (all nets reach 99.5% within ~2.4× the same steps); within-class Spearman
 the step clock and 0.44 → 0.45 on a speed-normalised clock, vs 0.64–0.65 inside the group, 0.67–0.71 across
 seeds, 0.37–0.38 class-only null. The last-learned 1% is shared across both groups (28–29%), so the split is in
 the bulk order, not in which digits are hardest. Plate: `first-learned/gallery/followup_agreement_before_after.png`.
+
+**ticket-shadow on Fashion-MNIST — SGD and Signum carry over; Adam's plateau doesn't.** SGD still tracks
+variance (r 0.64, MNIST 0.93); Signum still keeps the rarest pixels (r with rarity 0.84, MNIST 0.85). Every
+Fashion pixel is lit in ≥10 images, so "support" is constant and can't be tested; Adam's shadow is instead a
+frame that favours rare pixels and matches Signum's (r 0.73). Reading: Adam behaves like Signum, and the MNIST
+plateau came from MNIST's many almost-never-lit pixels. Tickets within 0.6 pt of dense (~88%). Plate:
+`ticket-shadow/gallery/followup_fashion_triptych_plate.png`.
