@@ -2,9 +2,12 @@
 import os
 from PIL import Image, ImageDraw
 from render import GAL, font, INK, PAPER
-items = [('hero_dark_g1.png', 'hero, gamma 1 (faithful)'), ('hero_dark_g2.png', 'hero, gamma 2 (declared)'),
-         ('study_adamw_g1.png', 'AdamW study, gamma 1'), ('study_muon_g2.png', 'Muon study, gamma 2'),
-         ('study_sgd_g1.png', 'SGD study, gamma 1'), ('interleaved_adamw_muon_sgd_null_g2.png', 'interleaved rows, gamma 2'),
+items = [('still_glass_main_g1_profile_final.png', 'film: stained glass, last frame, gamma 1'),
+         ('still_glass_main_g2_profile_final.png', 'film: stained glass, gamma 2 (declared)'),
+         ('still_glass_wd_g1_profile_final.png', 'film: stained glass, 10k steps + wd, gamma 1'),
+         ('still_spectrograph_main_final.png', 'film: spectrograph, last frame'),
+         ('still_spectrograph_wd_final.png', 'film: spectrograph, 10k steps + wd'),
+         ('hero_dark_g1.png', 'hero strips, gamma 1 (faithful)'),
          ('key.png', 'key'), ('inset_spectra.png', 'measured spectra inset')]
 TW, TH, pad = 620, 620, 28
 cols = 4

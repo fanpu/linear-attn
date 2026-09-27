@@ -4,6 +4,75 @@
 
 <img src="gallery/hero_dark_g1.png" width="720">
 
+## Films (new)
+
+<img src="gallery/still_glass_main_g1_profile_final.png" width="720">
+
+Four films, H.264 2560×1440, 30 fps, ~21 s each: one frame per recorded checkpoint, with a 1 s hold at the start and 3.5–4 s at the end. Time runs every step to ~step 150 and log-spaced after that.
+
+| file | what |
+|---|---|
+| `gallery/film_glass_main_g1_profile.mp4` (**best**, faithful) | **Stained glass.** AdamW and Muon as two large windows, with SGD and the NULL as small windows. 2,000 steps. |
+| `gallery/film_glass_main_g2_profile.mp4` | The same at γ = 2 (declared exaggeration, labelled in frame). AdamW goes deep ultramarine and Muon's warm/cool threads become legible. |
+| `gallery/film_glass_wd_g1_profile.mp4` (+ `_g2_`) | Stained glass for the new 10,000-step runs **with weight decay**: AdamW + wd against Muon + wd. |
+| `gallery/film_spectrograph_main.mp4` | **Spectrograph.** Six matrices read out like a spectrometer: AdamW / Muon / NULL on the same matrix (L1 mlp up), SGD L1.o, AdamW head (a single-mode spike), and Muon's reddest head. |
+| `gallery/film_spectrograph_wd.mp4` | The spectrograph for the weight-decay runs: L1.up, L0.o and head, AdamW + wd against Muon + wd. |
+
+Last frames are in `gallery/still_*_final.png`.
+
+**Stained glass: layout (declared).** Each window reads bottom-up, like the network:
+- bottom row: emb, pos;
+- then layers 0–5 upward. Each layer is a block of four rows, q, k, v, o. In each row the whole matrix comes first, then a wider lead, then its six head slices. The MLP sits to the right as two tall panes, up and down;
+- top row: the output head.
+
+That is all 183 matrices per run. The leading is the dark ground.
+
+**Stained glass: what a pane shows.** Each pane has two scales:
+- *macro*: its hue is the integrated colour. This is the same faithful colour as the stills, at γ = 1 unless the file says otherwise.
+- *micro*: its brightness across its width is the measured spectral power at 400 → 700 nm, divided by the pane's own 98th-percentile power and clipped at 1. That scale is linear.
+
+So a white-light (flat) spectrum gives an evenly lit pane. A blue-shifted pane is bright at its left edge and fades to the right. The large panes (MLP, head, emb, pos) also carry an 8-px strip of the dispersed spectrum along their lower edge. That strip uses rainbow hue as a wavelength label and brightness 1 − exp(−P/2.5).
+
+A declared glow (a blurred copy added at 0.15) stands in for light scattering in a dark room.
+
+**Spectrograph: what each column shows.** From top to bottom:
+1. the integrated colour now, with its shift in nm;
+2. the power trace P(λ) on a log axis, with a dashed line at P = 1 (the shuffled null, i.e. white light);
+3. the dispersed band now: each wavelength in its hue, linear brightness P/5 clipped at 1, so white light sits at 0.2. Only 0.7% of AdamW's (matrix, checkpoint, wavelength) cells clip, and 0.01% of Muon's;
+4. a waterfall of every checkpoint so far, time running downward, with a narrow strip of the integrated colour at each checkpoint on its left.
+
+What the films show that the strips did not:
+- **The order of events.** In AdamW the **o rows and down projections go violet first** (step ~30–60), while q, k and v are still white. The whole window then turns blue by step ~200 and relaxes toward cyan.
+- **Muon stays a lit white window.** Its pane texture shows the small real deviations, and its only saturated panes are the AdamW-trained emb, pos and head.
+- **The NULL is a flat white sheet from first frame to last.** Its panes carry the same step sizes as AdamW's but no light structure.
+- **The spectrograph waterfalls show *how* the colour arises.** AdamW L1.up's violet end brightens while the red end goes dark. SGD L1.o goes violet-blue between steps 50 and 150 (dominant wavelength 433 nm at step 150) and drifts toward blue-purple by step 2,000. AdamW's head is a single bright line at 400 nm, with everything else below the null.
+
+### Critique and iteration (films)
+
+1. **First pass: flat panes plus a rainbow band on every pane.** Rejected. The rainbow bands read as colour on *every* pane, including the NULL's. A flat spectrum drawn dispersed *is* a rainbow, so the white windows looked striped and multicoloured. That buried the subject (hue against white) under the wavelength labels. At a distance it looked like a UI table.
+2. **Second pass: panes lit by their own spectrum in their own hue** (brightness ∝ power across the pane), with the rainbow kept only as a thin edge on large panes and the leading widened 1.5×.
+   - The frame now commits to a key: final frame mean luminance 0.42, with 36% of pixels below 0.15 and 25% above 0.85.
+   - AdamW reads as deep, graded blue glass. Muon and the NULL read as luminous white, and the NULL is the flattest.
+   - The subject is the most visible thing in the frame: the blue/white split between the two large windows.
+   - At γ = 2 AdamW becomes a Chartres-blue window. That version is more beautiful and is labelled as exaggerated.
+3. **Spectrograph.** Tried with brightness 1 − exp(−P/2) first. That flattened AdamW's dark red half into the rainbow, so it was switched to linear P/5. The remaining weakness is honest: white light dispersed is a rainbow, so NULL and Muon columns are rainbows. The eye has to compare *brightness* across columns, not hue. The integrated-colour strips beside each waterfall carry the colour.
+
+## New runs: 10,000 steps with weight decay
+
+AdamW (lr 3e-3, wd 0.1) and Muon (lr 0.02, wd 0.015) were run for 10,000 steps each, with everything else as above and 511 checkpoints each. For Muon, the embedding, head and pos were trained by AdamW at lr 1e-3 with wd 0.3. The Muon wd is chosen so that its per-step shrink lr·wd = 3e-4 matches AdamW's at peak lr. Training state is checkpointed every 2,500 steps and resumes after preemption; this was smoke-tested in job 1027, where resumed and straight runs reached val 2.562 vs 2.564.
+
+| run | final val | hidden shift at step 500 / 2,000 / 5,000 / 10,000 | min (step) | final chroma | rows red (> +2 nm) / blue (< −2 nm), of 183 | head spread (noise) |
+|---|---:|---|---:|---:|---:|---:|
+| AdamW + wd, 10k | 1.583 | −76.4 / −68.7 / −56.2 / **−49.5** nm | −77.4 (687) | 0.104 | 0 / 183 | 11.4 (0.7) nm |
+| Muon + wd, 10k | 1.538 | −5.2 / −7.8 / −8.3 / **−7.5** nm | −8.4 (3,902) | 0.016 | **62** / 74, max **+15.9 nm** (L0.o) | 4.9 (0.7) nm |
+| *AdamW, no wd, 2k (above)* | 1.911 | −73.0 / −68.2 / – / – | −73.7 (663) | 0.166 | 0 / 180 | 6.9 nm |
+| *Muon, no wd, 2k (above)* | 1.776 | −5.2 / −6.1 / – / – | −6.4 (1,233) | 0.012 | 33 / 88, max +8.9 | 3.6 nm |
+
+- **The hypothesis "weight decay pushes toward deep violet" is not supported here.** Over 10,000 steps with wd, AdamW's hidden matrices *relax back toward white*: from −77 nm at step 687 to −50 nm at step 10,000, i.e. from blue toward cyan-blue. Their heads diverge further, with a spread of 11.4 nm against 6.9 nm at 2k.
+  - The embedding and positions do go further blue: emb −86 nm against −84 nm at 2k, pos −111 against −99.
+- **Muon + wd stays near white but grows its red.** 62 matrices are now flatter than their shuffle (33 at 2k), and the reddest reaches +15.9 nm (+8.9 at 2k). In the stained-glass film these are peach and salmon panes among Muon's white. Most are in layer 0 (19), then layers 4 (14) and 3 (13).
+- **Declared confound.** There is **no 10k run without wd**. So "relaxation with length" and "effect of weight decay" cannot be separated. The 2k no-wd runs used a cosine that had already decayed to 0.1× by step 2,000, while the 10k schedule is still near peak there. The trajectories agree to within 4 nm up to step 1,000, so wd has no visible early effect. The next job is the matched 10k no-wd pair (about 50 min each, shared).
+
 ## The phenomenon
 
 Each weight matrix W has an eigenvalue spectrum of WᵀW/N. Compare it with the spectrum of the same entries shuffled, which is the Marchenko–Pastur (MP) null: same entries, same Frobenius energy, no structure. Training can only **move energy between modes**, because shuffling preserves the total. The picture asks where each optimiser moves that energy, for every matrix and at every moment.
@@ -111,6 +180,11 @@ Summed pasar job time is about 134 min, all run `--mem`-shared beside another ag
 | **1007** | **muon** | 20 min |
 | **1008** | **sgd** | 10.5 min |
 | **1009** | **null** | 11 min |
+| 1027 | smoke of checkpoint/resume (films session) | 2.5 min |
+| **1029** | **adamw10k_wd** (10k steps, 12.6 GiB peak incl. CPU eig workers) | 49.6 min |
+| **1030** | **muon10k_wd** | 53.7 min |
+
+The films session used 106 min of GPU job time. That is over the ~1.5 h asked for, because the two 10k runs shared the GPU with each other and with dense-landscape (0.16–0.25 s/step, against 0.09 s/step alone). The films themselves are CPU-only: each takes about 4–5 min to render.
 
 Arrays are in `cache/runs/*.npz` (≈150 MB each, gitignored) and numbers in `metrics.json`.
 
@@ -122,6 +196,10 @@ Arrays are in `cache/runs/*.npz` (≈150 MB each, gitignored) and numbers in `me
 - `spectral.py`: the colour pipeline, MP quantiles, centroid and dominant wavelength.
 - `render.py`: strips, studies, wall, interleaved and metrics.
 - `hero.py`, `key.py` (key and inset), `contact.py`.
+- `filmlib.py`: shared film code (colour conversion, exposure, bloom, ffmpeg H.264 encoder).
+- `film_glass.py`: the stained-glass film. Run it as `--set main|wd`, `--gamma 1|2`, `--still IDX` (stills only).
+- `film_spectrograph.py`: the spectrograph film. Run it as `--set main|wd`.
+- `train_gpt.py` now checkpoints its training state every `--ckpt-every` steps (default 2,500) and resumes under pasar.
 
 ## Not done, and next moves
 
@@ -131,6 +209,7 @@ Arrays are in `cache/runs/*.npz` (≈150 MB each, gitignored) and numbers in `me
   - a shuffled-token AdamW run (does data structure, not just the optimiser, set the hue?).
 - **One seed each**, so seed spread is unmeasured. The null and the loss-matched comparison make an artefact unlikely, but 2–3 seeds per optimiser would put error bars on the −68 / −23 / −6 nm ordering.
 - **The init-scale confound** (o and down initialised smaller) should be removed with a uniform-init SGD run.
-- **Next move: a longer AdamW vs Muon pair** (20k steps, with wd).
+- **Next move: the 10k no-wd AdamW/Muon pair.** This separates weight decay from length; the wd pair is now done, see "New runs".
+- Earlier plan: a longer AdamW vs Muon pair (20k steps, with wd).
   - It would show whether AdamW's late relaxation toward cyan continues and whether Muon's red rows grow.
   - Its hero would be a single long diptych, AdamW blue against Muon white, at print width (≈8,600 px/m; 20k steps log-spaced to ~2,000 columns).

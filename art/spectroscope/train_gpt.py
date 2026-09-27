@@ -35,6 +35,8 @@ p.add_argument('--no-spectra', action='store_true')
 p.add_argument('--seed', type=int, default=0)
 p.add_argument('--name', required=True)
 p.add_argument('--compile', type=int, default=1)
+p.add_argument('--ckpt-every', type=int, default=2500, help='training-state checkpoint interval (resume after preemption)')
+p.add_argument('--stop-at', type=int, default=-1, help='testing only: exit right after the checkpoint at this step')
 args = p.parse_args()
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -240,8 +242,37 @@ def val_loss(nb=20):
 
 
 t0 = time.time(); tspec = 0.0; loss_ema = None
+done = {}                      # checkpoint index -> spectra dict, drained from futures at each state checkpoint
+CKPT = os.path.join(HERE, 'cache', 'ckpt', args.name + '.pt')
+start = 0
+if os.path.exists(CKPT) and (pasar_job.resuming() or os.environ.get('SPEC_RESUME')):
+    st = torch.load(CKPT, weights_only=False)
+    model.load_state_dict(st['model'])
+    for o, sd in zip(opts, st['opts']):
+        o.load_state_dict(sd)
+    torch.set_rng_state(st['cpu_rng']); torch.cuda.set_rng_state(st['cuda_rng'])
+    rec_steps, rec_loss, val_log, loss_ema, done, tspec = st['rec_steps'], st['rec_loss'], st['val_log'], st['loss_ema'], st['done'], st['tspec']
+    start = st['step'] + 1
+    print(f'resumed from step {st["step"]} ({len(done)} spectral checkpoints already done)', flush=True)
+    pasar_job.resumed(start)
+
+
+def save_state(step):
+    for f_ in futs:
+        ci, sp = f_.result()
+        done[ci] = sp
+    futs.clear()
+    os.makedirs(os.path.dirname(CKPT), exist_ok=True)
+    torch.save(dict(step=step, model=model.state_dict(), opts=[o.state_dict() for o in opts], cpu_rng=torch.get_rng_state(),
+                    cuda_rng=torch.cuda.get_rng_state(), rec_steps=rec_steps, rec_loss=rec_loss, val_log=val_log,
+                    loss_ema=loss_ema, done=done, tspec=tspec), CKPT + '.tmp')
+    os.replace(CKPT + '.tmp', CKPT)
+    pasar_job.checkpoint(step)
+    print(f'state checkpoint at step {step}', flush=True)
+
+
 print(f'{args.name}: {len(CK)} spectral checkpoints, {len(NAMES)} matrices', flush=True)
-for step in range(args.steps + 1):
+for step in range(start, args.steps + 1):
     if step in CKset:
         ts = time.time()
         futs.append(pool.submit(eigworker.eig, len(rec_steps), snapshot(), 1000003 * args.seed + step))
@@ -284,11 +315,17 @@ for step in range(args.steps + 1):
         loss_ema = li if loss_ema is None else 0.9 * loss_ema + 0.1 * li
     if step % 200 == 0:
         pasar_job.progress(step, args.steps, loss=loss_ema)
+    if args.ckpt_every > 0 and step > 0 and step % args.ckpt_every == 0:
+        save_state(step)
+        if step == args.stop_at:
+            os._exit(3)
 
 tw = time.time()
 rec = {n: ([None] * len(rec_steps), [None] * len(rec_steps), [None] * len(rec_steps)) for n in NAMES}
 for f_ in futs:
     ci, sp = f_.result()
+    done[ci] = sp
+for ci, sp in done.items():
     for n in NAMES:
         for k in range(3):
             rec[n][k][ci] = sp[n][k]
