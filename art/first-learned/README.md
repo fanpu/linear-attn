@@ -220,3 +220,81 @@ Networks Share Classification Order on Real Datasets*, ICML 2020 (arXiv:1905.108
 al., *When Deep Classifiers Agree*, 2022. Carlini, Erlingsson & Papernot, *Prototypical Examples
 for Deep Learning*, 2019. Pleiss et al., *Identifying Mislabeled Data using the Area Under the
 Margin Ranking*, NeurIPS 2020.
+
+## Follow-up (2026-09-26 night): lanes or learning speed?
+
+**Question.** Were the two groups ({linear, MLP, CNN} vs ResNet-8 and ViT, each on its own) just
+a matter of learning speed? The ViT was under-trained (97.5–98.1 % train accuracy) and both
+outliers learn slowly early on.
+
+**What was run.** I retuned ResNet-8 and ViT with 3 seeds each. The seeds, minibatch order,
+evaluation grid and BN batch-statistics evaluation are the same as before.
+`followup_train.py` is `train.py` plus an optimiser/schedule option, and writes to
+`cache/runs_followup/`.
+- ResNet-8: SGD with momentum, lr 0.1, 100-step warmup, cosine to 0, 8 epochs. Final train
+  accuracy 99.92–99.94 %, reaching 99.5 % at step 1,550–1,600.
+- ViT: AdamW, lr 1e-3, no weight decay, 200-step warmup, cosine to 0, 10 epochs. Final train
+  accuracy 99.71–99.80 %, reaching 99.5 % at step 3,600–3,750. Test accuracy 97.4–97.8 %.
+- MLP and CNN were reused because they already clear the bar: 99.64–99.85 %, reaching 99.5 % at
+  steps 2,850–2,900 and 1,800–1,950. So every network reaches 99.5 % within a factor of about
+  2.4 in steps. Linear is reused too, but a linear model is capped at 92.7 %.
+
+**Speed-normalised clock** (`followup_analyze.py`). Each run's progress is
+p(t) = cummax train acc(t) / its own final train acc. The correctness matrix is resampled at
+the first evaluation where p reaches each rung of a fixed ladder: error-to-go 1 − p geometric
+from 0.9 to 0.002, 60 rungs plus the final evaluation. Every run is then read on the same
+progress grid at the same resolution. The key is (stable rung, −mean correctness over the
+ladder).
+- Relabelling a run's time with any monotone function would leave every Spearman unchanged.
+  The ladder changes something else: it matches resolution and weighting across runs, and
+  therefore changes ties and tie-breaks. That is where a fast learner's order is coarsest.
+- Check: `followup_analyze.py` on the original runs reproduces `logs/analyze.txt` exactly on
+  the step clock.
+
+**Result: the groups survive. The lanes are not learning speed.** All numbers are mean
+Spearman over run pairs.
+
+| within-class Spearman | seeds (same arch) | linear/MLP/CNN cross | ResNet/ViT → linear/MLP/CNN | ResNet ↔ ViT |
+|---|---:|---:|---:|---:|
+| before, step clock | 0.71 | 0.65 | 0.46 | 0.47 |
+| before, progress clock | 0.68 | 0.64 | 0.44 | 0.50 |
+| **after, step clock** | 0.71 | 0.65 | **0.48** | 0.52 |
+| **after, progress clock** | 0.67 | 0.64 | **0.45** | 0.52 |
+
+Other statistics after retuning:
+- **All 60,000:** ResNet/ViT → group 0.59 (step clock) / 0.56 (progress clock), against 0.71 /
+  0.68 for the group's own cross pairs.
+- **Class-only null:** 0.38 / 0.37.
+- **Seed-seed baselines:** ResNet 0.70, ViT 0.64 within class.
+
+Retuning moved the ResNet/ViT-to-group agreement by +0.02 on the step clock and +0.01 on the
+progress clock. The gap to the group (≈0.18–0.19 within class) is unchanged. Getting the ViT
+from 98 % to 99.8 % did not pull it toward the group. Its seed agreement fell a little
+(0.68 → 0.64), and ResNet ↔ ViT rose slightly (0.47 → 0.52).
+
+**The tail stays shared, as before.** Of the last-learned 1 %, ResNet/ViT share 28–29 % with
+the group, which is no less than the group shares internally (25–27 %). Seeds share 53–55 %.
+The split is in the *bulk* order, not in which digits are hardest.
+
+**Caveats.**
+- The retuned ResNet still has a median stable step of about 50 and the ViT about 280, against
+  26–28 for the CNN. Early speed was not matched in steps. It is factored out only by the
+  progress clock.
+- Each architecture got one retune, and the optimisers now differ (AdamW for the ViT).
+- 3 seeds, so the pair means carry roughly ±0.02 of spread.
+
+![before vs after](gallery/followup_agreement_before_after.png)
+
+*Before vs after.* The plate uses the same ink-on-cream treatment as `agreement_table.png`:
+cell ink alpha is value², and the bold diagonal is seed pairs. Rows are before and after
+retuning. Columns are all 60,000 digits, within class, and within class on the progress clock.
+The pale ResNet/ViT band stays in every panel.
+
+**Compute.** 6 pasar jobs, 968–973 (`--by art-lanes`, tag `art-first-learned`, `--mem 4G`
+sharing). Run times are 3 × 11.1 min (ViT) + 3 × 12.4 min (ResNet), 70 job-minutes in total.
+Wall clock was 20:06:47–20:19 EDT, and all GPU work was done by 20:19. The analysis and plate
+ran on CPU.
+
+**Files.** `followup_train.py`, `followup_submit.sh`, `followup_analyze.py` →
+`cache/followup/agreement_followup.json` and `logs/followup_analyze.txt`, `followup_plate.py`,
+and `logs/followup_jobs.jsonl`.

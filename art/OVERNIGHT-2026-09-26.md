@@ -172,3 +172,9 @@ correlates 0.78 with the CNN's. The shared *tail* is not: architectures share 16
 evaluated with BatchNorm running stats looked inconsistent (0.70 → 0.82 with batch stats). Caveat: ViT under-
 trained (97.8% train), so the groups may partly be learning speed. Best: `first-learned/gallery/first_learned_hero.png`
 (the ones — `1` — are learned first and form a hatched band at the top), `specimen_first_last.png`.
+
+**first-learned follow-up — the two groups are real, not learning speed.** ResNet-8 and ViT retuned to ~99.8%
+train (all nets reach 99.5% within ~2.4× the same steps); within-class Spearman ResNet/ViT→group 0.46 → 0.48 on
+the step clock and 0.44 → 0.45 on a speed-normalised clock, vs 0.64–0.65 inside the group, 0.67–0.71 across
+seeds, 0.37–0.38 class-only null. The last-learned 1% is shared across both groups (28–29%), so the split is in
+the bulk order, not in which digits are hardest. Plate: `first-learned/gallery/followup_agreement_before_after.png`.
