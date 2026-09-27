@@ -13,6 +13,121 @@ correlation length **0.64 grid cells**. Freeze the minibatch and the fur disappe
 difference drops **4,300×**, even with bs = 16 and BN still in train mode. So the grain of the fur
 is set by the **grid spacing** the artist chose, not by the network (see the grain study).
 
+## v2: the fur as a dense solid, and five films
+
+Owner feedback on v1: *"it's not very dense? i see many smatterings of points."* Next to Ideami's
+*edge-of-noise*, the cause was clear. v1 drew every 1024² point as a vertex of a bilinear sheet,
+so every needle was one grid cell (≈ 5 px) wide: a hairline with dark gaps between, under flat
+light. Ideami's spikes are fat, smooth cones several cells wide. They occlude each other, and a
+raking key light gives each one a lit face and a shadow face, so the frame reads as one solid
+mass. v1 already showed that the grain is set by the grid spacing and not by the network (see the
+grain study below). So v2 treats the grid as a **declared choice of grain** and renders the same
+measurement coarser, smoother and properly lit.
+
+<img src="gallery/G1_fur256_acc.jpg" width="100%">
+
+*G1, 5120 × 2880. The Ideami measurement B (a fresh minibatch of 16 at every point, BN in train
+mode), using every 4th measured point (its 256² subgrid). A bicubic spline passes through every
+sample. Colour is the accuracy of the fixed 1024 images (the E[B] protocol) on the `tam` palette,
+from chance (purple) to the plane's best 83% (gold). Every cone is one draw of 16 images.*
+
+<img src="gallery/study_density_v1_v2.jpg" width="100%">
+
+*The same 30% centre crop of v1 (F4) and v2 (G1). Same measurement and colour data. v2 changes
+the grain (every 4th point), the interpolant (bicubic) and the light (soft shadows, AO, fill).*
+
+<img src="gallery/G2_fur256_low.jpg" width="49%"> <img src="gallery/G3_fur512_acc.jpg" width="49%">
+
+*Left, G2: the same fur from a low, close camera. Right, G3: the 512² subgrid (every 2nd point),
+whose grain count matches Ideami's "250k pts" (≈ 500²). The height scale is K = 0.25 so that the
+needles keep a ≈ 5:1 aspect; at K = 0.4 they turn back into hair (10:1).*
+
+<img src="gallery/G4_fur256_fid.jpg" width="49%"> <img src="gallery/study_averaging.jpg" width="49%">
+
+*Left, G4: colour = function identity (PCA3 of the net's predictions on 256 probes → OKLab,
+chroma 0.34). Right: one fresh measurement, the mean of 16, and the mean of 96, all from the
+boiling-film data with the same camera and light. The fur averages away into the bowl.*
+
+### Films (1920 × 1080, H.264, `gallery/`)
+
+| file | what moves | data |
+|---|---|---|
+| `film_boil.mp4` (12 s) | nothing but the data. Camera, light, colour and bowl stay fixed | **96 independent Ideami measurements** of the same 256² plane, one per film frame (`boil.py`: a fresh random minibatch of 16 CIFAR-10 train images at every point, BN train mode, sampling seed 101 + k). Each measurement is held for 3 video frames (8 per second, the animator's "boil" rate). No interpolation between measurements |
+| `film_boil_split.mp4` (12 s) | right half boils, left half is still | left: one fixed minibatch of 16 (C, same subgrid, rendered once); right: the same 96 fresh measurements. The screen split is exactly α = 0 (the camera sits in the plane x = 0) |
+| `film_settle.mp4` (10 s) | the fur shrinks into the bowl | frame k = the mean loss over the first k of the 96 measurements (a geometric schedule in k, final mean held) |
+| `film_sweep.mp4` (12 s) | the key light circles once (elevation 30°), fill opposite | G1's fur, fixed; 288 frames. This is the one that shows the fur is a solid |
+| `film_flyover.mp4` (14 s) | the camera orbits 180° and descends over the crater | C, one fixed minibatch of 16, at the full 1024² with no interpolation (bilinear): the honest "what one minibatch sees" landscape. 336 frames |
+
+**The boil is real measurement, and the checks pass** (`boil_stats.py` → `cache/boil_stats.json`).
+Over the 96 frames, the high-passed texture of consecutive frames correlates at −0.0004 (max
+|r| 0.012). The per-point SD across frames is 0.093 decades (median 0.085), matching
+v1's 0.096 from B − B′. The raw frames still correlate at 0.80, because the bowl is shared.
+Averaging m frames shrinks the roughness as 1/√m (RMS second difference 0.235 → 0.115 → 0.057 →
+0.023 for m = 1, 4, 16, 96) and converges to the independently measured E[B] (RMSE
+0.012 decades, r = 0.998 at m = 96). The fixed-minibatch surface C on the same subgrid
+has an RMS second difference of 0.0005.
+
+### Declared choices (v2; everything else as in v1)
+
+- **Grain.** 256² subgrid (every 4th point) for G1, G2, G4 and the boil, sweep and settle films;
+  512² (every 2nd point) for G3. The subgrid spans α, β ∈ [−1, 0.994] and is drawn on [−1, 1],
+  a 0.3% stretch. The flyover uses C at the full 1024².
+- **Interpolant.** Interpolating bicubic spline (scipy `RectBivariateSpline`, kx = ky = 3)
+  through every sample, evaluated 4× (films) to 8× (stills) finer. Normals come from the
+  spline's analytic derivatives. Like any cubic it overshoots slightly between samples; nothing
+  between samples is measured.
+- **Height.** K = 0.4 world units per decade (as in v1), except G3 at K = 0.25.
+- **Light (form only).** Warm key (1, 0.93, 0.82) × 3.2 at azimuth 200°, elevation 30° (18° for
+  the flyover), with soft shadows marched per fine texel (penumbra sharpness 18). A cool
+  unshadowed fill (0.55, 0.65, 1) × 0.55 from azimuth 20°, elevation 35°. Sky ambient ×
+  AO^1.6, where AO is horizon AO with 12 directions and radii from 0.35 to 30 coarse cells. A
+  cavity term scales direct light by 0.4 + 0.6·AO. Blinn–Phong gloss (ks 0.6, shininess 50)
+  with Schlick Fresnel, fog 0.25 per unit, the ACES filmic tonemap, exposure 1.4 (1.1 for the
+  flyover), 2 × 2 supersampling. The key elevation went from 22° to 30° because at 22° 84% of
+  texels were in full shadow and the frame was muddy.
+- **Colour.** Accuracy (`A16`, 128² measured, bicubic) mapped linearly from 0.10 to the
+  plane's maximum 0.832 through `tam` (`art/color-research/palettes.py`, CIELAB-interpolated
+  purple → red → orange → gold). G4 uses function identity in OKLab, L = 0.62 ± 0.12,
+  chroma 0.34.
+- **Film timing.** 24 fps. The boil and split hold each measurement for 3 frames. The flyover
+  uses ease-in-out on the orbit parameters. Encoding is capped CRF (crf 24, maxrate 4 Mb/s) to
+  keep the gallery under 60 MB.
+
+### Renderer v2 (`solid.py`, `hfk.py`, `dense.py`, `film.py`, `gallery2.py`)
+
+`solid.prep` builds the spline height and normal maps, `solid.gbuffer` finds the primary hits
+and `solid.shade` shades them. The ray march and the soft-shadow march are Triton kernels
+(`hfk.py`). Both skip empty space with a dilated block-max grid, taking a skip only when it is
+exact: for shadows, only when the penumbra term would already be saturated. Against the torch
+reference (`test_hfk.py`), 100% of pixels agree on hit/miss, 0.001% differ in hit position by
+more than 0.01, and the shadow maps differ by 0.0013 on average. The kernels made the renders
+about 200× faster (2560 × 1440 at 2 × 2 supersampling: 0.43 s for the march, down from 96 s),
+which is what made the films affordable. `bench_boil.py` measured the boil evaluator: the
+grouped-conv `BatchedNet` does ≈ 4,100 points/s alone, 16 s per 256² frame. A stacked-direction
+alternative checked out equal to 2·10⁻⁷ decades but was 2.3× slower. Shared with another
+agent's jobs, the boil ran at ≈ 40 s per frame.
+
+### v2 critique and iterations (side by side with /tmp/ll/edge-of-noise.jpg)
+
+1. First solid preview (CPU, 256², key at 22°): dense and solid at last, but dark (mean
+   luminance 0.16), with a muddy basin, because 84% of texels were in shadow.
+2. Key raised to 30°, gloss up; G1's camera chosen from five (steep, low, Ideami-like, key
+   15°, and a synthwave palette). At a matched fraction of the frame, our 256² cones are ≈ 2×
+   larger than Ideami's. G3 (512²) matches his grain; at K = 0.4 it read as hair again, so
+   K = 0.25.
+3. The flyover's first two paths showed the plane's edge and a black sky. The final path orbits
+   the crater and stays inside the plane.
+4. The sweep encoded at 19.5 MB at crf 24. Capping the bitrate brought it to 6.2 MB with no
+   visible loss at 100%.
+
+What still differs from *edge-of-noise*: his spikes are shorter relative to their spacing, and
+he has more of them. That is his "log scaled & vis-adapted" height, which we do not
+reverse-engineer. His palette is magenta and olive. The flyover's late frames bloom toward white
+on slopes facing the key light. G1 and the sweep are the strongest images. The boil split is the
+strongest statement: the same bowl, and the only change is whether the data is redrawn.
+
+## v1: the noise finding and the first renders
+
 <img src="gallery/diptych_fixed_vs_fresh.jpg" width="100%">
 
 *Same plane, same camera, light, colour and height scale. Left: one fixed minibatch of 16 at every
@@ -47,7 +162,7 @@ OKLab).*
 *Left: the Ideami measurement coloured by function identity. Right: x-ray of A in function-identity
 colour.*
 
-Contact sheet: `gallery/contact_sheet.png`. Numbers figure: `gallery/study_noise.png`.
+Contact sheets: `gallery/contact_sheet_dense.jpg` (v2), `gallery/contact_sheet.png` (v1). Numbers figure: `gallery/study_noise.png`.
 
 ## What was measured
 
@@ -199,13 +314,41 @@ Files: `dl_common.py` (net, directions, batched evaluator), `measure.py`, `analy
 uses `r3d.Camera`, r3d unchanged), `scene.py`, `gallery.py`, `bench_conv.py`. Full-resolution PNGs
 are in `cache/renders/`; the gallery holds JPEGs (F3 and F4 at full 5120 px), 21 MB.
 
+### v2 compute (pasar, tag `art-dense-landscape`, `--mem` shared, bid 1000)
+
+Jobs: 1028 (boil benchmark, OOM at the last size but after its numbers), 1031 (boil measurement,
+96 frames, cancelled once frame 96 was on disk), 1032–1036 (previews, profiling, Triton check),
+1037–1040 (G1–G4), 1041/1042/1044 (flyover path tests), 1043 (sweep), 1045 (flyover),
+1046/1047 (boil renders), 1048 (settle), 1049 (averaging stills). **Summed job time 88 min**, of
+which the boil measurement was 54 min, slowed ~2.5× by sharing the GPU with another agent's jobs.
+CPU: previews, boil_stats, gallery2 (ffmpeg).
+
+```bash
+PY=../.venv/bin/python
+$PY boil.py --res 256 --frames 96 --sub1024;  $PY boil_stats.py --n 96
+S="--device cuda --width 5120 --ss 2 --key 200,30 --ks 0.6 --shin 50 --exposure 1.4"
+$PY dense.py $S --field B1 --sub 4 --up 8 --orbit 0,0.05,0.1,1.1,-90,50,50 --out cache/renders2/G1_fur256_acc.png
+$PY dense.py $S --field B1 --sub 4 --up 8 --orbit 0,0.3,0.05,0.75,-95,30,62 --out cache/renders2/G2_fur256_low.png
+$PY dense.py $S --field B1 --sub 2 --up 4 --K 0.25 --orbit 0,0.02,0.05,0.95,-90,50,52 --out cache/renders2/G3_fur512_acc.png
+$PY dense.py $S --field B1 --sub 4 --up 8 --orbit 0,0.05,0.1,1.1,-90,50,50 --colour fid --chroma 0.34 --exposure 1.6 --out cache/renders2/G4_fur256_fid.png
+F="--width 1920 --ss 2 --up 4 --key 200,30 --ks 0.6 --shin 50 --orbit 0,0.05,0.1,1.1,-90,50,50"
+$PY film.py --mode boil --name boil --frames 96 $F;  $PY film.py --mode settle --name settle --frames 96 $F
+$PY film.py --mode sweep --name sweep --frames 288 --width 1920 --ss 2 --field B1 --sub 4 --up 6 --key 200,30 --orbit 0,0.05,0.1,1.1,-90,50,50 --ks 0.6 --shin 50
+$PY film.py --mode flyover --name flyover --frames 336 --width 1920 --ss 2 --field C --sub 1 --up 1 --key 200,18 --fog 0.6 --exposure 1.1 --orbit 0.03,0,0.12,0.85,-130,40,50 --orbit2 0.03,0,0.12,0.7,50,33,50
+bash cache/preview/avg.sh   # boilmean:1/16/96 stills
+$PY gallery2.py --boil_frames 96
+```
+
+Gallery is 58 MB: v1 JPEGs 21 MB, v2 stills and studies 14 MB, five films 24 MB. Film frames
+(PNG) are in `cache/film/`, full-resolution stills in `cache/renders2/`.
+
 ## Next moves
 
 1. **The honest hero is the pair, not the fur.** Print the diptych, or the x-ray pair, as a single
    object: same plane, and the only difference is whether the data is resampled.
-2. **Make the noise the subject.** Render the plane at 1024² with K chosen so needle height =
-   noise sd, and add a film that re-draws a fresh minibatch per frame over a fixed E[B]: the fur
-   boils while the bowl stays put. Cost: ≈ 23 min GPU per 1024² frame; use 256² frames at
-   ≈ 1.5 min.
+2. **Done in v2: the boil.** The strongest next step is to show `film_boil_split.mp4` beside
+   G1 as a pair: a still and a film of the same plane. Possible upgrades: a 512² boil (≈ 4× the
+   measurement cost, ≈ 1 GPU-h for 96 frames when the GPU is not shared), and the settle film
+   run out to ~1,000 measurements so it ends on the truly smooth E[B].
 3. Check the claim on a net whose A is actually rough (e.g. `loss-landscape`'s ResNet-56-noshort
    after a longer schedule) to see whether any texture survives the B-vs-B′ test there.
