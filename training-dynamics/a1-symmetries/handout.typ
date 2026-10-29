@@ -37,7 +37,7 @@ Gradient flow on the anchor $f_(a,b)(x) = a b x$, $L = 1/2 (a b - 1)^2$, never l
 + Six check scripts, one per problem, each comparing a simulation with your derivation
 + A short reading of Simon et al. on where conservation laws sit in a theory of deep learning (Problem (#raw("framing")))
 
-#runin[Setup.] From the course root: `uv run pytest a1-symmetries` (all 48 tests fail with `NotImplementedError` until you fill in the stubs). Checks run as `uv run python a1-symmetries/scripts/check_<name>.py` and write PNGs and their section of `a1-symmetries/out/results.json`; compare with `uv run python -m tdyn.results a1-symmetries/out/results.json a1-symmetries/solutions/results.json`. Three checks have a `FORMULAS` block at the top where you type a derived formula. Worked solutions: `solutions/solutions.pdf`.
+#runin[Setup.] From the course root: `uv run pytest a1-symmetries` (all 48 tests fail with `NotImplementedError` until you fill in the stubs). Checks run as `uv run python a1-symmetries/scripts/check_<name>.py` and write PNGs and their section of `a1-symmetries/out/results.json`; compare with `uv run python -m tdyn.results a1-symmetries/out/results.json a1-symmetries/solutions/results.json`. Three checks have a `FORMULAS` block at the top where you type a derived formula. Worked solutions: `solutions/solutions.pdf`. #runin[Time box.] If a Derive part takes more than 15 minutes with all hints, read that part in `solutions/solutions.pdf`, close it, and redo the part from a blank page before moving on. The solutions are part of the method, not a failure. Rusty on the math? Parts point into the primer `m0-math-primer/handout.pdf` at the point of use, as in #primer("ODE.4", "logistic"); its first page is a one-page self-diagnostic.
 
 #runin[Notation.] As in A0: $theta = (a, b)$, residual $r = a b - 1$ (or $a b - s$ for a target $s > 0$), product $p = a b$, imbalance $c = a^2 - b^2$, step size $eta$, weight decay $gamma$ in the convention $L_gamma = L + gamma (a^2 + b^2)$, momentum $beta$. $⟨u, v⟩$ is the dot product.
 
@@ -55,12 +55,15 @@ which leaves $a b$, so the network function and every loss built from it, unchan
 
 #problem("noether", [Rescaling symmetry and the conserved imbalance], kind: ("derive", "implement", "check"), time: "40 min", owner: "you")[
   #parts(
-    [#tag("derive") Differentiate $L(psi_alpha (theta)) = L(theta)$ in $alpha$ at $alpha = 1$ for @eq-sym. Use the constraint to find a quadratic $Q(a, b)$ with $dot(Q) = 0$ along gradient flow, and state for which losses $L(a, b)$ your argument holds (it should cover any per-example loss of $f_(a,b)$ on any dataset).
-     #deliverable[the generator $X(a, b)$; the constraint on $nabla L$; $Q$; the class of losses.]],
-    [#tag("derive") Differentiate your constraint once more with respect to $theta$ (Kunin et al. do this in §3). Conclude something about $nabla^2 L (theta) X(theta)$ at any minimum, and connect it to the zero eigenvalue you found in A0's Problem (#raw("phase-portrait")).
-     #deliverable[the identity relating $nabla^2 L thin X$ to $nabla L$; one sentence on what it says at a minimum.]],
-    [#tag("derive") _Small initialization gives balanced layers_ @du2018balanced[§2.1, after Corollary 2.1]. For $a_0, b_0$ i.i.d. $cal(N)(0, sigma^2)$, compute $sqrt(EE[c^2])$. Then use $a_infinity^2 - b_infinity^2 = c$ to find the gap $a_infinity - b_infinity$ to leading order in small $c$ on the positive branch of $a b = 1$.
-     #deliverable[$sqrt(EE[c^2])$ as a function of $sigma$; $a_infinity - b_infinity$ to first order in $c$. Type both into the `FORMULAS` block of `scripts/check_noether.py`.]],
+    [#tag("derive") Differentiate $L(psi_alpha (theta)) = L(theta)$ in $alpha$ at $alpha = 1$ for @eq-sym #primer("LA.6", "symmetries"). Use the constraint to find a quadratic $Q(a, b)$ with $dot(Q) = 0$ along gradient flow, and state for which losses $L(a, b)$ your argument holds (it should cover any per-example loss of $f_(a,b)$ on any dataset).
+     #deliverable[the generator $X(a, b)$; the constraint, as the equation $⟨nabla L(theta), X(theta)⟩ = dots$; $Q(a, b)$; the class of losses, stated as a condition on $L$ (a form $L(a, b) = dots$ that guarantees the symmetry).]
+     #hints([Chain rule on $alpha |-> L(psi_alpha (theta))$ at $alpha = 1$ (primer §LA.6).], [Look for $Q$ with $nabla Q prop X$: then $dot(Q) = ⟨nabla Q, dot(theta)⟩ = -⟨nabla Q, nabla L⟩$ vanishes by the constraint.], [First line of the solution: "The generator of @eq-sym is $X(a, b) = partial_alpha (alpha a, b\/alpha)|_(alpha = 1) = (a, -b)$."])],
+    [#tag("derive") Differentiate your constraint once more with respect to $theta$ (Kunin et al. do this in §3) #primer("LA.6", "differentiating an identity"). Deduce what $nabla^2 L (theta) X(theta)$ is at any minimum, and connect it to the zero eigenvalue you found in A0’s Problem (#raw("phase-portrait")).
+     #deliverable[the identity in the form $nabla^2 L(theta) X(theta) = M nabla L(theta)$ with $M$ a constant $2 times 2$ matrix; the sentence "at a minimum, $X(theta)$ is an eigenvector of $nabla^2 L$ with eigenvalue $dots$", and which eigenvector of A0’s Problem (#raw("phase-portrait")) (b) it is.]
+     #hints([The constraint holds for every $theta$, so its gradient in $theta$ vanishes too: product rule on $⟨nabla L(theta), X(theta)⟩$ (primer §LA.6).], [$nabla_theta ⟨nabla L, X⟩ = nabla^2 L thin X + (partial X \/ partial theta)^top nabla L$, and here $partial X \/ partial theta$ is a constant diagonal matrix.], [First line of the solution: "Differentiate the constraint $⟨nabla L(theta), X(theta)⟩ = 0$ with respect to $theta$."])],
+    [#tag("derive") _Small initialization gives balanced layers_ @du2018balanced[§2.1, after Corollary 2.1]. For $a_0, b_0$ i.i.d. $cal(N)(0, sigma^2)$, compute $sqrt(EE[c^2])$ #primer("PR.1", "Gaussian moments"). Then use $a_infinity^2 - b_infinity^2 = c$ to find the gap $a_infinity - b_infinity$ to leading order in small $c$ on the positive branch of $a b = 1$.
+     #deliverable[$sqrt(EE[c^2])$ as a function of $sigma$; $a_infinity - b_infinity$ to first order in $c$. Type both into the `FORMULAS` block of `scripts/check_noether.py`.]
+     #hints([Expand $c^2$ and use Gaussian moments, $EE[a^4] = 3 sigma^4$, and independence (primer §PR.1).], [Factor $a_infinity^2 - b_infinity^2 = (a_infinity - b_infinity)(a_infinity + b_infinity)$ and find $a_infinity + b_infinity$ to zeroth order in $c$ (primer §TAY.4, §ALG.1).], [First line of the solution: "With $a_0, b_0$ i.i.d. $cal(N)(0, sigma^2)$, $EE[a^4] = 3 sigma^4$, so $EE[c^2] = EE[a^4] - 2 EE[a^2] EE[b^2] + EE[b^4]$."])],
     [#tag("implement") In `symmetries/noether.py`, for arrays of points of shape `(..., 2)`:
      #defline[`def rescale(theta, alpha)`  ·  `def generator(theta)`  ·  `def conserved(theta)`]
      #arglist(
@@ -78,13 +81,14 @@ which leaves $a b$, so the network function and every loss built from it, unchan
 #problem("endpoint", [Where gradient flow lands], kind: ("derive", "implement", "check"), time: "25 min", owner: "you")[
   Gradient flow on $L = 1/2 (s - a b)^2$ with target $s > 0$ ends on the curve $a b = s$ unless it ends at the origin (A0). Ang's post does $s = 1$ @ang2026post[§2.1].
   #parts(
-    [#tag("derive") Combine conservation with $a_infinity b_infinity = s$ to find $a_infinity^2$ and $b_infinity^2$. Decide which branch of $a b = s$ the flow reaches from $(a_0, b_0)$, including $c = 0$, and argue why the sign of $a$ (if $c > 0$) or of $b$ (if $c < 0$) cannot change.
-     #deliverable[$(a_infinity, b_infinity)$ in closed form for every start, with one sign rule that covers all cases.]],
+    [#tag("derive") Combine conservation with $a_infinity b_infinity = s$ to find $a_infinity^2$ and $b_infinity^2$ #primer("ALG.1", "two equations"). Decide which branch of $a b = s$ the flow reaches from $(a_0, b_0)$, including $c = 0$, and argue why the sign of $a$ (if $c > 0$) or of $b$ (if $c < 0$) cannot change.
+     #deliverable[$(a_infinity, b_infinity)$ in closed form for every start, with one sign rule that covers all cases.]
+     #hints([Two equations in $a_infinity^2, b_infinity^2$: their difference is $c$, their product $s^2$; a quadratic in $A = a_infinity^2$ (primer §ALG.1).], [For the signs: if $c > 0$ then $a^2 = c + b^2 >= c > 0$ for all $t$, so $a$ never passes through zero (primer §ODE.1).], [First line of the solution: "Write $A = a_infinity^2$. Conservation gives $b_infinity^2 = A - c$ and the endpoint gives $a_infinity^2 b_infinity^2 = s^2$, so $A^2 - c A - s^2 = 0$."])],
     [#tag("implement") In `symmetries/endpoint.py`:
      #defline[`def flow_endpoint(a0, b0, s=1.0) -> np.ndarray`]
      #arglist(("returns", [$(a_infinity, b_infinity)$, shape `(2,)`; the origin for $a_0 = -b_0$.]))
      #filetest("test_endpoint", ("flow_endpoint",))],
-    [#tag("check") Run `scripts/check_endpoint.py`: 450 random starts and $s in {0.5, 1, 2}$, integrated to $t = 60$. Expected: your endpoints within $10^(-9)$ of the integrated ones (`endpoint.png`). It also starts at distance $epsilon$ from the line $a = -b$; note in `notes.md` how the time to leave the origin grows with $epsilon$ (A0's saddle eigenvalues explain it).],
+    [#tag("check") Run `scripts/check_endpoint.py`: 450 random starts and $s in {0.5, 1, 2}$, integrated to $t = 60$. Expected: your endpoints within $10^(-9)$ of the integrated ones (`endpoint.png`). It also starts at distance $epsilon$ from the line $a = -b$; note in `notes.md` how the time to leave the origin grows with $epsilon$ (A0’s saddle eigenvalues explain it).],
   )
 ]
 
@@ -93,11 +97,12 @@ $ u(t_f) = f s, quad 0 < u_0 < f s, quad t_(1\/2) = t_f "at" f = 1/2. $ <eq-thal
 
 #problem("logistic", [Balanced learning is logistic], kind: ("derive", "implement", "check", "predict"), time: "50 min", owner: "you")[
   #parts(
-    [#tag("derive") Show that $a_0 = b_0 > 0$ implies $a(t) = b(t)$ for all $t$, and derive a closed ODE for $u = a b$. It is the _logistic equation_ (growth rate proportional to $u$, braked as $u$ approaches its ceiling). Solve it by separation of variables and partial fractions.
-     #deliverable[the ODE $dot(u) = F(u)$; $u(t)$ in closed form given $u_0$ and $s$.]],
-    [#tag("derive") From (a), compute $t_f (u_0, s)$, then its leading behaviour for $u_0 << s$ at $f = 1/2$. Describe the shape of $u(t)$ for $u_0 = 10^(-6)$: how long is the _plateau_ (the stretch where $u$ and the loss barely move) compared with the _drop_ (the time from $u = 0.1 s$ to $u = 0.9 s$)?
+    [#tag("derive") Show that $a_0 = b_0 > 0$ implies $a(t) = b(t)$ for all $t$, and derive a closed ODE for $u = a b$. It is the _logistic equation_ (growth rate proportional to $u$, braked as $u$ approaches its ceiling). Solve it by separation of variables and partial fractions #primer("ODE.4", "logistic").
+     #deliverable[the ODE $dot(u) = F(u)$; $u(t)$ in closed form given $u_0$ and $s$.]
+     #hints([Show $q = a - b$ obeys a linear ODE $dot(q) = k(t) q$, so $q_0 = 0$ forces $q equiv 0$ by uniqueness (primer §ODE.1); then differentiate $u = a b$ by the product rule.], [Separate variables and use partial fractions (primer §ODE.4, §ALG.3).], [First line of the solution: "For $L = 1/2 (s - a b)^2$: $dot(a) = b(s - a b)$, $dot(b) = a(s - a b)$, so $d\/d t (a - b) = -(a - b)(s - a b)$."])],
+    [#tag("derive") From (a), compute $t_f (u_0, s)$, then its leading behaviour for $u_0 << s$ at $f = 1/2$ #primer("ODE.4", "time between two levels"), #primer("TAY.4", "leading order"). Describe the shape of $u(t)$ for $u_0 = 10^(-6)$: how long is the _plateau_ (the stretch where $u$ and the loss barely move) compared with the _drop_ (the time from $u = 0.1 s$ to $u = 0.9 s$)?
      #deliverable[$t_f$ exactly; $t_(1\/2)$ to leading order; how plateau length and drop length each scale with $u_0$ and $s$.]
-     _Hints, gentle to strong:_ (1) $1/(u(s - u)) = 1/s (1/u + 1/(s - u))$. (2) Write the time from $u_1$ to $u_2$ as $integral_(u_1)^(u_2) d u \/ F(u)$. (3) For the drop, both endpoints are fixed fractions of $s$, so $u_0$ drops out.],
+     #hints([Partial fractions (primer §ODE.4): $1/(u(s - u)) = 1/s (1/u + 1/(s - u))$.], [Write the time from $u_1$ to $u_2$ as $integral_(u_1)^(u_2) d u \/ F(u)$.], [For the drop, both endpoints are fixed fractions of $s$, so $u_0$ drops out.])],
     [#tag("implement") In `symmetries/logistic.py`, broadcasting over numpy arrays:
      #defline[`def balanced_product(u0, s, t)`  ·  `def time_to_learn(u0, s, frac=0.5)`]
      #arglist(
@@ -121,12 +126,15 @@ Du, Hu and Lee prove that gradient flow keeps $D$ fixed for any two consecutive 
 
 #problem("matrix-law", [The matrix conservation law], kind: ("derive", "implement", "check"), time: "45 min", owner: "you")[
   #parts(
-    [#tag("derive") With $G = nabla_W L$ the gradient of @eq-lin with respect to the product, find $nabla_(W_1) L$ and $nabla_(W_2) L$ by the chain rule (perturb $W_1 -> W_1 + E$ and keep the first-order term of $L$).
-     #deliverable[$G$, $nabla_(W_1) L$, $nabla_(W_2) L$ as matrix products.]],
-    [#tag("derive") Show $dot(D) = 0$ under gradient flow, using only that $L$ depends on $W_2 W_1$ through some $G$. Then derive it a second way, Noether-style: take $A = I + epsilon M$ for an arbitrary $M$ and differentiate at $epsilon = 0$; which matrix does "for all $M$" force to vanish? For $m = d_"in" = d_"out" = 1$, recover Problem (#raw("noether")).
-     #deliverable[the two-line proof; the constraint from the symmetry.]],
-    [#tag("derive") Take one GD step, $W_i' = W_i - eta nabla_(W_i) L$. Compute $D' - D$ _exactly_ (no expansion in $eta$): the first-order terms cancel; write what remains in terms of $nabla_(W_1) L$ and $nabla_(W_2) L$.
-     #deliverable[$D' - D$; its scalar case as a function of $c$, $r$, $eta$.]],
+    [#tag("derive") With $G = nabla_W L$ the gradient of @eq-lin with respect to the product, find $nabla_(W_1) L$ and $nabla_(W_2) L$ by the chain rule (perturb $W_1 -> W_1 + E$ and keep the first-order term of $L$) #primer("LA.5", "matrix calculus").
+     #deliverable[$G$, $nabla_(W_1) L$, $nabla_(W_2) L$ as matrix products.]
+     #hints([Matrix gradients by perturbation: write the first-order change of $L$ as $⟨dot, E⟩$ using the cyclic trace (primer §LA.5).], [Perturbing $W_1$ by $E$ perturbs $W = W_2 W_1$ by $W_2 E$, and the change of $L$ is $⟨G, W_2 E⟩$.], [First line of the solution: "$L(W) = 1/2 "tr"(W Sigma_(x x) W^top) - "tr"(W Sigma_(y x)^top)$ has $G = nabla_W L = W Sigma_(x x) - Sigma_(y x)$."])],
+    [#tag("derive") Show $dot(D) = 0$ under gradient flow, using only that $L$ depends on $W_2 W_1$ through some $G$. Then derive it a second way, Noether-style: take $A = I + epsilon M$ for an arbitrary $M$ and differentiate at $epsilon = 0$; which matrix does "for all $M$" force to vanish? For $m = d_"in" = d_"out" = 1$, recover Problem (#raw("noether")) #primer("LA.5", "products and \"for all M\""), #primer("LA.6", "symmetries").
+     #deliverable[the two-line proof that $dot(D) = 0$; the constraint as an $m times m$ matrix identity $K = 0$, with $K$ written in $W_1$, $W_2$, $nabla_(W_1) L$, $nabla_(W_2) L$.]
+     #hints([Product rule: $dot(D) = dot(W)_1 W_1^top + W_1 dot(W)_1^top - dot(W)_2^top W_2 - W_2^top dot(W)_2$; substitute the gradients from (a) (primer §LA.5).], [For the Noether route, $(I + epsilon M)^(-1) = I - epsilon M + O(epsilon^2)$; the derivative at $epsilon = 0$ has the form $"tr"(M K)$, and $"tr"(M K) = 0$ for all $M$ forces $K = 0$ (primer §LA.5, §LA.6).], [First line of the solution: "Under gradient flow $dot(W_1) = -W_2^top G$, $dot(W_2) = -G W_1^top$."])],
+    [#tag("derive") Take one GD step, $W_i' = W_i - eta nabla_(W_i) L$. Compute $D' - D$ _exactly_ (no expansion in $eta$) #primer("TAY.3", "a conserved quantity under one step"): the first-order terms cancel; write what remains in terms of $nabla_(W_1) L$ and $nabla_(W_2) L$.
+     #deliverable[$D' - D$ in terms of $eta$, $nabla_(W_1) L$, $nabla_(W_2) L$; its scalar case as a function of $c$, $r$, $eta$.]
+     #hints([Expand the products exactly and collect powers of $eta$, as in the scalar worked example of primer §TAY.3.], [The $eta^1$ terms of $W_1' W_1'^top$ and of $W_2'^top W_2'$ are equal; check it with your (a).], [First line of the solution: "With $g_i = nabla_(W_i) L$: $W_1' W_1'^top = W_1 W_1^top - eta (g_1 W_1^top + W_1 g_1^top) + eta^2 g_1 g_1^top$."])],
     [#tag("implement") In `symmetries/two_layer.py`:
      #defline[`def two_layer_grads(W1, W2, Sxx, Syx)`  ·  `def imbalance(W1, W2)`  ·  `def gd_imbalance_change(W1, W2, Sxx, Syx, eta)`]
      #arglist(
@@ -152,10 +160,11 @@ and each _mode strength_ $u_alpha (t) = bold(u)_alpha^top W(t) bold(v)_alpha$ ev
 #problem("saxe", [Deep linear networks learn mode by mode], kind: ("derive", "implement", "check"), time: "60 min", owner: "you")[
   #parts(
     [#tag("derive") Change variables to $overline(W)_1 = W_1 V$ and $overline(W)_2 = U^top W_2$ (extend $U, V$ to square orthogonal matrices). From the aligned balanced initialization, show that $overline(W)_1$ and $overline(W)_2$ keep their initial structure, that @eq-saxe holds, and that each pair $(a_alpha, b_alpha)$, defined by column $alpha$ of $overline(W)_1$ being $a_alpha r_alpha$ and row $alpha$ of $overline(W)_2$ being $b_alpha r_alpha^top$ ($r_alpha$ the columns of $R$), follows the anchor with target $s_alpha$.
-     #deliverable[the ODEs for $(a_alpha, b_alpha)$; why different modes do not interact.]
-     _Hint:_ use your gradients from Problem (#raw("matrix-law")) with $Sigma_(x x) = I$; verify that the ansatz is consistent (its velocity has the same structure) and invoke uniqueness of ODE solutions.],
-    [#tag("derive") With Problem (#raw("logistic")), give $u_alpha (t)$, and the ratio $t_(1\/2, alpha) \/ t_(1\/2, beta)$ of half-times for two modes from the same small $u_0$, to leading order.
-     #deliverable[$u_alpha (t)$; the ratio.]],
+     #deliverable[the ODEs for $(a_alpha, b_alpha)$; one sentence naming the term that would couple two modes $alpha != beta$ and why it vanishes.]
+     #hints([Rotate both sides by the singular vectors so that $Sigma_(y x)$ becomes the diagonal $S$ (primer §LA.4); the ansatz argument is primer §ODE.1.], [Use your gradients from Problem (#raw("matrix-law")) with $Sigma_(x x) = I$; verify that the ansatz is consistent (its velocity has the same structure) and invoke uniqueness of ODE solutions.], [First line of the solution: "With $Sigma_(x x) = I$ the flow is $dot(W_1) = W_2^top (Sigma_(y x) - W_2 W_1)$, $dot(W_2) = (Sigma_(y x) - W_2 W_1) W_1^top$."])],
+    [#tag("derive") With Problem (#raw("logistic")), give $u_alpha (t)$, and the ratio $t_(1\/2, alpha) \/ t_(1\/2, beta)$ of half-times for two modes from the same small $u_0$, to leading order #primer("ALG.5", "time scales").
+     #deliverable[$u_alpha (t)$; the ratio, exactly and to leading order, as a formula in $s_alpha$, $s_beta$ (and $u_0$).]
+     #hints([Each mode is a balanced anchor with target $s_alpha$: reuse Problem (#raw("logistic")) (primer §ODE.4).], [For small $u_0$, $t_(1\/2) approx 1/(2 s) ln(s\/u_0)$; to leading order keep the $1\/s$ outside the logarithm (primer §TAY.4, §ALG.5).], [First line of the solution: "The init is balanced ($a_alpha = b_alpha = sqrt(u_(0 alpha))$), so each mode is Problem (#raw("logistic"))."])],
     [#tag("implement") In `symmetries/saxe.py` ($Sigma_(x x) = I$; modes are singular triples with $s_alpha > 10^(-10) s_1$, in `np.linalg.svd` order; `u0` a scalar or one value per mode):
      #defline[`def aligned_init(Syx, u0, hidden)`  ·  `def saxe_prediction(Syx, u0, t)`  ·  `def effective_u0(W1, W2, Syx)`]
      #arglist(
@@ -164,9 +173,9 @@ and each _mode strength_ $u_alpha (t) = bold(u)_alpha^top W(t) bold(v)_alpha$ ev
        ("effective_u0", [the per-mode $u_0^"eff"$ of (d).]),
      )
      #filetest("test_saxe", ("aligned_init", "saxe_prediction", "effective_u0"))],
-    [#tag("derive") Real networks start from small _random_ weights, not aligned ones. For mode $alpha$ let $x = W_1 bold(v)_alpha in RR^m$ and $y = W_2^top bold(u)_alpha in RR^m$, so $u_alpha = x^top y$. While all weights are small, drop the terms cubic in the weights from the flow and solve for $x(t)$, $y(t)$. Match the result with the early phase of (b), $u(t) approx u_0 e^(2 s t)$.
+    [#tag("derive") Real networks start from small _random_ weights, not aligned ones. For mode $alpha$ let $x = W_1 bold(v)_alpha in RR^m$ and $y = W_2^top bold(u)_alpha in RR^m$, so $u_alpha = x^top y$. While all weights are small, drop the terms cubic in the weights from the flow and solve for $x(t)$, $y(t)$ #primer("ODE.6", "linear systems"). Match the result with the early phase of (b), $u(t) approx u_0 e^(2 s t)$.
      #deliverable[$u_0^"eff"$ for mode $alpha$ as a function of $W_1(0)$, $W_2(0)$, $bold(u)_alpha$, $bold(v)_alpha$.]
-     _Hint:_ the linearized system is $dot(x) = s_alpha y$, $dot(y) = s_alpha x$; look at $x + y$ and $x - y$.],
+     #hints([Dropping the cubic terms leaves a linear system; solve it through its eigenvectors (primer §ODE.6).], [The linearized system is $dot(x) = s_alpha y$, $dot(y) = s_alpha x$; look at $x + y$ and $x - y$, and use $x^top y = 1/4 (norm(x + y)^2 - norm(x - y)^2)$.], [First line of the solution: "Linearize: $dot(x) = dot(W_1) bold(v)_alpha = W_2^top (Sigma_(y x) - W) bold(v)_alpha approx W_2^top Sigma_(y x) bold(v)_alpha = s_alpha W_2^top bold(u)_alpha = s_alpha y$."])],
     [#tag("check") Run `scripts/check_saxe.py`: $d_"in" = 8$, $d_"out" = 6$, $m = 6$, $s = (4, 2, 1, 0.5)$. Expected: from the aligned init your $W(t)$ within $10^(-7)$ of the integrated flow; from a random init of scale $10^(-3)$, half-times within $5%$ of your prediction with $u_0^"eff"$, a small delay growing for weaker modes (competition between modes, Saxe et al. Fig. 3 right), and a loss made of plateaus and drops (`saxe.png`).],
   )
 ]
@@ -183,18 +192,21 @@ again with $t = k eta$. To leading order it is gradient flow slowed by $1 - beta
 
 #problem("broken", [Finite steps, momentum, minibatches and weight decay], kind: ("derive", "implement", "check"), time: "75 min", owner: "you")[
   #parts(
-    [#tag("derive") From @eq-gdwd, compute $c_(k+1)$ exactly in terms of $c_k$, $r_k$, $eta$, $gamma$. Separately, for gradient flow on $L_gamma$ find $dot(c)$ and solve it. (Ang's post states the $gamma = 0$ step @ang2026post[§3.1]; the brief writes weight decay as $-gamma a$, a factor $2$ apart from this course's convention.)
-     #deliverable[$c_(k+1)$; $c(t)$ under the flow with weight decay (type it into `wd_imbalance` in `scripts/check_drift.py`); the condition on $eta r_k$ under which $|c|$ cannot grow.]],
-    [#tag("derive") Along @eq-mflow ($gamma = 0$), compute $dot(c)$. Use the constraint from Problem (#raw("noether")) to kill the $nabla L$ term; for the correction term you need $nabla^2 L thin nabla L$ explicitly.
-     #deliverable[$dot(c)$ as a function of $eta$, $r$, $c$.]],
-    [#tag("derive") Integrate (b) to first order in $eta$: replace $r(t)$ by its gradient-flow value. Show that $ln(c_infinity \/ c_0) approx -eta thin I(p_0, c_0)$ with $I = integral_0^infinity r(t)^2 thin d t$, change variables from $t$ to $p$ using $dot(p)$ from Problem (#raw("logistic")) (e), and evaluate the integral in closed form. How does $|ln(c_1\/c_0)|$ after a single step scale with $eta$, and how does the total $|ln(c_infinity \/ c_0)|$ scale?
+    [#tag("derive") From @eq-gdwd, compute $c_(k+1)$ exactly in terms of $c_k$, $r_k$, $eta$, $gamma$ #primer("TAY.3", "one GD step"). Separately, for gradient flow on $L_gamma$ find $dot(c)$ and solve it #primer("ODE.3", "linear decay"). (Ang's post states the $gamma = 0$ step @ang2026post[§3.1]; the brief writes weight decay as $-gamma a$, a factor $2$ apart from this course's convention.)
+     #deliverable[$c_(k+1)$; $c(t)$ under the flow with weight decay (type it into `wd_imbalance` in `scripts/check_drift.py`); for $gamma = 0$, the condition on $eta r_k$, as an inequality, under which $|c|$ cannot grow.]
+     #hints([Expand $a_(k+1)^2 - b_(k+1)^2$ exactly, as in primer §TAY.3; the flow part is a linear ODE (primer §ODE.3).], [Write the step as $a' = (1 - 2 eta gamma) a - eta b r$; the cross terms cancel because $a b - b a = 0$.], [First line of the solution: "Write @eq-gdwd as $a' = (1 - 2 eta gamma) a - eta b r$, $b' = (1 - 2 eta gamma) b - eta a r$."])],
+    [#tag("derive") Along @eq-mflow ($gamma = 0$), compute $dot(c)$ #primer("LA.6", "the generator"). Use the constraint from Problem (#raw("noether")) to kill the $nabla L$ term; for the correction term you need $nabla^2 L thin nabla L$ explicitly.
+     #deliverable[$dot(c)$ as a function of $eta$, $r$, $c$.]
+     #hints([$dot(c) = ⟨nabla c, dot(theta)⟩ = 2 ⟨X, dot(theta)⟩$ with $X = (a, -b)$ (primer §LA.6).], [$⟨X, nabla^2 L nabla L⟩ = ⟨nabla^2 L thin X, nabla L⟩$ since $nabla^2 L$ is symmetric; use your identity from Problem (#raw("noether")) (b).], [First line of the solution: "Along @eq-mflow, $dot(c) = -2⟨X, nabla L⟩ - eta ⟨X, nabla^2 L nabla L⟩$ with $X = (a, -b)$."])],
+    [#tag("derive") Integrate (b) to first order in $eta$: replace $r(t)$ by its gradient-flow value. Show that $ln(c_infinity \/ c_0) approx -eta thin I(p_0, c_0)$ with $I = integral_0^infinity r(t)^2 thin d t$, change variables from $t$ to $p$ using $dot(p)$ from Problem (#raw("logistic")) (e), and evaluate the integral in closed form #primer("ODE.3", "time-varying rate"), #primer("ALG.3", "integrating along a trajectory"). How does $|ln(c_1\/c_0)|$ after a single step scale with $eta$, and how does the total $|ln(c_infinity \/ c_0)|$ scale?
      #deliverable[$I(p_0, c)$ in closed form ($c != 0$); the two log-log slopes against $eta$.]
-     _Hints, gentle to strong:_ (1) $d t = d p \/ dot(p)$; $p$ moves monotonically from $p_0$ to $1$. (2) $integral d p \/ sqrt(c^2 + 4 p^2) = 1/2 "arcsinh"(2 p\/|c|)$. (3) $integral p thin d p \/ sqrt(c^2 + 4 p^2) = 1/4 sqrt(c^2 + 4 p^2)$.],
-    [#tag("derive") Repeat (b)–(c) for momentum, starting from @eq-mmom. Take the inner product with $(a, -b)$ to get an equation for $c$, keep terms to first order in $eta$, and integrate over the whole run.
+     #hints([$d t = d p \/ dot(p)$ (primer §ALG.3); $p$ moves monotonically from $p_0$ to $1$.], [$integral d p \/ sqrt(c^2 + 4 p^2) = 1/2 "arcsinh"(2 p\/|c|)$.], [$integral p thin d p \/ sqrt(c^2 + 4 p^2) = 1/4 sqrt(c^2 + 4 p^2)$.])],
+    [#tag("derive") Repeat (b)–(c) for momentum, starting from @eq-mmom. Take the inner product with $(a, -b)$ to get an equation for $c$, keep terms to first order in $eta$ #primer("TAY.2", "first order"), and integrate over the whole run.
      #deliverable[the factor by which momentum $beta$ multiplies the first-order drift of $ln c$ at a fixed $eta$.]
-     _Hints, gentle to strong:_ (1) $⟨(a, -b), dot.double(theta)⟩ = 1/2 dot.double(c) - (dot(a)^2 - dot(b)^2)$. (2) To leading order $dot(theta) = -nabla L \/ (1 - beta)$, and the run takes $1\/(1-beta)$ times longer in $t$ than gradient flow takes. (3) The $dot.double(c)$ term integrates to $dot(c)(infinity) - dot(c)(0)$; both vanish.],
-    [#tag("derive") _Minibatches._ Take $n$ examples with $1/n sum_i x_i^2 = 1$ and $y_i = x_i$, per-example loss $1/2 (a b x_i - y_i)^2$, and SGD on batches of $B$ indices drawn with replacement. Show that the batch gradient is $m_B r (b, a)$ with $m_B$ the batch mean of $x_i^2$, so it is still orthogonal to $X$, and find $c_(k+1)$. To first order in $eta$, by what factor does SGD's drift exceed GD's?
-     #deliverable[$c_(k+1)$ for SGD; the factor in terms of $B$ and the variance of $x_i^2$ over the dataset (type it into `sgd_drift_factor`).]],
+     #hints([Differentiate $c$ twice (primer §TAY.1, chain rule): $⟨(a, -b), dot.double(theta)⟩ = 1/2 dot.double(c) - (dot(a)^2 - dot(b)^2)$.], [To leading order $dot(theta) = -nabla L \/ (1 - beta)$, and the run takes $1\/(1-beta)$ times longer in $t$ than gradient flow takes.], [The $dot.double(c)$ term integrates to $dot(c)(infinity) - dot(c)(0)$; both vanish.])],
+    [#tag("derive") _Minibatches._ Take $n$ examples with $1/n sum_i x_i^2 = 1$ and $y_i = x_i$, per-example loss $1/2 (a b x_i - y_i)^2$, and SGD on batches of $B$ indices drawn with replacement. Show that the batch gradient is $m_B r (b, a)$ with $m_B$ the batch mean of $x_i^2$, so it is still orthogonal to $X$, and find $c_(k+1)$. To first order in $eta$, by what factor does SGD's drift exceed GD's? #primer("PR.2", "sample means")
+     #deliverable[$c_(k+1)$ for SGD; the factor in terms of $B$ and the variance of $x_i^2$ over the dataset (type it into `sgd_drift_factor`).]
+     #hints([The batch mean of $x_i^2$ multiplies the GD step; the drift needs the mean of its square (primer §PR.2).], [$EE[m_B^2] = (EE m_B)^2 + "Var"(m_B)$, and $"Var"(m_B) = "Var"(x_i^2)\/B$ for draws with replacement.], [First line of the solution: "Per-example gradient: $partial_a 1/2 (a b x_i - x_i)^2 = b x_i^2 r$, so the batch gradient is $m_B r (b, a)$ with $m_B = 1/B sum_(i in B) x_i^2$."])],
     [#tag("implement") In `symmetries/drift.py`:
      #defline[`def imbalance_after_step(a, b, eta, gamma=0.0)`  ·  `def drift_integral(p0, c)`  ·  `def predicted_log_drift(a0, b0, eta, beta=0.0)`]
      #arglist(

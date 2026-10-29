@@ -20,6 +20,8 @@
 //   model(...)          blue box "Mental model: ..."
 //   parts(...)          (a), (b), (c) sub-parts
 //   deliverable[...]    "Deliverable: ..." line ending every part
+//   hints(...)          "Hints, gentle to strong: (1) ... (2) ... (3) ..." ladder; one on every Derive part
+//   primer(sec, what)   "(primer §ODE.4, logistic)": pointer into m0-math-primer/handout.pdf
 //   resources[...]      "Resource requirements: ..." line for anything that runs
 //   testline(...)       the fixed sentence closing every Implement part
 //   defline[...]        a `def` line of an interface, in mono
@@ -185,6 +187,15 @@
 #let model(title, body) = _frame(blue, 1.5pt, [Mental model: #title], body)
 
 #let deliverable(body) = [*Deliverable*: #body]
+
+/// Hint ladder for a Derive part, gentle to strong. The first hint names the technique (and the
+/// primer section), the last is the first line of the worked solution.
+///   #hints([...], [...], [...])
+#let hints(..hs) = block(above: 0.7em, below: 0.2em)[_Hints, gentle to strong:_ #hs.pos().enumerate().map(((i, h)) => [(#(i + 1)) #h]).join(" ")]
+
+/// Pointer into the math primer (m0-math-primer/handout.pdf) at the point a technique is used.
+///   #primer("ODE.4", "logistic") -> (primer §ODE.4, logistic)
+#let primer(sec, what) = [(primer §#sec, #what)]
 #let resources(body) = [*Resource requirements*: #body]
 
 /// (a), (b), (c) sub-parts.

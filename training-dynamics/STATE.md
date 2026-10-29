@@ -15,15 +15,24 @@
 
 | # | Folder | Status | Date | Tests (stubs / `--solutions`) | Check CPU (measured) | PDFs |
 |---|---|---|---|---|---|---|
-| A0 | `a0-prereqs` | done | 2026-10-29 | 48 fail with NotImplementedError / 48 pass | 6 checks, 0.2-1.5 s each (about 10 s total including start-up) | handout 9 pp. (8 + references), solutions 9 pp. |
-| A1 | `a1-symmetries` | done | 2026-10-29 | 48 fail with NotImplementedError / 48 pass | 6 checks, 1.2-4.2 s each (about 13 s total including start-up) | handout 9 pp. (8 + references), solutions 8 pp. |
-| A2 | `a2-weight-decay` | done | 2026-10-29 | 48 fail with NotImplementedError / 48 pass | 6 checks, 1.0-4.5 s each (about 23 s total including start-up) | handout 8 pp. (references on p. 8), solutions 8 pp. |
+| M0 | `m0-math-primer` | done (reference, read on demand) | 2026-10-29 | none (no tests, no stubs) | figure script about 1 s | handout 24 pp. (self-diagnostic p. 1, answers p. 2, answers to all exercises at the end) |
+| A0 | `a0-prereqs` | done, revised | 2026-10-29 | 48 fail with NotImplementedError / 48 pass | 6 checks, 0.2-1.5 s each (about 10 s total including start-up) | handout 11 pp., solutions 9 pp. |
+| A1 | `a1-symmetries` | done, revised | 2026-10-29 | 48 fail with NotImplementedError / 48 pass | 6 checks, 1.2-4.2 s each (about 13 s total including start-up) | handout 10 pp., solutions 8 pp. |
+| A2 | `a2-weight-decay` | done, revised | 2026-10-29 | 48 fail with NotImplementedError / 48 pass | 6 checks, 1.0-4.5 s each (about 23 s total including start-up) | handout 10 pp., solutions 8 pp. |
 | A3 | `a3-edge-of-stability` | not started | | | | |
 | A4 | `a4-sgd-noise` | not started | | | | |
 | A5 | `a5-lazy-rich` | not started | | | | |
 | A6 | `a6-function-space` | not started | | | | |
 | A7 | `a7-parameterization` | not started | | | | |
 | C | `capstone` | not started | | | | |
+
+Revision pass (2026-10-29), after Fan Pu said he could not do the derivations without more
+background: added `m0-math-primer/`; in A0-A2, every `[Derive]` part (14 + 17 + 16 = 47) now has a
+`#hints(...)` ladder (before: 12 of 47 had any hints) and a concrete deliverable, with `#primer(...)`
+pointers at the point of use; every Setup paragraph has the 15-minute time box. Mathematics, labels,
+tests, stubs, scripts and solutions unchanged (solution PDFs rebuilt only). A3 onward must follow the
+same rules (`../docs/course-template.md` §7); check with `grep -c '#tag("derive")'` against
+`grep -c '#hints('`.
 
 Notes for whoever builds A1 onward: tests run one assignment directory per pytest call
 (`uv run pytest a1-symmetries`); each assignment's `tests/conftest.py` puts its own root and tests

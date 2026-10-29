@@ -33,7 +33,7 @@ after normalizing $1/n sum_i x_i^2 = 1$ (harmless; the post's §2). Nothing come
 + Six check scripts in `scripts/`, one per problem, each comparing a measurement with your derivation
 + A reading of the two framing papers, with three questions for `notes.md` (Problem (#raw("framing")))
 
-#runin[Setup.] From the course root: `uv sync`, then `uv run pytest a0-prereqs` (all 48 tests fail with `NotImplementedError` until you fill in the stubs). Each check runs as `uv run python a0-prereqs/scripts/check_<name>.py` and writes PNGs and its section of `a0-prereqs/out/results.json`; `uv run python -m tdyn.results a0-prereqs/out/results.json a0-prereqs/solutions/results.json` shows where you differ from the reference. Worked solutions: `solutions/solutions.pdf`. The shared package `tdyn/` holds everything not tagged `[you]`, including staff versions of `gd` and the Hessian tools for later assignments; write your own here.
+#runin[Setup.] From the course root: `uv sync`, then `uv run pytest a0-prereqs` (all 48 tests fail with `NotImplementedError` until you fill in the stubs). Each check runs as `uv run python a0-prereqs/scripts/check_<name>.py` and writes PNGs and its section of `a0-prereqs/out/results.json`; `uv run python -m tdyn.results a0-prereqs/out/results.json a0-prereqs/solutions/results.json` shows where you differ from the reference. Worked solutions: `solutions/solutions.pdf`. The shared package `tdyn/` holds everything not tagged `[you]`, including staff versions of `gd` and the Hessian tools for later assignments; write your own here. #runin[Time box.] If a Derive part takes more than 15 minutes with all hints, read that part in `solutions/solutions.pdf`, close it, and redo the part from a blank page before moving on. The solutions are part of the method, not a failure. Rusty on the math? Parts point into the primer `m0-math-primer/handout.pdf` at the point of use, as in #primer("ODE.4", "logistic"); its first page is a one-page self-diagnostic.
 
 #runin[Notation.] Parameters $theta in RR^d$, loss $L$, step size $eta$, step index $k$, continuous time $t$. For the anchor, $theta = (a, b)$, residual $r = a b - 1$, imbalance $c = a^2 - b^2$. $nabla^2 L$ is the Hessian, $lambda_max$ its largest eigenvalue. A dot is a time derivative, $dot(theta) = d theta \/ d t$.
 
@@ -47,11 +47,12 @@ The simplest numerical ODE solver is _forward Euler_ with time step $h$: $theta_
 
 #problem("flow-limit", [GD is forward Euler on gradient flow], kind: ("derive", "check", "predict"), time: "25 min", owner: "you")[
   #parts(
-    [#tag("derive") Show that @eq-gd is forward Euler applied to @eq-flow, and say which time $t$ the iterate $theta_k$ approximates.
-     #deliverable[the time $t_k$ as a function of $k$ and $eta$.]],
-    [#tag("derive") Expand the exact flow $theta(eta)$ started at $theta_0$ to second order in $eta$, and compare it with one GD step $theta_1$.
+    [#tag("derive") Show that @eq-gd is forward Euler applied to @eq-flow, and say which time $t$ the iterate $theta_k$ approximates #primer("GD.1", "forward Euler").
+     #deliverable[the time $t_k$ as a function of $k$ and $eta$.]
+     #hints([Forward Euler is defined in the paragraph above (primer §GD.1); write it out for the velocity field $F = -nabla L$.], [Match the Euler time step $h$ with $eta$; each step advances time by $h$.], [First line of the solution: "Forward Euler with velocity field $F(theta) = -nabla L(theta)$ and time step $h$ is $theta_(k+1) = theta_k + h F(theta_k) = theta_k - h nabla L(theta_k)$."])],
+    [#tag("derive") Expand the exact flow $theta(eta)$ started at $theta_0$ to second order in $eta$ #primer("TAY.1", "Taylor along a curve"), and compare it with one GD step $theta_1$.
      #deliverable[the leading term of $theta(eta) - theta_1$ as a formula in $nabla L(theta_0)$ and $nabla^2 L(theta_0)$, the power of $eta$ it carries, and (by counting steps to reach a fixed time $T$) the power $p$ in a global error of $O(eta^p)$.]
-     _Hints, gentle to strong:_ (1) $theta(eta) = theta(0) + eta dot(theta)(0) + eta^2/2 dot.double(theta)(0) + O(eta^3)$. (2) For $dot.double(theta)$, differentiate $-nabla L(theta(t))$ in $t$ by the chain rule: the derivative of $nabla L$ along a curve is $nabla^2 L$ times the velocity. (3) Reaching time $T$ takes $T\/eta$ steps; assume the per-step errors add without growing.],
+     #hints([Taylor in time (primer §TAY.1): $theta(eta) = theta(0) + eta dot(theta)(0) + eta^2/2 dot.double(theta)(0) + O(eta^3)$.], [For $dot.double(theta)$, differentiate $-nabla L(theta(t))$ in $t$ by the chain rule: the derivative of $nabla L$ along a curve is $nabla^2 L$ times the velocity.], [Reaching time $T$ takes $T\/eta$ steps; assume the per-step errors add without growing (primer §GD.1).])],
     [#tag("check") Run `scripts/check_flow_limit.py`. It runs GD on the anchor @eq-anchor from $(a, b) = (1.5, 0.5)$ at $eta in {0.1, 0.03, 0.01, 0.003}$, compares with an accurate solution of the flow at the same times, and fits log-log slopes of the one-step error and of the largest error on $t in [0, 10]$ against $eta$ (`flow_limit_error.png`). The two slopes should match your two powers to within $0.1$. A slope near $1$ for the one-step error would mean your expansion missed a first-order term.],
     [#tag("predict") The script also runs $eta = 0.9$ from the same start. Before opening `flow_limit_eta09.png`, write one line in `notes.md`: does GD at $eta = 0.9$ end at the same minimum as the flow? Then look at the figure and write two sentences on why the small-step picture fails here even though the loss is the same smooth function. (Problem (#raw("gd-stability")) and Problem (#raw("hessian")) give you the vocabulary; come back to this.)
      #deliverable[the prediction, written before running, and the two sentences.]],
@@ -72,10 +73,12 @@ A real symmetric matrix $H$ has an _eigendecomposition_ $H = Q Lambda Q^top$: $Q
 
 #problem("gd-stability", [Stability of GD on a quadratic], kind: ("derive", "implement", "check"), time: "35 min", owner: "you")[
   #parts(
-    [#tag("derive") For $L(theta) = lambda/2 theta^2$ with $lambda > 0$, write $theta_k$ in closed form.
-     #deliverable[the ranges of $eta lambda$ for which GD (i) converges monotonically, (ii) converges while flipping sign, (iii) neither converges nor diverges, (iv) diverges.]],
-    [#tag("derive") For $L(theta) = 1/2 theta^top H theta$ with $H$ symmetric positive definite, use $z = Q^top theta$ to show that each coordinate $z_i$ follows (a) with $lambda = lambda_i$. Define the _contraction factor_ $rho(eta)$ as the factor by which $norm(theta_k)$ shrinks per step for large $k$ and a generic start.
-     #deliverable[(i) the condition on $eta$ and $lambda_max$ for convergence; (ii) $rho(eta)$ in terms of the eigenvalues; (iii) for eigenvalues ${1, 10}$: the critical step size $eta_c$, the step size $eta^*$ that minimizes $rho$, and $rho(eta^*)$, to three decimals.]],
+    [#tag("derive") For $L(theta) = lambda/2 theta^2$ with $lambda > 0$, write $theta_k$ in closed form #primer("GD.2", "linear maps").
+     #deliverable[$theta_k$ as a formula in $k$, $eta lambda$, $theta_0$; the range of $eta lambda$ (an interval or a single value) for which GD (i) converges monotonically, (ii) converges while flipping sign, (iii) neither converges nor diverges, (iv) diverges.]
+     #hints([One GD step multiplies $theta$ by a constant: a linear recursion (primer §GD.2).], [Call the constant $q$; when is $|q| < 1$, when is $q < 0$, when is $q = -1$?], [First line of the solution: "$nabla L(theta) = lambda theta$, so $theta_(k+1) = (1 - eta lambda) theta_k$."])],
+    [#tag("derive") For $L(theta) = 1/2 theta^top H theta$ with $H$ symmetric positive definite, use $z = Q^top theta$ #primer("LA.1", "eigen-coordinates") to show that each coordinate $z_i$ follows (a) with $lambda = lambda_i$. Define the _contraction factor_ $rho(eta)$ as the factor by which $norm(theta_k)$ shrinks per step for large $k$ and a generic start.
+     #deliverable[(i) the condition on $eta$ and $lambda_max$ for convergence; (ii) $rho(eta)$ in terms of the eigenvalues; (iii) for eigenvalues ${1, 10}$: the critical step size $eta_c$, the step size $eta^*$ that minimizes $rho$, and $rho(eta^*)$, to three decimals.]
+     #hints([Rotate to eigen-coordinates (primer §LA.1); then apply (a) to each coordinate separately (primer §GD.2).], [For large $k$ the coordinate with the largest $|1 - eta lambda_i|$ dominates, and only $lambda_"min"$ or $lambda_max$ can give the largest; $eta^*$ is where those two factors are equal.], [First line of the solution: "With $H = Q Lambda Q^top$ and $z = Q^top theta$: $z_(k+1) = Q^top (theta_k - eta Q Lambda Q^top theta_k) = (I - eta Lambda) z_k$."])],
     [#tag("implement") Implement GD @eq-gd in `prereqs/gd.py`:
      #defline[`def gd(grad_fn, theta0, eta: float, steps: int) -> np.ndarray`]
      #arglist(
@@ -111,12 +114,15 @@ A _fixed point_ of $dot(theta) = F(theta)$ is a $theta^*$ with $F(theta^*) = 0$;
 
 #problem("phase-portrait", [The anchor model's phase portrait], kind: ("derive", "implement", "check"), time: "45 min", owner: "you")[
   #parts(
-    [#tag("derive") Write the gradient flow of @eq-anchor as two equations for $dot(a), dot(b)$ and find every fixed point.
-     #deliverable[the set of fixed points, and the loss at each.]],
-    [#tag("derive") Compute the Jacobian of the flow at a general $(a, b)$, then its eigenvalues and eigenvectors at the origin and at a point $(a, 1\/a)$ of the curve $a b = 1$. Classify each with @tab-fp and say in words what a zero eigenvalue means here.
-     #deliverable[the eigenvalues at the origin; the eigenvalues at $(a, 1\/a)$ as functions of $a$; the direction of the zero-eigenvalue eigenvector relative to the curve $a b = 1$.]],
-    [#tag("derive") Verify by differentiating that $c = a^2 - b^2$ is conserved by the flow (Ang derives this from the rescaling symmetry; that argument is A1's subject). Use it to find exactly which initializations end at the origin.
-     #deliverable[that set of initializations, and the 1-D ODE the flow reduces to on it.]],
+    [#tag("derive") Write the gradient flow of @eq-anchor as two equations for $dot(a), dot(b)$ and find every fixed point #primer("FP.1", "fixed points").
+     #deliverable[the set of fixed points (as equations in $a, b$), and the loss at each.]
+     #hints([A fixed point is where both velocities vanish (primer §FP.1); factor out the residual $r = a b - 1$.], [Split into the cases $r = 0$ and $r != 0$.], [First line of the solution: "With $r = a b - 1$: $partial_a L = b r$, $partial_b L = a r$, so $dot(a) = -b(a b - 1)$, $dot(b) = -a(a b - 1)$."])],
+    [#tag("derive") Compute the Jacobian of the flow at a general $(a, b)$, then its eigenvalues and eigenvectors at the origin and at a point $(a, 1\/a)$ of the curve $a b = 1$. Classify each with @tab-fp and say in words what a zero eigenvalue means here #primer("FP.2", "classifying"), #primer("FP.6", "a curve of fixed points").
+     #deliverable[the eigenvalues at the origin; the eigenvalues at $(a, 1\/a)$ as functions of $a$; the direction of the zero-eigenvalue eigenvector relative to the curve $a b = 1$ (tangent or normal); one sentence on what the zero eigenvalue means.]
+     #hints([$J_(i j) = partial F_i \/ partial theta_j$, and for gradient flow $J = -nabla^2 L$ (primer §FP.1); a $2 times 2$ matrix's eigenvalues come from its trace and determinant (primer §LA.1).], [On $a b = 1$ the determinant vanishes, so one eigenvalue is $0$ and the other is the trace; a curve of fixed points always has a zero eigenvalue along its tangent (primer §FP.6).], [First line of the solution: "Writing $F = (-a b^2 + b, -a^2 b + a)$, $J(a, b) = mat(-b^2, 1 - 2 a b; 1 - 2 a b, -a^2)$."])],
+    [#tag("derive") Verify by differentiating that $c = a^2 - b^2$ is conserved by the flow (Ang derives this from the rescaling symmetry; that argument is A1’s subject). Use it to find exactly which initializations end at the origin #primer("FP.6", "conserved quantities"), #primer("ODE.1", "invariant lines").
+     #deliverable[that set of initializations, as an equation in $a_0, b_0$; the 1-D ODE $dot(s) = F(s)$ the flow reduces to on it.]
+     #hints([Differentiate $c$ along the flow with the chain rule, $dot(c) = 2 a dot(a) - 2 b dot(b)$; trajectories then stay on level sets of $c$ (primer §FP.6).], [The origin has $c = 0$, so only starts with $a_0^2 = b_0^2$ can reach it; check the lines $a = b$ and $a = -b$ separately, each is invariant (primer §ODE.1), and draw the phase line on each (primer §FP.3).], [First line of the solution: "$d\/d t (a^2 - b^2) = 2 a dot(a) - 2 b dot(b) = -2 a b r + 2 a b r = 0$."])],
     [#tag("implement") Implement @tab-fp in `prereqs/fixed_points.py`:
      #defline[`def classify_fixed_point(J, tol: float = 1e-9) -> str`]
      #arglist(
@@ -148,8 +154,9 @@ here with _Rademacher_ probes, whose entries are independent and equal to $plus.
      #defline[`def hutchinson_trace(hvp_fn, dim, samples, seed=0) -> float`]
      #arglist(("returns", [the estimate @eq-hutch with `samples` Rademacher probes drawn from a seeded generator.]))
      #testline("hvp") Likewise `-k test_power_iteration` and `-k test_hutchinson_trace`; the references are the explicit anchor Hessian and `torch.autograd.functional.hessian` on a 193-parameter MLP. _Hint:_ `torch.autograd.grad(loss, p, create_graph=True)` returns a gradient you can differentiate again, here as the scalar `g @ v`; make `p` a fresh leaf with `params.detach().requires_grad_(True)`.],
-    [#tag("derive") From your Problem (#raw("phase-portrait")) (b), write the sharpness and the trace of $nabla^2 L$ at a minimum $(a, 1\/a)$ of the anchor. Using Problem (#raw("gd-stability")), find the interval of $a > 0$ in which the minimum $(a, 1\/a)$ is linearly stable for GD with $eta = 0.5$, and the same for $eta = 1$.
-     #deliverable[the two expressions; the two intervals (one of them is degenerate).]],
+    [#tag("derive") From your Problem (#raw("phase-portrait")) (b), write the sharpness and the trace of $nabla^2 L$ at a minimum $(a, 1\/a)$ of the anchor. Using Problem (#raw("gd-stability")), find the interval of $a > 0$ in which the minimum $(a, 1\/a)$ is linearly stable for GD with $eta = 0.5$, and the same for $eta = 1$ #primer("GD.3", "the quadratic as local model").
+     #deliverable[the two expressions, as functions of $a$; the two intervals of $a$, endpoints to four digits (one of them is degenerate).]
+     #hints([At a minimum $nabla^2 L = -J$, so reuse your eigenvalues; the trace is the sum of the eigenvalues (primer §LA.3).], [Only the nonzero eigenvalue matters for GD stability; the zero one is neutral (primer §GD.3). Require $eta lambda_max < 2$ and solve the quadratic in $u = a^2$.], [First line of the solution: "From Problem (#raw("phase-portrait")) (b), $nabla^2 L = -J$ has eigenvalues $0$ and $a^2 + b^2$ on the manifold."])],
     [#tag("check") Run `scripts/check_sharpness.py`. With your three functions it estimates sharpness and trace at 41 points of $a b = 1$ and plots them against $a$ with the thresholds $2\/eta$ for $eta = 0.5, 0.9, 1$ (`sharpness.png`); expected: sharpness within $10^(-8)$ relative of your expression, trace within a few Hutchinson standard deviations. It also marks the two endpoints of Problem (#raw("flow-limit")) (d). This picture is where A3 starts.
      #deliverable[two sentences in `notes.md`: what the two stars say about the minimum GD at $eta = 0.9$ could and could not settle at.]],
   )
@@ -163,18 +170,21 @@ where the expectation is over the training set (an average over examples). $Sigm
 
 #problem("modes", [Gradient flow of linear regression, mode by mode], kind: ("derive", "implement", "check"), time: "30 min", owner: "you")[
   #parts(
-    [#tag("derive") Show that gradient flow on @eq-reg is
+    [#tag("derive") Show that gradient flow on @eq-reg #primer("LA.5", "matrix calculus") is
      $ dot(W) = Sigma_(y x) - W Sigma_(x x). $ <eq-wflow>
-     #deliverable[$nabla_W L$ and the minimizer $W^star$.]],
-    [#tag("derive") Write $Sigma_(x x) = U Lambda U^top$ and rotate, $tilde(W) = W U$. Show that each column of $tilde(W) - W^star U$ (a _mode_) evolves on its own, and solve @eq-wflow.
-     #deliverable[$W(t)$ in closed form in terms of $W_0$, $W^star$, $U$, $Lambda$ and $t$; the time for the error in mode $i$ to shrink by a factor $e$.]],
+     #deliverable[$nabla_W L$ in terms of $W$, $Sigma_(x x)$, $Sigma_(y x)$, and the minimizer $W^star$.]
+     #hints([Matrix gradient by perturbation: write the first-order change of $L$ under $W -> W + Delta$ as $⟨nabla_W L, Delta⟩$ (primer §LA.5).], [$EE[(W x - y)^top Delta x] = "tr"(Delta^top EE[(W x - y) x^top])$.], [First line of the solution: "Perturbing $W -> W + Delta$ changes $L$ by $EE[(W x - y)^top Delta x] = "tr"(Delta^top EE[(W x - y) x^top])$ to first order."])],
+    [#tag("derive") Write $Sigma_(x x) = U Lambda U^top$ and rotate, $tilde(W) = W U$. Show that each column of $tilde(W) - W^star U$ (a _mode_) evolves on its own, and solve @eq-wflow #primer("ODE.6", "linear systems").
+     #deliverable[$W(t)$ in closed form in terms of $W_0$, $W^star$, $U$, $Lambda$ and $t$; the time for the error in mode $i$ to shrink by a factor $e$.]
+     #hints([Subtract the fixed point: $E = W - W^star$ obeys a homogeneous linear matrix ODE; diagonalize it (primer §ODE.6).], [After rotating by $U$, each column of $E U$ solves a scalar $dot(x) = -lambda_i x$ (primer §ODE.3).], [First line of the solution: "Let $E = W - W^star$. Since $W^star Sigma_(x x) = Sigma_(y x)$, $dot(E) = -E Sigma_(x x)$."])],
     [#tag("implement") Type your closed form into `prereqs/modes.py` (no numerical integration):
      #defline[`def mode_dynamics(W0, Sxx, Syx, t: float) -> np.ndarray`]
      #arglist(("returns", [$W(t)$, shape `(d_out, d_in)`, solving @eq-wflow with $W(0) = $ `W0`.]))
      #testline("mode_dynamics")],
     [#tag("check") Run `scripts/check_modes.py`: a regression with $d_"in" = 5$, $d_"out" = 3$ and eigenvalues of $Sigma_(x x)$ spread over two decades ($0.1$ to $10$). It plots the per-mode error $norm((W(t) - W^star) u_i)$ on a log scale (`modes.png`), fits each mode's decay rate, and compares your closed form with RK4 integration. Expected: straight lines whose fitted rates match your (b) to $10^(-3)$, and closed form within $10^(-6)$ of RK4. The slowest mode sets how long training takes.],
-    [#tag("derive") Suppose the inputs are whitened ($Sigma_(x x) = I$) and $W_0 = 0$. Describe $W(t)$ through the SVD of $Sigma_(y x)$: what are its singular vectors and how do its singular values grow?
-     #deliverable[one sentence.]],
+    [#tag("derive") Suppose the inputs are whitened ($Sigma_(x x) = I$) and $W_0 = 0$. Describe $W(t)$ through the SVD of $Sigma_(y x)$ #primer("LA.4", "SVD"): what are its singular vectors and how do its singular values grow?
+     #deliverable[$W(t)$ in the form $U thin "diag"(g_alpha (t)) thin V^top$ with $g_alpha (t)$ a formula in $s_alpha$ and $t$; one sentence on whether strong and weak modes are learned at different times.]
+     #hints([Put $Sigma_(x x) = I$ and $W_0 = 0$ into your (b), then substitute the SVD $Sigma_(y x) = U S V^top$ (primer §LA.4).], [A scalar factor multiplying a matrix leaves its singular vectors alone and scales every singular value.], [First line of the solution: "With $Sigma_(x x) = I$ and $W_0 = 0$: $W^star = Sigma_(y x)$ and $W(t) = (1 - e^(-t)) Sigma_(y x)$."])],
   )
   #note[This is the one-layer case of Saxe, McClelland and Ganguli's analysis @saxe2014exact[§1, pp. 2–4]. With two layers, $hat(y) = W_2 W_1 x$, the modes become the singular modes of $Sigma_(y x)$ and each is learned on an S-shaped curve whose timing depends on its singular value; A1 derives it. Read §1 of the paper for the general case.]
 ]
@@ -189,10 +199,12 @@ The _Ornstein–Uhlenbeck_ (OU) process takes $mu(X) = -theta X$ with $theta > 0
 
 #problem("ou", [The Ornstein–Uhlenbeck process], kind: ("derive", "implement", "check", "predict"), time: "35 min", owner: "you")[
   #parts(
-    [#tag("derive") For $d X = -theta X thin d t + sigma thin d W$, $X_0 = x_0$, take expectations in @eq-em, let $Delta t -> 0$, and solve.
-     #deliverable[the mean $m(t) = EE[X_t]$.]],
-    [#tag("derive") Do the same for the variance: from @eq-em get a recursion $v_(k+1) = (dots) v_k + (dots)$, keep terms of first order in $Delta t$, and solve the resulting ODE.
-     #deliverable[$v(t) = "Var"[X_t]$ and the stationary variance $v_infinity = lim_(t -> infinity) v(t)$.]],
+    [#tag("derive") For $d X = -theta X thin d t + sigma thin d W$, $X_0 = x_0$, take expectations in @eq-em, let $Delta t -> 0$, and solve #primer("PR.3", "Euler–Maruyama").
+     #deliverable[the mean $m(t) = EE[X_t]$ as a formula in $x_0$, $theta$, $t$.]
+     #hints([Take $EE$ of the Euler–Maruyama step; $EE[xi_k] = 0$ removes the noise (primer §PR.3).], [$(m_(k+1) - m_k)\/Delta t -> dot(m)$: a linear first-order ODE (primer §ODE.3).], [First line of the solution: "Taking expectations in @eq-em with $mu(X) = -theta X$, and using $EE[xi_k] = 0$: $m_(k+1) = (1 - theta Delta t) m_k$."])],
+    [#tag("derive") Do the same for the variance: from @eq-em get a recursion $v_(k+1) = (dots) v_k + (dots)$, keep terms of first order in $Delta t$, and solve the resulting ODE #primer("ODE.5", "variation of constants"), #primer("PR.4", "the OU variance").
+     #deliverable[$v(t) = "Var"[X_t]$ from $v(0) = 0$, and the stationary variance $v_infinity = lim_(t -> infinity) v(t)$, both as formulas in $theta$, $sigma$, $t$.]
+     #hints([$xi_k$ is independent of $X_k$, so variances add, and $"Var"(k X) = k^2 "Var"(X)$ (primer §PR.2).], [Keep the order-$Delta t$ terms of $(v_(k+1) - v_k)\/Delta t$; the resulting $dot(v) = (dots) v + (dots)$ is linear with a fixed point (primer §ODE.3, §ODE.5; §PR.4 works it).], [First line of the solution: "Subtract the mean recursion: $X_(k+1) - m_(k+1) = (1 - theta Delta t)(X_k - m_k) + sigma sqrt(Delta t) thin xi_k$."])],
     [#tag("implement") Implement @eq-em for OU in `prereqs/sde.py`:
      #defline[`def ou_simulate(x0, theta, sigma, dt, steps, n_paths, rng) -> np.ndarray`]
      #arglist(("returns", [float64 array of shape `(steps+1, n_paths)`, row $k$ the paths at time $k Delta t$, all randomness from the numpy Generator `rng`.]))
@@ -200,8 +212,9 @@ The _Ornstein–Uhlenbeck_ (OU) process takes $mu(X) = -theta X$ with $theta > 0
     [#tag("check") Type your (a) and (b) into the `FORMULAS` block at the top of `scripts/check_ou.py` and run it: 5000 paths with $theta = 1$, $sigma = 0.5$, $x_0 = 2$, $Delta t = 0.01$. Expected: the sample mean and variance follow your curves and the histogram at $t = 8$ matches $cal(N)(0, v_infinity)$, within the sampling error $v_infinity sqrt(2\/5000) approx 0.0025$ of a variance estimate plus an $O(Delta t)$ bias (`ou.png`).],
     [#tag("predict") The script then runs Euler–Maruyama with large steps, $theta Delta t$ up to $1.9$. First write in `notes.md` what you expect its stationary variance to do as $theta Delta t$ grows toward $2$. Then solve the _exact_ recursion of (b) for its fixed point (no first-order truncation) and type it into `em_stationary_var_formula`.
      #deliverable[the prediction; the exact discrete-time stationary variance.]],
-    [#tag("derive") Near a minimum $theta^*$ of a 1-D loss with curvature $lambda$, suppose SGD's gradient is $lambda (theta - theta^*) + xi$ with zero-mean noise of variance $s^2$. Show that SGD with step $eta$ is exactly @eq-em for an OU process, and identify its $theta$, $sigma$ and $Delta t$. In one `notes.md` paragraph: how far do SGD's iterates spread around the minimum, as a function of $eta$, $lambda$, $s$, and where does (e) meet Problem (#raw("gd-stability"))?
-     #deliverable[the identification and the paragraph.]],
+    [#tag("derive") Near a minimum $theta^*$ of a 1-D loss with curvature $lambda$, suppose SGD's gradient is $lambda (theta - theta^*) + xi$ with zero-mean noise of variance $s^2$. Show that SGD with step $eta$ is exactly @eq-em for an OU process, and identify its $theta$, $sigma$ and $Delta t$. In one `notes.md` paragraph: how far do SGD's iterates spread around the minimum, as a function of $eta$, $lambda$, $s$, and where does (e) meet Problem (#raw("gd-stability"))? #primer("PR.3", "SGD as Euler–Maruyama")
+     #deliverable[$theta$, $sigma$, $Delta t$ as formulas in $lambda$, $s$, $eta$; the stationary spread $"Var"[theta_k - theta^*]$ as a formula in $eta$, $lambda$, $s$ (exact, and to leading order in $eta lambda$); one sentence on what happens at $eta lambda = 2$.]
+     #hints([Write $X_k = theta_k - theta^*$ and put the SGD step next to the Euler–Maruyama step (primer §PR.3).], [Match the drift first (it gives $theta$ and $Delta t$), then the noise variance: $(sigma sqrt(Delta t))^2 = eta^2 s^2$; plug into your (e).], [First line of the solution: "Let $X_k = theta_k - theta^*$. SGD is $X_(k+1) = X_k - eta (lambda X_k + xi_k)$."])],
   )
   #note[On a manifold of minima the same balance (noise pushes off, curvature pulls back) also drives a slow drift _along_ it toward flatter points, shown for label-noise SGD by Blanc et al. @blanc2020ou[§1]; A4 derives it on the anchor.]
 ]

@@ -81,6 +81,8 @@ the authority on *content*; this file is the authority on *format*.
     notes.md            his scratch space (empty at build time)
   a1-<slug>/ ...
   capstone/             if the brief asks for one
+  m0-<primer>/          optional math primer: handout.typ / .pdf only (no tests, no stubs), a
+                        reference for the math the assignments assume, read on demand; see §7
 ```
 
 Assignments are numbered in the brief's dependency order. `a0` is always the prerequisites warm-up
@@ -119,8 +121,9 @@ The handout follows the day-sprint handout shape, about 4-8 PDF pages, in this o
 3. **Problems**, in orange `problem` boxes, each tagged with its type, estimated time, and `[you]`:
    - **Derive.** Pen and paper. States exactly what to show, gives the starting equations, and ends
      with a *deliverable* that is a concrete formula or number he can type into a stub (a closed form,
-     a critical value, a rate), so the numerical check below can verify the derivation. Hints go in
-     blue `tip` boxes, ordered from gentle to strong.
+     a critical value, a rate), so the numerical check below can verify the derivation. Every Derive
+     part has a hint ladder, `#hints(...)` after the deliverable (or a blue `tip` box for long ones),
+     ordered from gentle to strong; see §7.
    - **Implement.** A function in a named file with a stated interface (`defline`, `arglist`,
      `iolist`), tested through `tests/adapters.py`. Ends with the fixed test sentence
      ("To test your implementation, complete `run_<slug>` in `tests/adapters.py` and run
@@ -167,6 +170,27 @@ a worked solution in `solutions/`.
   already in the repo.
 - Same visual template for every assignment; no `#ph[...]` placeholder survives into a delivered PDF.
 
+Added 2026-10-29 after he found A0-A2's derivations hard without more background ("I think I need a
+math primer ... I'm not really good with ODEs") and an audit found hint ladders on only 12 of 47
+Derive parts. These four apply to every Derive part from A3 on:
+
+- **Primer pointers.** If the course has an `m0-<primer>/` (here `m0-math-primer/`, sections named
+  `ODE.4`, `LA.5`, ...), point into it inline wherever a part assumes a technique:
+  `#primer("ODE.4", "logistic")` renders "(primer §ODE.4, logistic)". A technique no primer section
+  covers is either added to the primer (a short subsection: definition, one worked example in the
+  course notation, a "Where you use it" line, an exercise with its answer) or built up in the handout's
+  Background.
+- **A hint ladder on every Derive part.** `#hints([...], [...], [...])`, two or three hints, gentle to
+  strong. The first names the technique and the primer section; the last is the first line of the
+  worked solution, quoted. A part without a ladder does not ship.
+- **Concrete deliverables.** Each Derive deliverable is a named formula, a number, or a one-sentence
+  statement with a specified form ("the identity ∇²L·X = M∇L with M a constant matrix"; "the class
+  of losses, stated as a condition on L"; "the per-neuron statement as an equation between two
+  norms"). Never "conclude something about", "one sentence", "state for which".
+- **Time box.** Every handout's Setup paragraph carries: "If a Derive part takes more than 15 minutes
+  with all hints, read that part in solutions.pdf, close it, and redo the part from a blank page before
+  moving on. The solutions are part of the method, not a failure."
+
 ## 8. Compute tiers
 
 Classify every experiment in the brief and record the tier in `COURSE.md`.
@@ -211,6 +235,8 @@ When he is on an assignment (he says which), Claude is a TA, not a solver:
 - Reference solutions make every test pass; every Check script reproduces the solutions' numbers
   on CPU within the stated tolerance and within the stated wall time.
 - Every Derive problem has a Check, every Implement a test, every problem a solution.
+- Every Derive part has a `#hints(...)` ladder and a primer pointer where it assumes a technique:
+  `grep -c '#tag("derive")'` equals `grep -c '#hints('` in each handout.
 - Every paper in the brief is used somewhere and attributed; every quoted number verified.
 - A reader with the stated background can reach the end of each handout using only the repo.
 - PDFs inspected page by page; the total estimated hours and GPU extensions are listed in

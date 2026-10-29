@@ -24,7 +24,9 @@ at once, core track CPU-only so it can be done offline on a flight. Worked solut
   pytest. Datasets predownloaded into `data/` as `.npz` (MNIST, a 5k CIFAR-10 subset); no torchvision,
   no run-time downloads.
 - **Documents**: Typst, visual style of `../day4/handout/template.typ`; `template/build.sh` compiles.
-  Handouts 5-8 pages, solutions as long as they need to be.
+  Handouts 5-10 pages, solutions as long as they need to be. Every Derive part carries a `#hints(...)`
+  ladder, a concrete deliverable, and `#primer(...)` pointers into `m0-math-primer/` where it assumes a
+  technique; every Setup paragraph carries the 15-minute time box (`../docs/course-template.md` §7).
 - **Papers**: all in `papers/` (`<firstauthor><year>-<slug>.pdf`), plus the source post as
   `papers/ang2026-training-dynamics-post.{html,md}`.
 
@@ -35,6 +37,7 @@ the total wall time of the assignment's numerical checks on a laptop.
 
 | # | Assignment | Brief area | What he derives and builds | Papers used (attribution points) | Hours | Check CPU | GPU ext. |
 |---|---|---|---|---|---|---|---|
+| M0 | `m0-math-primer` Math primer (reference, read on demand) | Prereqs | Nothing required: a 24-page reminder of the math A0-A2 assume, opening with a one-page, 14-question self-diagnostic. Sections ODE (solutions, separable, linear, logistic, variation of constants, linear systems, time to converge), FP (Jacobian, 2-D classification, phase lines, relaxation time, pitchfork and saddle-node, the anchor's portrait), GD (Euler, linear-map stability, local model, 1-D maps), TAY (Taylor, order notation, a conserved quantity under one step, small parameters), LA (symmetric eigen, definiteness, power iteration, SVD modes, matrix calculus, symmetries), PR (Gaussian moments, sample means, Itô SDEs, OU, Gibbs), ALG (difference of squares, critical parameters, integrals, log-log, scaling), AHEAD (backward error analysis, NTK, Fokker-Planck, coordinate check); exercises with answers. Every Derive part in A0-A2 points into it, e.g. "(primer §ODE.4, logistic)" | Strogatz (optional pointer) | 0 (read on demand) | none | none |
 | A0 | `a0-prereqs` Warm-up: the five tools | Prereqs, framing | Gradient flow as the $\eta\to0$ limit and when it fails; GD on a quadratic converges iff $\lambda<2/\eta$; fixed points, linearization, saddle vs stable, phase portrait of a 2-D ODE; Hessian, top eigenvalue and trace by Hessian-vector products and power iteration; SVD turns linear regression into independent modes; an Itô SDE as drift plus noise, the OU process and its stationary variance. Implements `gd`, `power_iteration`, `classify_fixed_point`, `ou_simulate`. Reads Simon et al. §1-2 and Biderman et al. as framing. | Simon 2026 (map), Biderman 2026 (motivation) | 4 | < 1 min | none |
 | A1 | `a1-symmetries` Symmetries and conservation laws | Area 1 | Noether-style argument for $a^2-b^2$; solve the logistic ODE $\dot u=2u(s-u)$ and the time-to-learn as a function of $s$ and init scale; exact endpoint on $ab=1$ from $c$; prove and check $\tfrac{d}{dt}(W_1W_1^\top-W_2^\top W_2)=0$; Saxe mode decomposition of a deep linear net and the plateau-then-drop curve; how finite steps ($1-\eta^2r^2$ factor), momentum and weight decay break the law; modified gradient flow (Kunin) predicts the drift and the check measures it. | Saxe 2014, Du-Hu-Lee 2018, Kunin 2021 | 5 | ~15 s | none |
 | A2 | `a2-weight-decay` Weight decay and phase transitions | Area 5 | Weight decay forces balance at every stationary point (scalar, matrix, depth 3); all stationary points of $L_\gamma$ and their classification; bifurcation at $\gamma=\tfrac12$ via the Hessian at the origin; $ab$ vs $\gamma$ curve (continuous); critical slowing down, relaxation time diverging as $\gamma\to\tfrac12$; depth 3: origin is a minimum for every $\gamma>0$, the nonzero solution appears at a finite $\gamma^*$ and $ab$ jumps (discontinuous); basins of the zero solution; finite-step oscillation and divergence regions in the $(\eta,\gamma)$ plane, with the balanced line's cubic map giving the divergence edge. | Ziyin 2022 | 4.5 | ~25 s | none |
@@ -45,7 +48,7 @@ the total wall time of the assignment's numerical checks on a laptop.
 | A7 | `a7-parameterization` Parameterization as a theory of hyperparameters | Area 7 | SP, NTK, mean-field and muP as width-scaling rules for init and learning rate; by hand, the size of the hidden-feature change after one SGD step in a width-$m$ two-layer net under SP vs muP as $m\to\infty$, and the feature-learning vs kernel dichotomy; coordinate check on an MLP for widths 64 to 2048 under both (few steps each); LR sweep at three widths on an MLP on a MNIST subset under SP and muP, where the optimum sits. | Yang-Hu 2021, Yang et al. 2022 | 5 | ~30 min | coordinate check and LR sweep on a small Transformer, widths to 2048 (~3 GB10 h) |
 | C | `capstone` Predict the minimum | all | Given a chosen combination of init $(a_0,b_0)$, step size $\eta$, label-noise $\sigma^2$ and weight decay $\gamma$ (and depth 2 or 3), predict before running: converge or diverge, oscillate or not, which point on the manifold, how fast, how it drifts; then run and compare, for a fixed set of six scenarios plus three of his own. Reread Simon et al., map each assignment onto its five bodies of work and the open directions. | Simon 2026 | 3 | ~5 min | none |
 
-Total: about 44.5 hours of his time, under 2 hours of CPU checks in total, about 7 GB10 hours of
+Total: about 44.5 hours of his time (M0 is read on demand and not counted), under 2 hours of CPU checks in total, about 7 GB10 hours of
 optional extensions.
 
 ### Dependency graph
@@ -85,11 +88,12 @@ the two framing papers → A0 and C.
 ```
 training-dynamics/
   BRIEF.md  COURSE.md  STATE.md  README.md  pyproject.toml  uv.lock
-  template/        template.typ, build.sh, handout.csl, refs.bib
+  template/        template.typ (incl. #hints and #primer), build.sh, handout.csl, refs.bib
   papers/          the 21 PDFs and the post
   data/            mnist.npz, cifar10_5k.npz (predownloaded)
   tdyn/            shared [AI] package: integrators, GD/SGD loops, hvp + power iteration (A0 stub
                    graduates here), tiny MLP/transformer, plotting, results.json helpers
+  m0-math-primer/  handout.typ/.pdf, make_figures.py, figures/ (reference; no tests, no stubs)
   a0-prereqs/ … a7-parameterization/ capstone/
     handout.typ/.pdf  tests/{adapters.py,test_*.py,conftest.py}  <pkg>/  scripts/  solutions/  notes.md
 ```

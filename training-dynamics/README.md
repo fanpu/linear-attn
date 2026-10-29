@@ -19,7 +19,16 @@ it comes from PyPI. `uv.lock` is universal (Linux, macOS, Windows; Python 3.11+)
 
 ## Working through an assignment
 
-Start with `a0-prereqs/handout.pdf`. Each assignment folder looks like
+Start with `a0-prereqs/handout.pdf`. If the math feels rusty (ODEs, linearization, Taylor expansions,
+matrix calculus, SDEs), the math primer `m0-math-primer/handout.pdf` is a 24-page reference with a
+one-page self-diagnostic up front; every Derive part points into it at the point of use, as
+"(primer §ODE.4, logistic)". It has no tests and no required work: read it on demand.
+
+**Time box.** If a Derive part takes more than 15 minutes with all hints, read that part in
+solutions.pdf, close it, and redo the part from a blank page before moving on. The solutions are part
+of the method, not a failure.
+
+Each assignment folder looks like
 
 ```
 a0-prereqs/
@@ -64,6 +73,7 @@ check) agree only within sampling error if your code draws its random numbers in
 
 ```bash
 template/build.sh a0-prereqs/handout.typ a0-prereqs/solutions/solutions.typ
+template/build.sh m0-math-primer/handout.typ      # the primer; its figure: uv run python m0-math-primer/make_figures.py
 ```
 
 `build.sh` uses the `typst` binary if one is installed (here `~/.local/bin/typst`), otherwise the PyPI
@@ -89,6 +99,7 @@ papers/     the brief's papers as PDFs, plus the source post (.md, .html)
 data/       mnist.npz, cifar10_5k.npz (predownloaded; scripts/fetch_data.py recreates them)
 scripts/    fetch_data.py
 tdyn/       shared [AI] package: integrate, optim, hessian, models, plotting, results, data, swap
+m0-math-primer/  the math primer (reference, read on demand; no tests)
 a0-prereqs/ ... one folder per assignment, in study order (see COURSE.md)
 ```
 
