@@ -17,7 +17,7 @@
 |---|---|---|---|---|---|---|
 | A0 | `a0-prereqs` | done | 2026-10-29 | 48 fail with NotImplementedError / 48 pass | 6 checks, 0.2-1.5 s each (about 10 s total including start-up) | handout 9 pp. (8 + references), solutions 9 pp. |
 | A1 | `a1-symmetries` | done | 2026-10-29 | 48 fail with NotImplementedError / 48 pass | 6 checks, 1.2-4.2 s each (about 13 s total including start-up) | handout 9 pp. (8 + references), solutions 8 pp. |
-| A2 | `a2-weight-decay` | not started | | | | |
+| A2 | `a2-weight-decay` | done | 2026-10-29 | 48 fail with NotImplementedError / 48 pass | 6 checks, 1.0-4.5 s each (about 23 s total including start-up) | handout 8 pp. (references on p. 8), solutions 8 pp. |
 | A3 | `a3-edge-of-stability` | not started | | | | |
 | A4 | `a4-sgd-noise` | not started | | | | |
 | A5 | `a5-lazy-rich` | not started | | | | |
@@ -33,7 +33,7 @@ code through `tdyn.swap.impl(ROOT, "<pkg>.<module>")`; reference solutions are
 `solutions/<module>_solution.py`. Check scripts write one section of `out/results.json` each through
 `tdyn.results.update_results`. Shared test-only helpers can live in `tests/_<assignment>_helpers.py` (A1: `_a1_helpers.py`,
 reference simulations built from `tdyn` only); give them an assignment-specific name, since `tests/` is on
-`sys.path`. A1 added the `du2018balanced` and `kunin2021mechanics` entries to `template/refs.bib`.
+`sys.path`. A1 added the `du2018balanced` and `kunin2021mechanics` entries to `template/refs.bib`. A2 added `ziyin2022exact`; its tests use `tests/_a2_helpers.py`, and its slow depth-3 checks stop each flow once the speed drops below 1e-11 (a `solve_ivp` terminal event) to keep the checks under 30 s.
 
 ## Fan Pu's progress
 
