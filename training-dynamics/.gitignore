@@ -1,0 +1,15 @@
+# training-dynamics course. The repo-root .gitignore ignores data/ and *.npz; this course
+# commits its two small predownloaded datasets (about 25 MB) so it works offline, so they
+# are re-included here.
+!data/
+!data/*.npz
+data/tmp*.npz
+
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+runs/
+.pytest_cache/
+# check-script output (the reference copies live in each assignment's solutions/)
+*/out/

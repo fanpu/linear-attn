@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-65WXKTLNBW"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-65WXKTLNBW');
+</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Training Dynamics. A taster by James Ming Liang Ang.">
+<title>Training Dynamics · James Ming Liang Ang</title>
+<link rel="canonical" href="https://jamesmldoesml.github.io/blogs/learning-dynamics/">
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<script>try { if (localStorage.getItem("theme") === "dark") document.documentElement.dataset.theme = "dark"; } catch {}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=STIX+Two+Text:ital@0;1&display=swap">
+<link rel="stylesheet" href="../../assets/site.css">
+<script>
+window.MathJax = {
+  loader: { load: ['[tex]/html'] },
+  tex: { packages: { '[+]': ['html'] }, inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+  options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] }
+};
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="page">
+    <div class="top-controls">
+      <div class="language-switch" role="group" aria-label="Page language style">
+        <button type="button" data-language="english" aria-pressed="true">English</button>
+        <button type="button" data-language="singlish" aria-pressed="false">Singlish</button>
+      </div>
+      <label class="theme-switch"><span>Dark mode</span><input class="theme-toggle" type="checkbox" role="switch"><span class="theme-track" aria-hidden="true"><span class="theme-knob"></span></span></label>
+    </div>
+    <nav class="site-nav" aria-label="Primary navigation">
+      <a class="home-link" href="../../index.html">James Ming Liang Ang</a>
+      <ul>
+        <li><a href="../../index.html">Home</a></li>
+        <li><a href="../../research.html" data-english="Research" data-singlish="Die die must try">Research</a></li>
+        <li><a href="../../writing.html" aria-current="page" data-english="Writing" data-singlish="Le kua simi?">Writing</a></li>
+        <li><a href="../../teaching.html" data-english="Teaching" data-singlish="Cher">Teaching</a></li>
+        <li><a href="../../about.html" data-english="About" data-singlish="For kaypoh people">About</a></li>
+      </ul>
+    </nav>
+    <header class="subpage-title essay-title learning-dynamics-title">
+      <p class="eyebrow"><a data-local-index href="../science-of-machine-learning-primer-series/" data-series="science" data-field="taster_label">Science of Deep Learning · Taster Series</a></p>
+      <h1>Training Dynamics</h1>
+      <p class="description learning-dynamics-tagline">Figuring out how neural networks learn from data.</p>
+    </header>
+    <div class="byline">
+      <p class="article-meta"><span>James Ming Liang Ang</span><span>16 October 2026</span></p>
+    </div>
+  </div>
+
+  <article aria-label="Training Dynamics" style="padding-top: 12px;">
+    <div id="notes-panel">
+    <div class="row">
+      <p class="prerequisites-note"><strong>Prerequisites.</strong> Algebra up to quadratic equations and basic calculus. The proof in <a href="#all-models-are-wrong">Section 3</a> uses a little real analysis, but you can skip it and still follow the main ideas.</p>
+    </div>
+    <section class="row" aria-labelledby="what-is-learning-dynamics">
+      <h2 id="what-is-learning-dynamics">1. What is training dynamics about?</h2>
+        <div class="margin-annotated">
+        <p>One idea gaining traction in efforts to build a science of AI is to study how models change as they learn (i.e., their training dynamics). Recent papers make this case explicitly: <a href="https://proceedings.mlr.press/v306/biderman26a.html"><em>Position: Don’t Just “Fix it in Post”: A Science of AI Must Study Training Dynamics</em></a> from ICML 2026 argues that understanding model behaviour requires studying the training processes that produce it, while <a href="https://arxiv.org/html/2604.21691v1"><em>There Will Be a Scientific Theory of Deep Learning</em></a> outlines an emerging “mechanics” of learning, built around quantitative predictions of how neural networks evolve during training.</p>
+          <aside class="margin-note"><p><strong>The ML research community.</strong> <a href="https://icml.cc/">ICML</a>, <a href="https://neurips.cc/">NeurIPS</a>, and <a href="https://iclr.cc/">ICLR</a> are three of machine learning’s largest and most influential conferences. Researchers review one another’s papers and present accepted work. These meetings help people share ideas, find collaborators, and shape which questions receive attention.</p></aside>
+        </div>
+        <p>So what is training dynamics? Broadly, it is the study of how a model’s parameters, representations, and predictions evolve during training, and how that evolution depends on the data, architecture, and learning algorithm. A useful formulation, in my opinion, comes from <a href="#ref-ren-sutherland-2025">Ren and Sutherland’s (2025)</a> <em>Learning Dynamics of LLM Finetuning</em>, which received an <a href="https://blog.iclr.cc/2025/04/22/announcing-the-outstanding-paper-awards-at-iclr-2025/">Outstanding Paper Award at ICLR 2025</a>. In particular, they frame training dynamics as studying:</p>
+        <figure class="learning-definition" aria-labelledby="training-dynamics-question">
+          <div class="definition-mapping">
+            <div class="definition-parameters">
+              <div class="definition-symbol">\(\Delta\theta\)</div>
+              <p>Change in parameters</p>
+            </div>
+            <div class="definition-arrow" aria-hidden="true">⟶</div>
+            <div class="definition-predictions">
+              <div class="definition-symbol">\(\Delta f\)<span class="definition-question">?</span></div>
+              <p>Change in predictions</p>
+            </div>
+          </div>
+          <figcaption id="training-dynamics-question">How does a change in the model’s <span class="definition-parameters">parameters</span> translate into a change in its <span class="definition-predictions">predictions</span>?</figcaption>
+        </figure>
+
+        <p>To study training dynamics, we first introduce gradient descent, the algorithm underlying many widely used methods for training neural networks. We measure how well a network fits the training data using an objective function, often called the loss function. A lower loss indicates a better fit, and the goal of gradient descent is to minimise it.</p>
+        <p>Ideally, we would find the minimiser analytically, much as we solve familiar calculus problems about maximising an area or minimising a volume. For neural networks, however, the objective is generally too complex to solve this way. Instead, gradient descent improves the parameters through a sequence of small updates, as shown in the pseudocode below.</p>
+        <figure class="algorithm-pseudocode" aria-labelledby="gradient-descent-algorithm">
+          <figcaption>
+            <span class="algorithm-label">Algorithm · Full-batch</span>
+            <h3 id="gradient-descent-algorithm">Gradient descent</h3>
+          </figcaption>
+          <div class="algorithm-math">
+          \[
+          \begin{array}{l}
+          \text{Initialise weights } \class{algorithm-weights}{\theta_0}. \\[4pt]
+          \text{Choose learning rate } \class{algorithm-rate}{\eta} > 0 \text{ and step count } K. \\[10pt]
+          \end{array}
+          \]
+          </div>
+          <p class="algorithm-comment"><span aria-hidden="true">▷</span> The block below is a “for loop”: it runs the instructions inside it sequentially, one line at a time, before starting the next repetition. Here, it calculates the gradient and then updates the weights, repeating this sequence \(K\) times in total.</p>
+          <div class="algorithm-math">
+          \[
+          \begin{array}{l}
+          \textbf{for } k = 0,\ldots,K-1 \textbf{ do} \\[6pt]
+          \qquad \class{algorithm-weights}{\theta_{k+1}} \gets \class{algorithm-weights}{\theta_k} - \class{algorithm-rate}{\eta}\,\nabla L_{\mathcal{D}}(\class{algorithm-weights}{\theta_k})  \\[6pt]
+          \textbf{end for} \\[10pt]
+          \textbf{return } \class{algorithm-weights}{\theta_K}
+          \end{array}
+          \]
+          </div>
+          <p class="algorithm-legend"><span class="algorithm-weights">\(\theta\) weights</span><span class="algorithm-gradient">\(g\) gradient</span><span class="algorithm-rate">\(\eta\) learning rate</span></p>
+        </figure>
+        <p>As seen in the pseudocode above, at each step of the loop, gradient descent updates the network’s weights \(\theta_k\) by moving in the direction opposite to the gradient of the training loss, \(\nabla L_{\mathcal{D}}(\theta_k)\). The learning rate \(\eta\) controls the step size:</p>
+        <div class="tutorial-equation">\[\theta_{k+1} = \theta_k - \eta\,\nabla L_{\mathcal{D}}(\theta_k)\]</div>
+        <div class="margin-annotated">
+        <p>You can think of the neural network’s objective function \(L_{\mathcal{D}}(\theta)\) as a landscape. The negative gradient points in the direction of steepest descent. Gradient descent takes a small step in that direction, recalculates the gradient at the new position, and repeats. This is very much like a ball rolling down a hill.</p>
+          </div>
+        <figure style="max-width: 648px; margin: 1.25em auto 1.5em;">
+          <img src="images/learning-dynamics.png" alt="Waddington’s epigenetic landscape, showing a ball above a branching landscape of ridges and valleys" width="1600" height="1200" style="display: block; width: 100%; height: auto;" loading="lazy">
+          <figcaption class="jigsaw-source">C. H. Waddington’s epigenetic landscape, from <em>The Strategy of the Genes</em> (Allen &amp; Unwin, 1957). Image source: <a href="https://libraryblogs.is.ed.ac.uk/towardsdolly/2012/08/10/waddingtons-epigenetic-landscape/">University of Edinburgh Library, Towards Dolly</a>. Originally an illustration of cell development, used here as a visual analogy.</figcaption>
+        </figure>
+        <p>To take the analogy further, let us interpret each update as a step forward in time, with each step lasting \(\eta\). Defining \(t = k\eta\) and taking the limit as \(\eta \to 0\), the discrete updates approach a continuous trajectory governed by the differential equation below. This equation even resembles the equation of motion describing a ball descending into a valley under strong friction.</p>
+        <figure class="dynamics-analogy" aria-label="Matching terms in gradient flow and downhill motion">
+          <div class="dynamics-equations">
+            <div>
+              <p class="dynamics-equation-label">Gradient descent <span>(continuous-time limit)</span></p>
+              \[\frac{d\class{analogy-state}{\theta}}{d\class{analogy-time}{t}}
+              =-\nabla\class{analogy-landscape}{L_{\mathcal{D}}}(\class{analogy-state}{\theta})\]
+            </div>
+            <div>
+              <p class="dynamics-equation-label">Ball moving downhill <span>(strong friction)</span></p>
+              \[\frac{d\class{analogy-state}{\mathbf{r}}}{d\class{analogy-time}{t}}
+              =-\nabla\class{analogy-landscape}{V}(\class{analogy-state}{\mathbf{r}})\]
+            </div>
+          </div>
+          <figcaption class="dynamics-color-key">
+            <span class="analogy-state">\(\theta\) weights ↔ \(\mathbf{r}\) position</span>
+            <span class="analogy-landscape">\(L_{\mathcal{D}}\) training loss ↔ \(V\) potential energy</span>
+            <span class="analogy-time">\(t\) training time ↔ \(t\) physical time</span>
+          </figcaption>
+          <details class="dynamics-derivation">
+            <summary>Show derivation: from Newton’s law to an equation of motion</summary>
+            <div class="dynamics-derivation-body">
+            <p><strong>1. Include the driving force and friction.</strong> Let \(\tau\) denote physical time. A ball of mass \(m\), moving in a potential \(V\) with a constant friction coefficient \(\gamma&gt;0\), obeys</p>
+            <div class="tutorial-equation">\[
+              \underbrace{m\frac{d^2\mathbf{r}}{d\tau^2}}_{\text{mass × acceleration}}
+              =\underbrace{-\nabla V(\mathbf{r})}_{\text{driving force}}
+              \underbrace{-\gamma\frac{d\mathbf{r}}{d\tau}}_{\text{friction}}.
+            \]</div>
+            <p><strong>2. Neglect inertia when friction dominates.</strong> After the initial velocity has relaxed, assume the acceleration term is small compared with friction. The forces then approximately balance:</p>
+            <div class="tutorial-equation">\[
+              0\approx-\nabla V(\mathbf{r})-\gamma\frac{d\mathbf{r}}{d\tau}
+              \quad\Longrightarrow\quad
+              \frac{d\mathbf{r}}{d\tau}\approx-\frac{1}{\gamma}\nabla V(\mathbf{r}).
+            \]</div>
+            <p><strong>3. Rescale time.</strong> Define \(t=\tau/\gamma\). By the chain rule,</p>
+            <div class="tutorial-equation">\[
+              \frac{d\mathbf{r}}{dt}
+              =\frac{d\mathbf{r}}{d\tau}\frac{d\tau}{dt}
+              =\gamma\frac{d\mathbf{r}}{d\tau}
+              =-\nabla V(\mathbf{r}),
+            \]</div>
+            <p>where the last equality uses the idealised model with inertia neglected.</p>
+            </div>
+          </details>
+        </figure>
+        <p>This continuous-time description of gradient descent is called <strong>gradient flow</strong>. Throughout this introductory taster, gradient flow will serve as our “Mickey Mouse” model of the training algorithm.</p>
+
+    </section>
+    <section class="row" aria-labelledby="solve-this-equation">
+      <h2 id="solve-this-equation" data-english="2. Even yo mama can solve this neural network equation" data-singlish="2. This equation your ah ma also can solve leh. You can or not?">2. Even yo mama can solve this neural network equation</h2>
+      <p>Gradient flow alone does not make a neural network’s training dynamics easy to understand with pen and paper, so we will simplify the network too. Throughout these notes, we will consider a network with just two layers, one hidden unit, and no nonlinear activation:</p>
+      <figure class="linear-network" aria-label="A two-layer linear neural network and its equation">
+        <svg class="linear-network-diagram" viewBox="0 0 420 160" role="img" aria-labelledby="linear-network-title linear-network-description">
+          <title id="linear-network-title">Two layers, one hidden unit</title>
+          <desc id="linear-network-description">The input x is multiplied by weight b to produce the hidden value bx, then by weight a to produce the output abx. There are no nonlinear activations.</desc>
+          <defs>
+            <marker id="network-arrow-b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" class="network-fill-b"/></marker>
+            <marker id="network-arrow-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" class="network-fill-a"/></marker>
+          </defs>
+          <path d="M 80 80 H 176" class="network-edge network-edge-b" marker-end="url(#network-arrow-b)"/>
+          <path d="M 240 80 H 336" class="network-edge network-edge-a" marker-end="url(#network-arrow-a)"/>
+          <text x="130" y="58" class="network-weight network-fill-b">b</text>
+          <text x="290" y="58" class="network-weight network-fill-a">a</text>
+          <circle cx="50" cy="80" r="30" class="network-node"/>
+          <circle cx="210" cy="80" r="30" class="network-node"/>
+          <circle cx="370" cy="80" r="30" class="network-node"/>
+          <text x="50" y="87" class="network-value">x</text>
+          <text x="210" y="87" class="network-value">bx</text>
+          <text x="370" y="87" class="network-value">abx</text>
+          <text x="50" y="137" class="network-node-label">Input</text>
+          <text x="210" y="137" class="network-node-label">Hidden unit</text>
+          <text x="370" y="137" class="network-node-label">Output</text>
+        </svg>
+        <div class="linear-network-equation">
+          \[f(x)=\class{network-a}{a}\,\class{network-b}{b}\,x\]
+        </div>
+        <figcaption>Multiply by <span class="network-b">\(b\)</span>, then by <span class="network-a">\(a\)</span>. No nonlinear activation.</figcaption>
+      </figure>
+      <p>The two scalar weights, \(a\) and \(b\), are all we train. Our goal is to learn the identity function \(y=x\), using fixed training inputs \(x_1,\ldots,x_n\), with at least one nonzero input.</p>
+      <p>These give us the training dataset \(\mathcal{D}=\{(x_i,y_i)\}_{i=1}^{n}\), with \(y_i=x_i\). For our learning problem, we define the objective function as the average squared prediction error, with a factor of \(\tfrac12\) to simplify its derivatives:</p>
+      <div class="tutorial-equation">\[
+        L_{\mathcal{D}}(\theta)
+        =\frac{1}{2n}\sum_{i=1}^{n}\bigl(f_{\theta}(x_i)-y_i\bigr)^2,
+        \qquad\theta=(a,b).
+      \]</div>
+      <p>Here, \(n\) is the number of training examples, and \(f_{\theta}(x)=abx\) is the network’s prediction. The subscript \(\mathcal{D}\) reminds us which dataset we are fitting. Substituting our network and targets gives</p>
+      <div class="tutorial-equation">\[
+        L_{\mathcal{D}}(a,b)
+        =\frac{1}{2n}\sum_{i=1}^{n}(abx_i-x_i)^2
+        =\frac12(ab-1)^2\underbrace{\left(\frac1n\sum_{i=1}^{n}x_i^2\right)}_{\text{constant during training}}.
+      \]</div>
+      <div class="margin-annotated">
+      <p>Without loss of generality, we shall assume \(\frac1n\sum_{i=1}^{n}x_i^2=1\). This factor is a positive constant during training, so absorbing it into the time scale (or the learning rate for discrete updates) changes neither the solutions nor the training trajectory after that rescaling. We therefore use \(L_{\mathcal{D}}(a,b)=\tfrac12(ab-1)^2\) below.</p>
+        <aside class="margin-note"><p><strong>“Without loss of generality” (WLOG)</strong> is a common mathematical phrase meaning “we can choose a simpler case without excluding the others”. It saves us from repeating the same argument for cases that differ only by a change of units or another reversible transformation. Here, the positive input factor can be absorbed into time or the learning rate, so setting it to one keeps the essential problem unchanged.</p></aside>
+      </div>
+      <p>Applying gradient descent to this loss gives the simultaneous updates</p>
+      <div class="tutorial-equation">\[\begin{aligned}a_{k+1} &amp;= a_k - \eta\,b_k(a_kb_k-1),\\ b_{k+1} &amp;= b_k - \eta\,a_k(a_kb_k-1).\end{aligned}\]</div>
+      <p>This problem is simple enough to solve without gradient descent. Since a square is non-negative, the smallest possible loss is zero, attained whenever \(ab=1\). Every pair of weights \((a,b)\) satisfying this equation is therefore a global minimiser of \(L_{\mathcal{D}}\).</p>
+      <p>Despite its simplicity, this model illustrates several results from the neural-network literature and helps us reason through some of the more surprising aspects of how neural networks learn.</p>
+      <div class="margin-annotated">
+        <p>For example, the objective \(L_{\mathcal{D}}\) gives us no reason to prefer \((1,1)\) over \((2,\tfrac12)\), or any other solution on the hyperbola \(ab=1\). When training reaches a zero-loss solution, what determines which one it finds? The preference among equally good solutions induced by the initialisation and the training algorithm (gradient flow in this case) is known as the <strong>implicit bias</strong> of training.</p>
+        <aside class="margin-note"><p>The curve \(ab=1\) forms the network’s <strong>solution manifold</strong>: a continuous set of equally good solutions.</p></aside>
+      </div>
+      <p>To understand this phenomenon of implicit bias, we begin with the following observation.</p>
+      <section aria-labelledby="rescaling-symmetry">
+        <h3 id="rescaling-symmetry">2.1. Key Observation: The network has rescaling symmetry</h3>
+        <p>Consider multiplying one weight by \(\lambda\) and dividing the other by \(\lambda\):</p>
+        <div class="tutorial-equation">\[(a,b)\longmapsto\left(\lambda a,\frac{b}{\lambda}\right),\qquad \lambda&gt;0.\]</div>
+        <div class="margin-annotated">
+          <p>The product \(ab\) does not change, so neither does the network’s output or its loss. In other words, we can increase the magnitude of one layer’s weight and compensate by decreasing the other’s, without changing the function the network computes. This simple symmetry has far-reaching consequences.</p>
+          <aside class="margin-note"><p>If you are a physicist, this should remind you of gauge invariance.</p></aside>
+        </div>
+        <p>In particular, it implies a conservation law. <strong>The difference between the squared weights is conserved</strong>:</p>
+        <div class="tutorial-equation">\[a(t)^2-b(t)^2=a(0)^2-b(0)^2.\]</div>
+        <p>The weights can change, but this measure of their imbalance stays fixed at its initial value.</p>
+<details class="tutorial-solution narrative-calculation">
+<summary>Show why rescaling symmetry gives a conserved quantity</summary>
+<div class="solution-body">
+<p>Differentiating \(L_{\mathcal{D}}(\lambda a,b/\lambda)=L_{\mathcal{D}}(a,b)\) with respect to \(\lambda\) and evaluating at \(\lambda=1\) gives:</p>
+        <div class="margin-annotated partial-differentiation-note">
+          <div class="tutorial-equation">\[\left.\frac{d}{d\lambda}L_{\mathcal{D}}\!\left(\lambda a,\frac{b}{\lambda}\right)\right|_{\lambda=1}=a\frac{\partial L_{\mathcal{D}}}{\partial a}-b\frac{\partial L_{\mathcal{D}}}{\partial b}=0.\]</div>
+          <aside class="margin-note partial-differentiation-aside"><p><strong>Partial differentiation.</strong> When a function depends on several variables, differentiate with respect to one while holding the others fixed. Here, \(\partial L_{\mathcal{D}}/\partial a\) tells us how the loss changes as \(a\) varies, treating \(b\) as a constant.</p></aside>
+          <aside class="margin-note"><p>Physicists often differentiate a continuous symmetry at the identity to expose its infinitesimal constraint—the starting move in many symmetry arguments, including the famous Noether’s theorem.</p></aside>
+        </div>
+        <p>Under gradient flow, \(\dot a=-\partial L_{\mathcal{D}}/\partial a\) and \(\dot b=-\partial L_{\mathcal{D}}/\partial b\), so we get</p>
+        <div class="tutorial-equation">\[\frac{d}{dt}(a^2-b^2)=2a\dot a-2b\dot b=-2\left(a\frac{\partial L_{\mathcal{D}}}{\partial a}-b\frac{\partial L_{\mathcal{D}}}{\partial b}\right)=0.\]</div>
+</div>
+<blockquote class="tutorial-note">
+  <p><strong>Going deeper.</strong> The same argument extends to ReLU networks because \(\operatorname{ReLU}(\lambda z)=\lambda\operatorname{ReLU}(z)\) for \(\lambda&gt;0\). Scaling a hidden unit’s incoming weights (and bias, if present) by \(\lambda\), and its outgoing weights by \(1/\lambda\), leaves the network’s output unchanged. Under ordinary gradient flow without regularisation, the squared norm of the incoming parameters minus the squared norm of the outgoing weights is conserved. <a href="#ref-kunin-2021">Kunin et al. (2021)</a> study these connections between symmetry and conservation laws, and how practical training choices can break them.</p>
+</blockquote>
+</details>
+
+        <p>The conservation law constrains the possible training trajectories. Starting from weights \((a_0,b_0)\), gradient flow stays on the curve</p>
+        <div class="tutorial-equation">\[a^2-b^2=a_0^2-b_0^2=c.\]</div>
+        <p>The only stationary points of \(L_{\mathcal{D}}\) lie on the zero-loss curve \(ab=1\) or at the origin. Combining this fact with the conservation law lets us determine the long-term outcome for each initialisation. The calculations below consider the cases \(c\ne0\) and \(c=0\).</p>
+<details class="tutorial-solution narrative-calculation">
+<summary>Show the stationary points and training outcomes for both cases</summary>
+<div class="solution-body">
+<p>If training starts with \(c=a_0^2-b_0^2\), its trajectory stays on the curve \(a^2-b^2=c\). Gradient flow is stationary wherever the gradient is zero; training generally approaches such a point as \(t\to\infty\). Any stationary endpoint must therefore satisfy</p>
+        <div class="tutorial-equation">\[\begin{aligned}\frac{\partial L_{\mathcal{D}}}{\partial a}&amp;=b(ab-1)=0,\\ \frac{\partial L_{\mathcal{D}}}{\partial b}&amp;=a(ab-1)=0.\end{aligned}\]</div>
+        <p>There are two possibilities. If \(ab-1=0\), both equations hold and the loss is zero. If \(ab-1\ne0\), the first equation forces \(b=0\) and the second forces \(a=0\). Thus the stationary points are</p>
+        <div class="tutorial-equation">\[ab=1\quad\text{with }L_{\mathcal{D}}=0,\qquad\text{or}\qquad (a,b)=(0,0)\quad\text{with }L_{\mathcal{D}}=\tfrac12.\]</div>
+        <p><strong>Case 1: \(c\ne0\).</strong> Conservation excludes the origin, since it has \(a^2-b^2=0\). Training reaches a zero-loss endpoint satisfying \(a_\infty b_\infty=1\) and \(a_\infty^2-b_\infty^2=c\). These determine its squared weights:</p>
+        <div class="tutorial-equation">\[a_\infty^2=\frac{c+\sqrt{c^2+4}}{2},\qquad b_\infty^2=\frac{-c+\sqrt{c^2+4}}{2}.\]</div>
+<p><strong>Calculating the zero-loss endpoint.</strong></p>
+            <p>At zero loss, \(ab=1\), so \(a^2b^2=1\). Write \(u=a^2\); conservation gives \(b^2=u-c\). Substituting,</p>
+            <div class="tutorial-equation">\[u(u-c)=1\quad\Longrightarrow\quad u^2-cu-1=0.\]</div>
+            <p>The quadratic formula gives \(u=(c\pm\sqrt{c^2+4})/2\). Since \(\sqrt{c^2+4}&gt;|c|\), only the positive root can equal a squared weight. Thus</p>
+            <div class="tutorial-equation">\[a_\infty^2=\frac{c+\sqrt{c^2+4}}{2},\qquad b_\infty^2=a_\infty^2-c=\frac{-c+\sqrt{c^2+4}}{2}.\]</div>
+            <p>To check that training reaches this endpoint, use \(p=ab\):</p>
+            <div class="tutorial-equation">\[\dot p=(a^2+b^2)(1-p)=\sqrt{c^2+4p^2}\,(1-p).\]</div>
+            <p>For \(c\ne0\), the square-root factor is strictly positive. Thus \(p\) increases when \(p&lt;1\) and decreases when \(p&gt;1\), converging to \(p=1\).</p>
+
+        <p>If \(a_0&gt;0\) and \(b_0&gt;0\), both final weights take the positive square root:</p>
+        <div class="tutorial-equation">\[a_\infty=\sqrt{\frac{c+\sqrt{c^2+4}}{2}},\qquad b_\infty=\sqrt{\frac{-c+\sqrt{c^2+4}}{2}}.\]</div>
+
+<p><strong>Case 2: \(c=0\).</strong> Here the conserved set splits into two lines:</p>
+        <div class="tutorial-equation">\[a^2-b^2=(a-b)(a+b)=0\quad\Longrightarrow\quad a=b\ \text{or}\ a=-b.\]</div>
+        <p>Gradient flow preserves each line. On \(a=b=s\), the dynamics reduce to</p>
+        <div class="tutorial-equation">\[\dot s=s(1-s^2).\]</div>
+        <p>Every nonzero start approaches \(s=1\) or \(s=-1\), according to its sign, and reaches zero loss. On \(a=-b=s\), however,</p>
+        <div class="tutorial-equation">\[\dot s=-s(1+s^2).\]</div>
+        <p>Since \(1+s^2&gt;0\), this always pushes \(s\) towards zero. Both weights approach the origin, where the loss is \(\tfrac12\). Starting at the origin itself leaves the network there.</p>
+</div>
+</details>
+        <p>Putting everything together, we can draw the diagram below. This is called a <strong>phase portrait</strong>: it shows the training trajectories and their long-term outcomes for our simple learning problem. The picture thus makes the implicit bias visible.</p>
+      </section>
+      <figure class="learning-outcomes-figure">
+        <img src="images/learning-dynamics-phase-portrait.png" alt="Phase portrait of gradient flow for y = abx: trajectories above a = -b reach positive solutions on ab = 1; those below reach negative solutions; trajectories on a = -b flow into the saddle at the origin." width="1640" height="1720" loading="lazy">
+      </figure>
+      <p>Each point in the diagram represents a pair of weights \((a,b)\). By choosing an initialisation and following the arrows, we can see how the gradient flow moves the weights, with each trajectory constrained by \(a^2-b^2=c\). The black curves mark \(ab=1\), where the loss is zero and training is stationary.</p>
+      <p>The colours show which branch training reaches. Initialisations in the blue region, where \(a_0+b_0&gt;0\), converge to positive weights; those in the orange region, where \(a_0+b_0&lt;0\), converge to negative weights. Both branches compute the same function, \(f(x)=x\). The red line \(a=-b\) separates these regions: its arrows lead towards the origin, where learning fails. A start arbitrarily close to this line, but not exactly on it, eventually reaches a zero-loss solution.</p>
+     </section>
+    <section class="row" aria-labelledby="all-models-are-wrong">
+      <h2 id="all-models-are-wrong">3. All models are wrong, but we can make them less wrong</h2>
+      <section aria-labelledby="finite-step-sizes">
+        <h3 id="finite-step-sizes">3.1. How about finite step sizes?</h3>
+        <p>With finite step sizes, the conservation law is broken. Writing the residual as \(r_t=a_tb_t-1\), the same calculation as above gives</p>
+        <div class="tutorial-equation">\[a_{t+1}^2-b_{t+1}^2=\left(1-\eta^2r_t^2\right)(a_t^2-b_t^2).\]</div>
+        <p>To make matters worse, let’s consider the case where the step size is too large.</p>
+        <p>Choose \(\eta=1\) and \(a_0=b_0=2\). Then use pen and paper to compute the first few iterations:</p>
+        <div class="tutorial-equation">\[
+          \qquad 2\longmapsto-4\longmapsto56\longmapsto-175504\longmapsto\cdots.
+        \]</div>
+        <p>We see here that the iterates diverge.</p>
+        <p>Thankfully, for any fixed initialisation, a sufficiently small positive step size ensures that the weights converge. Unless \(a_0=-b_0\), we can even show that they converge to a global minimum. We can also derive rates describing how quickly they approach it. With finite steps, the imbalance is no longer necessarily conserved. However, for a sufficiently small step size, we can replace the conservation equality with an inequality: the magnitude of the imbalance either remains unchanged or decreases.</p>
+        <div class="margin-annotated">
+          <p>These results are striking because the objective is non-convex, yet the algorithm uses a constant learning rate. Many introductory convergence proofs assume convexity, and some also require diminishing step sizes, leaving the setting discussed here outside their scope. Non-convexity makes global guarantees harder to establish, but this example shows that they can still be within reach. A fuller discussion of non-convex optimisation deserves a post of its own.</p>
+          <aside class="margin-note"><p><strong>Convexity.</strong> Think of an upward-opening quadratic such as \(x^2\). Convex functions share its useful property that every local minimum is global, but need not be quadratic. A more useful property of convex functions is that the line segment joining any two points on the graph lies on or above the graph. We shall see more of this in other posts.</p></aside>
+        </div>
+  <details class="tutorial-solution narrative-calculation">
+          <summary>Show the proof of convergence (warning: advanced)</summary>
+          <div class="solution-body">
+            <p><strong>1. Take small enough steps.</strong> Choose</p>
+            <div class="tutorial-equation">\[0&lt;\eta&lt;\frac{1}{4(a_0^2+b_0^2+2)}.\]</div>
+            <p>This keeps the weights bounded and ensures that the residual \(r_t=a_tb_t-1\) never changes sign, with \(|\eta r_t|&lt;\tfrac14\). The algebra establishing these bounds is tucked away below.</p>
+            <p><strong>2. Look at the sum and difference.</strong> Adding and subtracting the two weight updates gives</p>
+            <div class="tutorial-equation">\[
+              \begin{aligned}
+                a_{t+1}+b_{t+1}&amp;=(1-\eta r_t)(a_t+b_t),\\
+                a_{t+1}-b_{t+1}&amp;=(1+\eta r_t)(a_t-b_t).
+              \end{aligned}
+            \]</div>
+            <div class="margin-annotated sequence-convergence-note">
+            <p>Both multiplying factors are positive. Since \(r_t\) never changes sign, one of the two magnitudes grows while the other shrinks (unless already constant). Neither sum nor difference changes sign, and both stay bounded because the weights do. They therefore have limits by the monotone convergence theorem for sequences.</p>
+              <aside class="margin-note"><p><strong>Monotone convergence theorem.</strong> A sequence that only increases and is bounded above must approach a finite limit. Likewise, a decreasing sequence bounded below must converge. It need not reach its limit in a finite number of steps.</p></aside>
+            </div>
+            <p>Each weight is half the sum or difference of these two convergent sequences, so the weights themselves converge. Call their limits \(A\) and \(B\).</p>
+            <p><strong>3. Find where they can end.</strong> Taking limits in the updates gives</p>
+            <div class="tutorial-equation">\[
+              A=A-\eta B(AB-1),\qquad B=B-\eta A(AB-1).
+            \]</div>
+            <p>Thus either \(AB=1\), giving zero loss, or \(A=B=0\). If \(a_0+b_0\ne0\), the origin is ruled out: when \(r_0&lt;0\), the magnitude of the sum never decreases; when \(r_0&gt;0\), the product stays at least one. If \(r_0=0\), we already have zero loss.</p>
+            <p>So training converges to a zero-loss solution unless \(a_0=-b_0\). On that exceptional line, the weights remain opposite, making \(AB=1\) impossible, so they converge to the origin instead.</p>
+          </div>
+        </details>
+         </section>
+    </section>
+    <section class="row" aria-labelledby="please-do-your-homework">
+      <h2 id="please-do-your-homework" data-english="4. Conclusion and also please do your homework" data-singlish="4. Oi remember do homework">4. Conclusion and also please do your homework</h2>
+      <p>In conclusion, studying the training dynamics of our simple toy model has taught us how to identify conservation laws, understand when they break, and uncover the implicit bias of training. These are small, tractable versions of phenomena that also arise in much larger neural networks. Understanding how such behaviour emerges from the interaction between data, model structure, and the optimisation algorithm is what training dynamics is about. I hope this example has sparked your imagination about what a simple model can reveal and given you a feel for how researchers study training dynamics.</p>
+      <aside class="tutorial-release-notice" id="tutorial-release-note" aria-label="A note on the tutorial">
+        <p><strong>A note on the tutorial.</strong> For the benefit of Odysea students, I will release the tutorial publicly only after the programme ends. Some of the material may help students develop ideas for their research projects, so I would like them to have the opportunity to explore it first.</p>
+      </aside>
+      <p>Reading can take us only so far, though. The <a href="#tutorial-release-note">Tutorial</a> invites you to test the ideas by extending the model: add a ReLU nonlinearity, introduce weight decay, add more layers, and explore how label noise interacts with weight decay. Working through these exercises lets you see which conclusions survive, which depend on our assumptions, and what new behaviour emerges, much as a researcher would.</p>
+      <p>If you are still not convinced, consider this. With weight decay, our toy model exhibits a <strong>phase transition</strong>, as seen in the diagram below.</p>
+      <div class="margin-annotated">
+        <figure style="margin: 0;">
+          <img src="additional-resources/figures/step-size-phase-diagram.png" alt="Phase diagram for learning y = x with f(x) = abx. Analytic stability boundaries separate stable learned solutions from the stable zero solution at weight decay gamma = one half. Oscillations and divergence beyond the stability boundaries are observed numerically. The critical line belongs to the zero-output phase." width="1800" height="1206" style="display: block; width: 100%; height: auto;" loading="lazy">
+        </figure>
+        <aside class="margin-note"><p><strong>Critical slowing down.</strong> As \(\gamma\to\tfrac12\), the gradient-flow relaxation timescale diverges. At the critical point, convergence is algebraic rather than exponential. Finite-duration simulations therefore cannot resolve the boundary arbitrarily closely; the sharp boundary here uses the analytic prediction.</p></aside>
+      </div>
+      <p>As the decay strength crosses a critical value, the learned output shrinks to zero and the network stops fitting \(y=x\). The decay strength plays a role rather like temperature in a material: changing one control parameter can change the system’s qualitative behaviour. At greater depth, the transition becomes even more striking. The tutorial leads you through both results. This is a glimpse of how much structure this small model contains. I hope you will find it a useful starting point for your own exploration of training dynamics. Till next time<span class="terminal-cursor" aria-hidden="true"></span></p>
+    </section>
+    <section class="row" aria-labelledby="notes-references">
+      <h2 id="notes-references">References</h2>
+      <p id="ref-biderman-2026" style="padding-left: 1.5em; text-indent: -1.5em;">Biderman, S., Khan, M. A., Mireshghallah, N., Arnett, C., Barez, F., &amp; Saphra, N. (2026). Position: Don’t just “fix it in post”: A science of AI must study training dynamics. In <em>Proceedings of the 43rd International Conference on Machine Learning</em> (Vol. 306, pp. 169526–169542). Proceedings of Machine Learning Research. <a href="https://proceedings.mlr.press/v306/biderman26a.html">https://proceedings.mlr.press/v306/biderman26a.html</a></p>
+      <p id="ref-blanc-2020" style="padding-left: 1.5em; text-indent: -1.5em;">Blanc, G., Gupta, N., Valiant, G., &amp; Valiant, P. (2020). Implicit regularization for deep neural networks driven by an Ornstein-Uhlenbeck like process. In <em>Proceedings of the Thirty Third Conference on Learning Theory</em> (Vol. 125, pp. 483–513). Proceedings of Machine Learning Research. <a href="https://proceedings.mlr.press/v125/blanc20a.html">https://proceedings.mlr.press/v125/blanc20a.html</a></p>
+      <p id="ref-cohen-2021" style="padding-left: 1.5em; text-indent: -1.5em;">Cohen, J. M., Kaur, S., Li, Y., Kolter, J. Z., &amp; Talwalkar, A. (2021). Gradient descent on neural networks typically occurs at the edge of stability. In <em>International Conference on Learning Representations</em>. <a href="https://openreview.net/forum?id=jh-rTtvkGeM">https://openreview.net/forum?id=jh-rTtvkGeM</a></p>
+      <p id="ref-damian-2021" style="padding-left: 1.5em; text-indent: -1.5em;">Damian, A., Ma, T., &amp; Lee, J. D. (2021). Label noise SGD provably prefers flat global minimizers. In <em>Advances in Neural Information Processing Systems, 34</em>. <a href="https://papers.neurips.cc/paper_files/paper/2021/hash/e6af401c28c1790eaef7d55c92ab6ab6-Abstract.html">Conference paper</a>.</p>
+      <p id="ref-kunin-2021" style="padding-left: 1.5em; text-indent: -1.5em;">Kunin, D., Sagastuy-Brena, J., Ganguli, S., Yamins, D. L. K., &amp; Tanaka, H. (2021). Neural mechanics: Symmetry and broken conservation laws in deep learning dynamics. In <em>International Conference on Learning Representations</em>. <a href="https://openreview.net/forum?id=q8qLAbQBupm">https://openreview.net/forum?id=q8qLAbQBupm</a></p>
+      <p id="ref-ren-sutherland-2025" style="padding-left: 1.5em; text-indent: -1.5em;">Ren, Y., &amp; Sutherland, D. J. (2025). Learning dynamics of LLM finetuning. In <em>International Conference on Learning Representations</em>. <a href="https://proceedings.iclr.cc/paper_files/paper/2025/hash/afe1aa79e5eea7955f553c61a307273e-Abstract-Conference.html">Conference paper</a>.</p>
+      <p id="ref-simon-2026" style="padding-left: 1.5em; text-indent: -1.5em;">Simon, J., Kunin, D., Atanasov, A., Boix-Adserà, E., Bordelon, B., Cohen, J., Ghosh, N., Guth, F., Jacot, A., Kamb, M., Karkada, D., Michaud, E. J., Ottlik, B., &amp; Turnbull, J. (2026). <em>There will be a scientific theory of deep learning</em> (arXiv:2604.21691). arXiv. <a href="https://arxiv.org/abs/2604.21691">https://arxiv.org/abs/2604.21691</a></p>
+    </section>
+    </div>
+    <section class="row cite-this-primer" aria-labelledby="cite-this-primer">
+      <h2 id="cite-this-primer">Cite this taster</h2>
+      <p>If this taster is useful in your work, you can cite it with this BibTeX entry.</p>
+      <div class="citation-header"><span>BibTeX</span><button type="button" id="copy-primer-citation" aria-label="Copy BibTeX citation">Copy</button></div>
+      <pre id="primer-bibtex"><code>@misc{ang2026learningdynamics,
+  author = {Ang, James Ming Liang},
+  title = {Training Dynamics},
+  year = {2026},
+  month = oct,
+  note = {<span data-series="science" data-field="citation_label">Science of Deep Learning: Taster Series</span>},
+  url = {https://jamesmldoesml.github.io/blogs/learning-dynamics/}
+}</code></pre>
+    </section>
+
+  </article>
+</div>
+
+<footer class="appendix"><div class="wrap"><div class="row"><div><h3>Navigate</h3><p><a href="../../index.html">Home</a> · <a href="../../research.html">Research</a> · <a href="../../teaching.html">Teaching</a> · <a href="../../about.html">About</a></p><h3>Elsewhere</h3><p><a href="https://scholar.google.com/citations?user=hepV8W8AAAAJ&amp;hl=en">Google Scholar</a> · <a href="https://github.com/MLdoesML">GitHub</a></p></div></div></div></footer>
+<script src="../../assets/site.js"></script>
+</body>
+</html>
